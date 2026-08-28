@@ -20,7 +20,32 @@ def test_exercise_list_has_no_answer_fields(client):
     items = client.get("/exercises").json()
     assert len(items) >= 3
     for it in items:
-        assert set(it) == {"id", "language", "title", "defect_class", "line_count"}
+        assert set(it) == {
+            "id", "language", "title", "defect_class", "line_count",
+            "difficulty", "source",
+        }
+        assert it["difficulty"] in {"beginner", "intermediate", "pro"}
+        assert it["source"] in {"curated", "generated"}
+        assert not any(k in it for k in ("real_lines", "fix_diff", "reference", "code"))
+
+
+def test_exercises_tier_gate_is_cumulative(client):
+    beginner = {e["id"] for e in client.get("/exercises?tier=beginner").json()}
+    inter = {e["id"] for e in client.get("/exercises?tier=intermediate").json()}
+    all_ex = {e["id"] for e in client.get("/exercises").json()}
+    assert beginner < inter <= all_ex
+    assert all(e["difficulty"] == "beginner" for e in client.get("/exercises?tier=beginner").json())
+    assert all(e["difficulty"] in {"beginner", "intermediate"}
+               for e in client.get("/exercises?tier=intermediate").json())
+
+
+def test_exercises_unknown_tier_is_422(client):
+    assert client.get("/exercises?tier=wizard").status_code == 422
+
+
+def test_exercises_source_filter(client):
+    curated = client.get("/exercises?source=curated").json()
+    assert curated and all(e["source"] == "curated" for e in curated)
 
 
 def test_exercise_file_hides_answers(client):
@@ -265,3 +290,127 @@ def test_profile_needs_two_attempts_before_recommending(client):
     d = client.get(f"/profile/{s}").json()
     assert d["total_attempts"] == 1
     assert d["weakest_class"] is None
+
+
+# --- concepts (recommendation engine) --------------------------------
+def test_concepts_list(client):
+    ids = {c["id"] for c in client.get("/concepts").json()}
+    assert ids == {"injection", "auth", "error-handling", "concurrency", "logic", "resource"}
+
+
+def test_concept_detail_shape(client):
+    c = client.get("/concept/injection").json()
+    assert set(c) == {
+        "id", "title", "summary", "example_bad", "example_good",
+        "videos", "practice_exercise_ids",
+    }
+    assert c["videos"] and all(set(v) == {"title", "url"} for v in c["videos"])
+    assert c["practice_exercise_ids"]
+
+
+def test_concept_unknown_is_404(client):
+    assert client.get("/concept/telepathy").status_code == 404
+
+
+# --- session tier -------------------------------------------------
+def test_session_defaults_to_beginner(client):
+    d = client.get("/session/newbie").json()
+    assert d["tier"] == "beginner"
+    assert d["next_tier"] == "intermediate"
+    assert d["promotion_test_available"] is True
+
+
+# --- promotion test --------------------------------------------
+def test_promotion_test_offers_three_next_tier_exercises(client):
+    d = client.get("/promotion-test/pt1").json()
+    assert d["eligible"] is True
+    assert d["from_tier"] == "beginner"
+    assert d["to_tier"] == "intermediate"
+    assert len(d["exercise_ids"]) == 3
+    # all three are intermediate + curated
+    for xid in d["exercise_ids"]:
+        f = client.get(f"/exercises/{xid}").json()
+        assert f["difficulty"] == "intermediate" and f["source"] == "curated"
+
+
+def test_promotion_blocked_until_all_three_attempted(client):
+    s = "pt2"
+    ids = client.get(f"/promotion-test/{s}").json()["exercise_ids"]
+    client.post("/grade", json={"session_id": s, "exercise_id": ids[0], "selected_lines": [2], "explanation": "x"})
+    d = client.post(f"/promotion-test/{s}/evaluate").json()
+    assert d["passed"] is False
+    assert set(d["missing"]) == set(ids[1:])
+    assert client.get(f"/session/{s}").json()["tier"] == "beginner"
+
+
+def test_promotion_passes_and_persists_tier(client):
+    s = "pt3"
+    ids = client.get(f"/promotion-test/{s}").json()["exercise_ids"]
+    # a wide selection [1..5] covers the defect in every small snippet ->
+    # first-attempt localisation is a hit for all three
+    for xid in ids:
+        client.post("/grade", json={
+            "session_id": s, "exercise_id": xid,
+            "selected_lines": [1, 2, 3, 4, 5], "explanation": "covering the defect",
+        })
+    d = client.post(f"/promotion-test/{s}/evaluate").json()
+    assert d["passed"] is True
+    assert d["from_tier"] == "beginner" and d["to_tier"] == "intermediate"
+    assert d["mean_score"] >= d["needed"]
+    assert client.get(f"/session/{s}").json()["tier"] == "intermediate"
+
+
+def test_promotion_fails_when_scores_too_low(client):
+    s = "ptlow"
+    ids = client.get(f"/promotion-test/{s}").json()["exercise_ids"]
+    for xid in ids:  # wildly wrong line -> localisation miss/false_positive
+        client.post("/grade", json={
+            "session_id": s, "exercise_id": xid, "selected_lines": [99], "explanation": "x",
+        })
+    d = client.post(f"/promotion-test/{s}/evaluate").json()
+    assert d["passed"] is False
+    assert client.get(f"/session/{s}").json()["tier"] == "beginner"
+
+
+def test_promotion_test_at_pro_is_ineligible(client):
+    s = "topdog"
+    # force to pro by two promotions
+    for _ in range(2):
+        for xid in client.get(f"/promotion-test/{s}").json()["exercise_ids"]:
+            client.post("/grade", json={
+                "session_id": s, "exercise_id": xid,
+                "selected_lines": [1, 2, 3, 4, 5], "explanation": "x",
+            })
+        client.post(f"/promotion-test/{s}/evaluate")
+    assert client.get(f"/session/{s}").json()["tier"] == "pro"
+    d = client.get(f"/promotion-test/{s}").json()
+    assert d["eligible"] is False
+    assert d["to_tier"] is None
+
+
+# --- exercise reporting -------------------------------------------
+def test_report_hides_exercise_after_three_distinct_sessions(client):
+    xid = "ex-002"
+    for i, sess in enumerate(["a", "b"]):
+        r = client.post(f"/exercises/{xid}/report", json={"session_id": sess, "reason": "bad"}).json()
+        assert r["hidden"] is False
+    r = client.post(f"/exercises/{xid}/report", json={"session_id": "c", "reason": "bad"}).json()
+    assert r["reports"] == 3 and r["hidden"] is True
+    # gone from the listing
+    assert xid not in {e["id"] for e in client.get("/exercises").json()}
+    # still resolvable by id (in-progress attempt)
+    assert client.get(f"/exercises/{xid}").status_code == 200
+    assert client.post("/grade", json={
+        "session_id": "x", "exercise_id": xid, "selected_lines": [5, 6], "explanation": "x",
+    }).status_code == 200
+
+
+def test_report_same_session_thrice_does_not_hide(client):
+    xid = "ex-005"
+    for _ in range(3):
+        r = client.post(f"/exercises/{xid}/report", json={"session_id": "spammer"}).json()
+    assert r["reports"] == 1 and r["hidden"] is False
+
+
+def test_report_unknown_exercise_is_404(client):
+    assert client.post("/exercises/nope/report", json={"session_id": "a"}).status_code == 404

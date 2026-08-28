@@ -38,6 +38,18 @@ half degrades to a reference-based fallback.
 | `app/hints.py` | progressive-hint score decay (1.0 / 0.9 / 0.75 / 0.5) |
 | `app/profile.py` | aggregate a session's attempts → weakest class + next step |
 | `app/progress.py` | attempt timeline + running catch-rate + per-class first-vs-latest |
+| `app/concepts.py` | recommendation engine — `data/concepts.json` (6 defect-class concepts + videos) |
+| `app/tiers.py` | beginner/intermediate/pro, promotion test (3 curated next-tier exercises, mean loc >= 0.7) |
+| `app/reports.py` | exercise reporting — 3 distinct sessions hides an exercise from listings |
+
+## Generating exercises in bulk
+
+    python scripts/generate_exercises.py --count 200
+
+Writes `app/data/exercises.generated.json` (`source: "generated"`, ids
+`ex-gNNNN`). Needs `GEMINI_API_KEY`. Validates each (parses, line numbers in
+range, deduped); resumes from the last id. Generated exercises are never used
+in a promotion test and can be flagged via `POST /exercises/{id}/report`.
 
 ## Adding exercises
 
@@ -47,7 +59,9 @@ fields never leave the server — only `/grade` reads them.
 
 ## Endpoints
 
-`GET /health` · `GET /exercises` · `GET /exercises/{id}` ·
+`GET /health` · `GET /exercises[?tier=&source=]` · `GET /exercises/{id}` ·
 `GET /exercises/{id}/hints/{n}` · `POST /grade` · `POST /ai-review` ·
-`GET /profile/{session_id}` · `GET /progress/{session_id}` — full shapes in
-`../CONTRACT.md`.
+`GET /profile/{session_id}` · `GET /progress/{session_id}` ·
+`GET /concepts` · `GET /concept/{id}` · `GET /session/{id}` ·
+`GET /promotion-test/{id}` · `POST /promotion-test/{id}/evaluate` ·
+`POST /exercises/{id}/report` — full shapes in `../CONTRACT.md`.

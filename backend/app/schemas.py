@@ -4,6 +4,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+Tier = Literal["beginner", "intermediate", "pro"]
+
+
 # --- GET /exercises ----------------------------------------------------------
 class ExerciseSummary(BaseModel):
     id: str
@@ -11,6 +14,8 @@ class ExerciseSummary(BaseModel):
     title: str
     defect_class: str
     line_count: int
+    difficulty: str
+    source: str  # "curated" | "generated"
 
 
 # --- GET /exercises/{id} ---------------------------------------------------
@@ -21,6 +26,8 @@ class ExerciseFile(BaseModel):
     code: str
     line_count: int
     hint_count: int
+    difficulty: str
+    source: str
 
 
 # --- GET /exercises/{id}/hints/{n} --------------------------------------
@@ -156,3 +163,66 @@ class ProgressReport(BaseModel):
     total_attempts: int
     timeline: list[TimelinePoint]
     by_class: list[ClassTrend]
+
+
+# --- concepts (recommendation engine) --------------------------------
+class ConceptVideo(BaseModel):
+    title: str
+    url: str
+
+
+class ConceptSummary(BaseModel):
+    id: str
+    title: str
+
+
+class Concept(BaseModel):
+    id: str
+    title: str
+    summary: str
+    example_bad: str
+    example_good: str
+    videos: list[ConceptVideo]
+    practice_exercise_ids: list[str]
+
+
+# --- GET /session/{id} ----------------------------------------------
+class SessionInfo(BaseModel):
+    session_id: str
+    tier: Tier
+    next_tier: Tier | None            # None when already pro
+    promotion_test_available: bool
+
+
+# --- promotion test ------------------------------------------------
+class PromotionTest(BaseModel):
+    session_id: str
+    eligible: bool
+    from_tier: Tier
+    to_tier: Tier | None
+    exercise_ids: list[str]           # 3 curated exercises from the next tier
+    reason: str
+
+
+class PromotionResult(BaseModel):
+    session_id: str
+    passed: bool
+    from_tier: Tier
+    to_tier: Tier | None
+    tier_after: Tier                  # tier now (== to_tier if passed)
+    scores: list[float]              # first-attempt localisation per test exercise
+    mean_score: float
+    needed: float                    # pass threshold
+    missing: list[str]               # test exercises not yet attempted
+
+
+# --- POST /exercises/{id}/report -----------------------------------
+class ReportRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=64)
+    reason: str = Field(default="", max_length=500)
+
+
+class ReportResponse(BaseModel):
+    exercise_id: str
+    reports: int
+    hidden: bool                      # dropped from listings at >= threshold

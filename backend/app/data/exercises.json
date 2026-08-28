@@ -15,7 +15,9 @@
       "Look at how the `email` argument reaches the database.",
       "The query string is built with an f-string. What if `email` contains a quote?",
       "Line 2 drops user input straight into SQL. That is injection."
-    ]
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
   },
   {
     "id": "ex-004",
@@ -33,7 +35,9 @@
       "Where does `host` end up?",
       "It is handed to a shell. Which characters are special to a shell?",
       "Line 4 runs `host` through the shell unescaped, so `; rm -rf /` would execute."
-    ]
+    ],
+    "difficulty": "pro",
+    "source": "curated"
   },
   {
     "id": "ex-005",
@@ -51,7 +55,9 @@
       "What decides which file is opened?",
       "`filename` is joined to a base path with no checks. What if it is `../../secret`?",
       "Line 2 lets the caller escape the uploads directory."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-006",
@@ -70,7 +76,9 @@
       "Who is allowed to delete a note?",
       "Is `current_user` ever compared to the note?",
       "Nothing checks that the note belongs to the caller before it is deleted."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-007",
@@ -88,7 +96,9 @@
       "What does the query filter on?",
       "Only the invoice id, not the user.",
       "Line 3 returns any invoice by id, including other users' invoices."
-    ]
+    ],
+    "difficulty": "pro",
+    "source": "curated"
   },
   {
     "id": "ex-008",
@@ -106,7 +116,9 @@
       "Read the `if` condition out loud.",
       "`x == \"admin\" or \"editor\"` -- how does Python group that?",
       "`\"editor\"` on its own is always truthy, so line 2 always passes."
-    ]
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
   },
   {
     "id": "ex-002",
@@ -125,7 +137,9 @@
       "What happens when `requests.get` raises?",
       "The `except` catches everything and does nothing with it.",
       "Lines 5-6 swallow the error; the caller just gets None with no signal."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-009",
@@ -143,7 +157,9 @@
       "How does the code know the backup succeeded?",
       "`subprocess.run` here never checks the result.",
       "Line 4 ignores a failed pg_dump, so line 5 uploads a bad file."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-010",
@@ -162,7 +178,9 @@
       "What is `cfg` if the JSON is invalid?",
       "It is set to None, then used on the next line.",
       "Lines 5-6: `cfg` becomes None and `cfg[\"timeout\"]` throws a confusing TypeError."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-011",
@@ -180,7 +198,9 @@
       "Call `append_row(1)` twice with no second argument. What comes back?",
       "The default `[]` is created once, not per call.",
       "Line 1: `rows=[]` is shared across every call that omits the argument."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-012",
@@ -199,7 +219,9 @@
       "Two threads call this at once with a brand new key. What happens?",
       "Both can pass the `not in` check before either assigns.",
       "Lines 2-3 are a check-then-act race, so `factory()` runs twice."
-    ]
+    ],
+    "difficulty": "pro",
+    "source": "curated"
   },
   {
     "id": "ex-013",
@@ -218,7 +240,9 @@
       "What is `i` on the last iteration?",
       "`len(arr) - 1` -- and then the code reads `arr[i + 1]`.",
       "Line 2's range is one too long; line 3 goes out of bounds."
-    ]
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
   },
   {
     "id": "ex-014",
@@ -236,7 +260,9 @@
       "Is an 18-year-old an adult?",
       "`age > 18` says no.",
       "Line 2 should use `>=`."
-    ]
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
   },
   {
     "id": "ex-015",
@@ -254,7 +280,9 @@
       "Who actually gets the discount here?",
       "`if not is_member` applies it to non-members.",
       "Line 2's condition is inverted."
-    ]
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
   },
   {
     "id": "ex-016",
@@ -273,7 +301,9 @@
       "What happens to each `conn` after `ping()`?",
       "It is never closed.",
       "Lines 4-5 leak one connection per host."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-017",
@@ -292,7 +322,9 @@
       "How expensive is `item not in out` when `out` is a list?",
       "O(n) -- and it sits inside an O(n) loop.",
       "Line 4 makes this O(n^2); a set would fix it."
-    ]
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
   },
   {
     "id": "ex-003",
@@ -307,7 +339,9 @@
     "hints": [
       "Is there actually a bug? Check the empty-list case first.",
       "The guard on line 2 handles empty input; the division is safe otherwise. This file is clean."
-    ]
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
   },
   {
     "id": "ex-018",
@@ -322,7 +356,9 @@
     "hints": [
       "Is `op` ever executed as code?",
       "No. It is only a dict key and an error string, and unknown ops are rejected. This file is clean."
-    ]
+    ],
+    "difficulty": "pro",
+    "source": "curated"
   },
   {
     "id": "ex-019",
@@ -337,6 +373,8 @@
     "hints": [
       "Is `name` interpolated into the SQL, or passed separately?",
       "It is a bound parameter in the second argument to `execute`. No injection. This file is clean."
-    ]
+    ],
+    "difficulty": "pro",
+    "source": "curated"
   }
 ]

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "injection",
+    "title": "Injection / Input Validation",
+    "summary": "Untrusted input flows into a query, command, path, or template without being separated from the instruction. A crafted value then changes what the code executes. The fix is almost always to pass the value as data (a bound parameter, an argv list, a safe join) rather than concatenating it into a string.",
+    "example_bad": "q = f\"SELECT * FROM users WHERE email = '{email}'\"\ndb.execute(q)",
+    "example_good": "db.execute(\"SELECT * FROM users WHERE email = ?\", (email,))",
+    "videos": [
+      { "title": "SQL Injection - Computerphile", "url": "https://www.youtube.com/watch?v=ciNHn38EyRc", "verify": true },
+      { "title": "Command Injection explained - PwnFunction", "url": "https://www.youtube.com/watch?v=qsAy8I0V-Eg", "verify": true }
+    ],
+    "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"]
+  },
+  {
+    "id": "auth",
+    "title": "Auth & Access Control",
+    "summary": "The code authenticates a user but never checks that this user is allowed to touch this resource. Any logged-in caller can act on another user's data by changing an id (IDOR), or a role check is written so it always passes. The fix is an explicit ownership or permission check against the current user before the action.",
+    "example_bad": "return db.query(Invoice).filter(Invoice.id == invoice_id).first()",
+    "example_good": "return db.query(Invoice).filter(\n    Invoice.id == invoice_id, Invoice.user_id == user.id\n).first()",
+    "videos": [
+      { "title": "Broken Access Control - OWASP Top 10", "url": "https://www.youtube.com/watch?v=P38at6Tp8Ms", "verify": true },
+      { "title": "IDOR explained - PwnFunction", "url": "https://www.youtube.com/watch?v=rloqMGcPMkI", "verify": true }
+    ],
+    "practice_exercise_ids": ["ex-006", "ex-007", "ex-008"]
+  },
+  {
+    "id": "error-handling",
+    "title": "Error & Exception Handling",
+    "summary": "A failure is swallowed instead of handled. A bare except that does nothing, a return value that is never checked, or an error path that leaves the object half-built. The caller then proceeds on bad data and fails later with a confusing message. The fix is to catch the specific error, act on it, and signal failure clearly.",
+    "example_bad": "try:\n    return requests.get(url)\nexcept Exception:\n    pass",
+    "example_good": "try:\n    return requests.get(url)\nexcept requests.RequestException as e:\n    last_error = e\n    time.sleep(1)\n...\nraise last_error",
+    "videos": [
+      { "title": "Python Exception Handling - Corey Schafer", "url": "https://www.youtube.com/watch?v=NIWwJbo-9_8", "verify": true }
+    ],
+    "practice_exercise_ids": ["ex-002", "ex-009", "ex-010"]
+  },
+  {
+    "id": "concurrency",
+    "title": "Concurrency & State",
+    "summary": "Two things run at once and step on shared state. A check-then-act gap where another thread slips in between, a counter updated without a lock, or a default argument shared across calls. The bug is timing-dependent and hard to reproduce. The fix is to make the read-modify-write atomic, or to not share the state at all.",
+    "example_bad": "if key not in cache:\n    cache[key] = factory()",
+    "example_good": "with lock:\n    if key not in cache:\n        cache[key] = factory()",
+    "videos": [
+      { "title": "Race Conditions - Computerphile", "url": "https://www.youtube.com/watch?v=7ENFeb-J75k", "verify": true },
+      { "title": "Python mutable default arguments - mCoding", "url": "https://www.youtube.com/watch?v=_JGmemuINww", "verify": true }
+    ],
+    "practice_exercise_ids": ["ex-011", "ex-012"]
+  },
+  {
+    "id": "logic",
+    "title": "Logic & Boundary",
+    "summary": "The code runs but computes the wrong thing. An off-by-one in a loop bound, a comparison that should be >= not >, a condition that is inverted, or the wrong branch returned. No crash, just quietly wrong output. The fix is to trace the boundary and edge cases by hand.",
+    "example_bad": "for i in range(len(arr)):\n    if arr[i] == arr[i + 1]:  # IndexError on the last i",
+    "example_good": "for i in range(len(arr) - 1):\n    if arr[i] == arr[i + 1]:",
+    "videos": [
+      { "title": "Off-by-one errors - Computerphile", "url": "https://www.youtube.com/watch?v=Q3G_L37eBmw", "verify": true }
+    ],
+    "practice_exercise_ids": ["ex-013", "ex-014", "ex-015"]
+  },
+  {
+    "id": "resource",
+    "title": "Resource & Performance",
+    "summary": "The code holds a resource it never releases, or does work that grows faster than the input. A connection opened per loop and never closed, a cache that grows forever, or an O(n) membership test inside an O(n) loop. It works on small inputs and falls over on real ones. The fix is a context manager, a bound, or a better data structure.",
+    "example_bad": "for item in items:\n    if item not in out:   # O(n) inside O(n)\n        out.append(item)",
+    "example_good": "seen = set()\nfor item in items:\n    if item not in seen:\n        seen.add(item)\n        out.append(item)",
+    "videos": [
+      { "title": "Big O Notation - CS Dojo", "url": "https://www.youtube.com/watch?v=D6xkbGLQesk", "verify": true },
+      { "title": "Context managers / with statement - Corey Schafer", "url": "https://www.youtube.com/watch?v=-aKFBoZpiqA", "verify": true }
+    ],
+    "practice_exercise_ids": ["ex-016", "ex-017"]
+  }
+]

@@ -21,6 +21,14 @@ Response 200: `{ "ok": true }`
 
 List of exercises, metadata only — no answer data.
 
+Query params (optional):
+- `tier` = `beginner` | `intermediate` | `pro` — **cumulative** gate:
+  `tier=intermediate` returns beginner + intermediate. Unknown value → 422.
+- `source` = `curated` | `generated` — filter to exactly that pool.
+
+Exercises reported by 3+ distinct sessions are omitted (see
+`POST /exercises/{id}/report`).
+
 Response 200:
 
     [
@@ -29,15 +37,20 @@ Response 200:
         "language": "python",
         "title": "User lookup by email",
         "defect_class": "injection",
-        "line_count": 3
+        "line_count": 3,
+        "difficulty": "beginner",
+        "source": "curated"
       }
     ]
+
+- `source`: `curated` (human-reviewed) or `generated` (LLM, unvalidated).
 
 ---
 
 ## GET /exercises/{id}
 
-One exercise's file for review. No answer data.
+One exercise's file for review. No answer data. Resolves even for a
+reported/hidden exercise so an in-progress attempt can finish.
 
 Response 200:
 
@@ -47,10 +60,28 @@ Response 200:
       "filename": "users.py",
       "code": "def get_user(email):\n    ...",
       "line_count": 3,
-      "hint_count": 3
+      "hint_count": 3,
+      "difficulty": "beginner",
+      "source": "curated"
     }
 
 Response 404 if the id is unknown.
+
+---
+
+## POST /exercises/{id}/report
+
+Flag a broken/mislabelled exercise (mainly for the generated pool).
+
+Request: `{ "session_id": "web-8f3a2c", "reason": "the fix is wrong" }`
+
+Response 200:
+
+    { "exercise_id": "ex-g0042", "reports": 3, "hidden": true }
+
+- `reports` counts **distinct sessions**. At 3, `hidden` becomes true and the
+  exercise drops out of `GET /exercises` and practice (still resolvable by id).
+- 404 if the exercise id is unknown.
 
 ---
 
@@ -249,3 +280,98 @@ Response 200:
 - `by_class[].scores` is that class's `localisation_score` per attempt, in
   order. `improved` is `latest > first`.
 - Empty session → `total_attempts: 0`, `timeline: []`, `by_class: []`.
+
+---
+
+## GET /concepts
+
+Recommendation engine — the six defect-class concepts.
+
+Response 200: `[ { "id": "injection", "title": "Injection / Input Validation" }, ... ]`
+
+---
+
+## GET /concept/{id}
+
+One concept: explanation, before/after example, videos, practice pointers.
+`id` is a defect class (`injection`, `auth`, `error-handling`, `concurrency`,
+`logic`, `resource`). The frontend calls this with `weakest_class` from
+`/profile`.
+
+Response 200:
+
+    {
+      "id": "injection",
+      "title": "Injection / Input Validation",
+      "summary": "2-4 sentences on the mechanism and the fix.",
+      "example_bad": "q = f\"... {email} ...\"",
+      "example_good": "db.execute(sql, (email,))",
+      "videos": [ { "title": "SQL Injection - Computerphile", "url": "https://youtube.com/watch?v=..." } ],
+      "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"]
+    }
+
+Response 404 if the concept id is unknown.
+
+---
+
+## GET /session/{session_id}
+
+The session's tier. Auto-creates the session at `beginner` on first call.
+
+Response 200:
+
+    {
+      "session_id": "web-8f3a2c",
+      "tier": "beginner",
+      "next_tier": "intermediate",
+      "promotion_test_available": true
+    }
+
+- `next_tier` is `null` at `pro`. `promotion_test_available` is false at `pro`.
+
+---
+
+## GET /promotion-test/{session_id}
+
+The 3 curated exercises from the next tier up that make up the promotion test.
+
+Response 200:
+
+    {
+      "session_id": "web-8f3a2c",
+      "eligible": true,
+      "from_tier": "beginner",
+      "to_tier": "intermediate",
+      "exercise_ids": ["ex-005", "ex-006", "ex-002"],
+      "reason": "Review these 3 intermediate exercises. First-attempt mean localisation >= 0.7 promotes you."
+    }
+
+- The 3 ids are stable for a given tier. The student reviews each through the
+  normal `POST /grade`. Generated exercises are never used.
+- At `pro`: `eligible: false`, `to_tier: null`.
+
+---
+
+## POST /promotion-test/{session_id}/evaluate
+
+Check the test and promote if passed. Looks at the student's **first** attempt
+at each of the 3 exercises.
+
+Response 200:
+
+    {
+      "session_id": "web-8f3a2c",
+      "passed": true,
+      "from_tier": "beginner",
+      "to_tier": "intermediate",
+      "tier_after": "intermediate",
+      "scores": [1.0, 0.8, 1.0],
+      "mean_score": 0.93,
+      "needed": 0.7,
+      "missing": []
+    }
+
+- `passed` requires all 3 attempted **and** `mean_score >= needed` (0.7).
+- `missing` lists test exercises not yet attempted; while non-empty,
+  `passed` is false and `tier_after` is unchanged.
+- On pass, the session's tier is persisted; `tier_after == to_tier`.
