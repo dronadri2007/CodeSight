@@ -46,10 +46,33 @@ Response 200:
       "language": "python",
       "filename": "users.py",
       "code": "def get_user(email):\n    ...",
-      "line_count": 3
+      "line_count": 3,
+      "hint_count": 3
     }
 
 Response 404 if the id is unknown.
+
+---
+
+## GET /exercises/{id}/hints/{n}
+
+One progressive hint. `n` is **1-based**. Ask for them in order; each one
+lowers the score the student can still earn.
+
+Response 200:
+
+    {
+      "index": 1,
+      "text": "Look at how the email argument reaches the database.",
+      "total": 3,
+      "score_multiplier": 0.9
+    }
+
+- `score_multiplier` — what `score_after_hints` in `/grade` is scaled by if the
+  student stops asking at this hint: 0 hints 1.0, hint 1 → 0.9, hint 2 → 0.75,
+  hint 3+ → 0.5.
+
+Response 404 if the exercise or the hint index is unknown.
 
 ---
 
@@ -63,13 +86,17 @@ Request:
       "session_id": "web-8f3a2c",
       "exercise_id": "ex-001",
       "selected_lines": [2],
-      "explanation": "User input is interpolated straight into the SQL string."
+      "explanation": "User input is interpolated straight into the SQL string.",
+      "hints_used": 0
     }
 
 - `session_id` — any stable string the client generates once and reuses
   (localStorage). Ties attempts together for the weakness profile. No auth.
 - `selected_lines` — 1-indexed. `[]` is allowed (e.g. "this file is clean").
 - `explanation` — max 4000 chars.
+- `hints_used` — 0–10, how many hints the student opened. Scales
+  `score_after_hints` only; the raw scores and the weakness profile are
+  unaffected.
 
 Response 200:
 
@@ -91,8 +118,16 @@ Response 200:
         "pattern": "Any user value concatenated into a query string is an injection risk."
       },
       "defect_class": "injection",
-      "reference_fix": "Use a parameterised query and bind email as a parameter."
+      "reference_fix": "Use a parameterised query and bind email as a parameter.",
+      "hints_used": 0,
+      "hint_multiplier": 1.0,
+      "score_after_hints": 0.9
     }
+
+- `hint_multiplier` — from `hints_used` (1.0 / 0.9 / 0.75 / 0.5).
+- `score_after_hints` — `mean(localisation.score, explanation.score) *
+  hint_multiplier`, rounded to 2dp. A display number; not stored, not used by
+  the profile.
 
 Field rules:
 
@@ -105,6 +140,48 @@ Field rules:
   unavailable the call degrades gracefully: `explanation.score` 0.0,
   `verdict` `weak`, and `teaching` points at the reference.
   - `explanation.verdict`: `strong` | `partial` | `weak`.
+
+Response 404 if `exercise_id` is unknown.
+
+---
+
+## POST /ai-review
+
+Run the model as an independent reviewer of the same file (blind to the
+student's answer), then diff AI findings vs the student's marked lines vs the
+ground-truth fix lines. Not scored — a demo / insight view.
+
+Request:
+
+    {
+      "exercise_id": "ex-001",
+      "selected_lines": [2]
+    }
+
+Response 200:
+
+    {
+      "exercise_id": "ex-001",
+      "ai_available": true,
+      "real_lines": [2],
+      "you_found": [2],
+      "ai_lines": [2, 3],
+      "ai_findings": [
+        { "lines": [2], "issue": "User input interpolated into SQL string.", "severity": "high" }
+      ],
+      "both_found": [2],
+      "you_caught_ai_missed": [],
+      "ai_caught_you_missed": [],
+      "both_missed": [],
+      "headline": "You and the AI agreed on the defect."
+    }
+
+- Lines are matched to `real_lines` with the same ±2 tolerance as `/grade`.
+- `you_caught_ai_missed` is the "celebrate" set — real defect lines the student
+  got and the AI did not.
+- `ai_available: false` (no key / model error) → `ai_findings: []`, `ai_lines:
+  []`, and `headline` says AI review is unavailable.
+- The AI review is cached per exercise (it does not depend on the student).
 
 Response 404 if `exercise_id` is unknown.
 
@@ -130,3 +207,45 @@ Response 200:
 - `by_class` is sorted weakest first. `catch_rate` is the mean localisation
   score (0.0–1.0) for that class.
 - `weakest_class` is `null` until at least one class has 2+ attempts.
+  `clean` is never chosen as the weakest class.
+
+---
+
+## GET /progress/{session_id}
+
+Attempts over time, for a trend line.
+
+Response 200:
+
+    {
+      "session_id": "web-8f3a2c",
+      "total_attempts": 3,
+      "timeline": [
+        {
+          "n": 1,
+          "created_at": "2026-08-28T09:00:00+00:00",
+          "exercise_id": "ex-001",
+          "defect_class": "injection",
+          "localisation_score": 1.0,
+          "explanation_score": 0.8,
+          "cumulative_catch_rate": 1.0
+        }
+      ],
+      "by_class": [
+        {
+          "defect_class": "auth",
+          "attempts": 2,
+          "scores": [0.0, 1.0],
+          "first_catch_rate": 0.0,
+          "latest_catch_rate": 1.0,
+          "improved": true
+        }
+      ]
+    }
+
+- `timeline` is every attempt in chronological order. `cumulative_catch_rate`
+  is the running mean of `localisation_score` up to and including that point —
+  plot it directly as the trend line.
+- `by_class[].scores` is that class's `localisation_score` per attempt, in
+  order. `improved` is `latest > first`.
+- Empty session → `total_attempts: 0`, `timeline: []`, `by_class: []`.

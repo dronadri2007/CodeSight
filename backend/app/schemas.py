@@ -20,6 +20,15 @@ class ExerciseFile(BaseModel):
     filename: str
     code: str
     line_count: int
+    hint_count: int
+
+
+# --- GET /exercises/{id}/hints/{n} --------------------------------------
+class HintResponse(BaseModel):
+    index: int          # 1-based
+    text: str
+    total: int
+    score_multiplier: float  # what the final score is scaled by if you stop here
 
 
 # --- POST /grade -----------------------------------------------------------
@@ -28,6 +37,7 @@ class GradeRequest(BaseModel):
     exercise_id: str
     selected_lines: list[int] = Field(default_factory=list)
     explanation: str = Field(default="", max_length=4000)
+    hints_used: int = Field(default=0, ge=0, le=10)
 
 
 class LocalisationResult(BaseModel):
@@ -55,6 +65,9 @@ class GradeResponse(BaseModel):
     teaching: TeachingResult
     defect_class: str
     reference_fix: str
+    hints_used: int
+    hint_multiplier: float          # 1.0 / 0.9 / 0.75 / 0.5
+    score_after_hints: float        # mean(loc, expl) * multiplier, 0.0-1.0
 
 
 # --- model-facing schema for the grader call -----------------------------
@@ -83,3 +96,63 @@ class WeaknessProfile(BaseModel):
     by_class: list[ClassProgress]
     weakest_class: str | None
     recommendation: str
+
+
+# --- POST /ai-review -------------------------------------------------
+class AiReviewRequest(BaseModel):
+    exercise_id: str
+    selected_lines: list[int] = Field(default_factory=list)
+
+
+class AiFinding(BaseModel):
+    lines: list[int]
+    issue: str
+    severity: Literal["high", "medium", "low"]
+
+
+class AiReviewOutput(BaseModel):
+    """Model-facing: what the AI reviewer returns."""
+
+    findings: list[AiFinding]
+
+
+class AiReviewResponse(BaseModel):
+    exercise_id: str
+    ai_available: bool
+    ai_error: str | None = None
+    real_lines: list[int]
+    you_found: list[int]
+    ai_lines: list[int]
+    ai_findings: list[AiFinding]
+    both_found: list[int]
+    you_caught_ai_missed: list[int]
+    ai_caught_you_missed: list[int]
+    both_missed: list[int]
+    headline: str
+
+
+# --- GET /progress/{session_id} ---------------------------------------
+class TimelinePoint(BaseModel):
+    n: int                       # 1-based attempt number in this session
+    created_at: str              # ISO timestamp
+    exercise_id: str
+    defect_class: str
+    localisation_score: float
+    explanation_score: float
+    cumulative_catch_rate: float  # running mean of localisation_score
+
+
+class ClassTrend(BaseModel):
+    defect_class: str
+    attempts: int
+    scores: list[float]          # localisation_score per attempt, in order
+    first_catch_rate: float
+    latest_catch_rate: float
+    improved: bool
+
+
+class ProgressReport(BaseModel):
+    session_id: str
+    total_attempts: int
+    timeline: list[TimelinePoint]
+    by_class: list[ClassTrend]
