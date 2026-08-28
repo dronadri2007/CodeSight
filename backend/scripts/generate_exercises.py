@@ -34,7 +34,7 @@ DOMAINS = [
     "rate limiting", "a config loader", "an image thumbnailer", "a webhook receiver",
 ]
 
-MODEL = "gemini-3.6-flash"
+MODEL = "gemini-3.5-flash-lite"  # separate free-tier daily quota from the grader
 
 
 class Gen(BaseModel):
