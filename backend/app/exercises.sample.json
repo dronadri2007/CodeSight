@@ -1,0 +1,13 @@
+[
+  {
+    "id": "ex-001",
+    "language": "python",
+    "title": "User lookup by email",
+    "defect_class": "injection",
+    "filename": "users.py",
+    "code": "def get_user(email):\n    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n    return db.execute(q).fetchone()\n",
+    "real_lines": [2],
+    "fix_diff": "-    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n-    return db.execute(q).fetchone()\n+    q = \"SELECT * FROM users WHERE email = ?\"\n+    return db.execute(q, (email,)).fetchone()\n",
+    "reference": "The query is built by interpolating `email` straight into the SQL string, so a crafted value changes the query. Fix: parameterised query."
+  }
+]
