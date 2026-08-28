@@ -37,12 +37,12 @@ def _near_any(line: int, targets: list[int]) -> bool:
     return any(abs(line - t) <= TOLERANCE for t in targets)
 
 
-def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool]:
-    """Returns (findings, ai_available). findings: [{lines, issue, severity}]."""
+def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool, str | None]:
+    """Returns (findings, ai_available, error). findings: [{lines, issue, severity}]."""
     if exercise_id in _cache:
-        return _cache[exercise_id], True
+        return _cache[exercise_id], True, None
     if _client is None:
-        return [], False
+        return [], False, "no api key"
 
     try:
         resp = _client.models.generate_content(
@@ -53,11 +53,12 @@ def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool]:
                 temperature=0.0,
                 response_mime_type="application/json",
                 response_schema=AiReviewOutput,
-                max_output_tokens=900,
+                max_output_tokens=1200,
             ),
         )
         parsed = getattr(resp, "parsed", None)
-        data = parsed.model_dump() if parsed is not None else json.loads(resp.text)
+        raw = resp.text
+        data = parsed.model_dump() if parsed is not None else json.loads(raw)
         findings = [
             {
                 "lines": [int(x) for x in f.get("lines", [])],
@@ -66,12 +67,13 @@ def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool]:
             }
             for f in data.get("findings", [])
         ]
-    except (genai_errors.APIError, json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
-        log.warning("ai review failed for %s: %s", exercise_id, e)
-        return [], False
+    except Exception as e:  # noqa: BLE001 - surface the reason for now
+        reason = f"{type(e).__name__}: {e}"
+        log.warning("ai review failed for %s: %s", exercise_id, reason)
+        return [], False, reason
 
     _cache[exercise_id] = findings
-    return findings, True
+    return findings, True, None
 
 
 def compare(real_lines: list[int], student_lines: list[int], findings: list[dict]) -> dict:

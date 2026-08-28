@@ -168,11 +168,13 @@ def ai_review_endpoint(req: AiReviewRequest):
     """Run the model as an independent reviewer of the same file, then compare
     its findings with the student's marked lines and the ground-truth fix."""
     answer = ex.get_answer(req.exercise_id)
-    findings, available = ai_review.ai_findings(req.exercise_id, answer["code"])
+    findings, available, err = ai_review.ai_findings(req.exercise_id, answer["code"])
     cmp = ai_review.compare(answer["real_lines"], req.selected_lines, findings)
     if not available:
         cmp["headline"] = "AI review is unavailable right now - showing your findings only."
-    return AiReviewResponse(exercise_id=req.exercise_id, ai_available=available, **cmp)
+    return AiReviewResponse(
+        exercise_id=req.exercise_id, ai_available=available, ai_error=err, **cmp
+    )
 
 
 @app.get("/profile/{session_id}", response_model=WeaknessProfile)

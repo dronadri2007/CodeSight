@@ -166,7 +166,7 @@ def test_grade_rejects_too_many_hints(client):
 def test_ai_review_shape_and_unavailable_without_key(client):
     d = client.post("/ai-review", json={"exercise_id": "ex-001", "selected_lines": [2]}).json()
     assert set(d) == {
-        "exercise_id", "ai_available", "real_lines", "you_found", "ai_lines",
+        "exercise_id", "ai_available", "ai_error", "real_lines", "you_found", "ai_lines",
         "ai_findings", "both_found", "you_caught_ai_missed", "ai_caught_you_missed",
         "both_missed", "headline",
     }

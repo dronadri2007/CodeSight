@@ -119,6 +119,7 @@ class AiReviewOutput(BaseModel):
 class AiReviewResponse(BaseModel):
     exercise_id: str
     ai_available: bool
+    ai_error: str | None = None
     real_lines: list[int]
     you_found: list[int]
     ai_lines: list[int]
