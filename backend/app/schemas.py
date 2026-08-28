@@ -98,6 +98,38 @@ class WeaknessProfile(BaseModel):
     recommendation: str
 
 
+# --- POST /ai-review -------------------------------------------------
+class AiReviewRequest(BaseModel):
+    exercise_id: str
+    selected_lines: list[int] = Field(default_factory=list)
+
+
+class AiFinding(BaseModel):
+    lines: list[int]
+    issue: str
+    severity: Literal["high", "medium", "low"]
+
+
+class AiReviewOutput(BaseModel):
+    """Model-facing: what the AI reviewer returns."""
+
+    findings: list[AiFinding]
+
+
+class AiReviewResponse(BaseModel):
+    exercise_id: str
+    ai_available: bool
+    real_lines: list[int]
+    you_found: list[int]
+    ai_lines: list[int]
+    ai_findings: list[AiFinding]
+    both_found: list[int]
+    you_caught_ai_missed: list[int]
+    ai_caught_you_missed: list[int]
+    both_missed: list[int]
+    headline: str
+
+
 # --- GET /progress/{session_id} ---------------------------------------
 class TimelinePoint(BaseModel):
     n: int                       # 1-based attempt number in this session

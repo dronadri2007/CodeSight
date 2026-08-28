@@ -145,6 +145,48 @@ Response 404 if `exercise_id` is unknown.
 
 ---
 
+## POST /ai-review
+
+Run the model as an independent reviewer of the same file (blind to the
+student's answer), then diff AI findings vs the student's marked lines vs the
+ground-truth fix lines. Not scored — a demo / insight view.
+
+Request:
+
+    {
+      "exercise_id": "ex-001",
+      "selected_lines": [2]
+    }
+
+Response 200:
+
+    {
+      "exercise_id": "ex-001",
+      "ai_available": true,
+      "real_lines": [2],
+      "you_found": [2],
+      "ai_lines": [2, 3],
+      "ai_findings": [
+        { "lines": [2], "issue": "User input interpolated into SQL string.", "severity": "high" }
+      ],
+      "both_found": [2],
+      "you_caught_ai_missed": [],
+      "ai_caught_you_missed": [],
+      "both_missed": [],
+      "headline": "You and the AI agreed on the defect."
+    }
+
+- Lines are matched to `real_lines` with the same ±2 tolerance as `/grade`.
+- `you_caught_ai_missed` is the "celebrate" set — real defect lines the student
+  got and the AI did not.
+- `ai_available: false` (no key / model error) → `ai_findings: []`, `ai_lines:
+  []`, and `headline` says AI review is unavailable.
+- The AI review is cached per exercise (it does not depend on the student).
+
+Response 404 if `exercise_id` is unknown.
+
+---
+
 ## GET /profile/{session_id}
 
 The weakness profile for a session.

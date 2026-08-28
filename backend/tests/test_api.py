@@ -162,6 +162,31 @@ def test_grade_rejects_too_many_hints(client):
     assert r.status_code == 422
 
 
+# --- /ai-review -------------------------------------------------
+def test_ai_review_shape_and_unavailable_without_key(client):
+    d = client.post("/ai-review", json={"exercise_id": "ex-001", "selected_lines": [2]}).json()
+    assert set(d) == {
+        "exercise_id", "ai_available", "real_lines", "you_found", "ai_lines",
+        "ai_findings", "both_found", "you_caught_ai_missed", "ai_caught_you_missed",
+        "both_missed", "headline",
+    }
+    assert d["ai_available"] is False
+    assert d["real_lines"] == [2]
+    assert d["you_found"] == [2]
+    assert "unavailable" in d["headline"].lower()
+
+
+def test_ai_review_unknown_exercise_is_404(client):
+    assert client.post("/ai-review", json={"exercise_id": "nope", "selected_lines": [1]}).status_code == 404
+
+
+def test_ai_review_clean_file(client):
+    d = client.post("/ai-review", json={"exercise_id": "ex-003", "selected_lines": []}).json()
+    assert d["real_lines"] == []
+    assert d["you_found"] == []
+    assert d["ai_findings"] == []
+
+
 # --- /progress ----------------------------------------------------
 def test_progress_empty_session(client):
     d = client.get("/progress/none").json()

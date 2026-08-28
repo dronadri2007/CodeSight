@@ -6,6 +6,7 @@ Endpoints (see CONTRACT.md):
   GET  /exercises/{id}
   GET  /exercises/{id}/hints/{n}
   POST /grade
+  POST /ai-review
   GET  /profile/{session_id}
   GET  /progress/{session_id}
 """
@@ -16,6 +17,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from app import ai_review
 from app import exercises as ex
 from app.config import ALLOWED_ORIGINS, DB_IS_SQLITE, GRADER_MODEL
 from app.db import get_db, init_db
@@ -26,6 +28,8 @@ from app.models import Attempt
 from app.profile import build_profile
 from app.progress import build_progress
 from app.schemas import (
+    AiReviewRequest,
+    AiReviewResponse,
     ExerciseFile,
     ExerciseSummary,
     GradeRequest,
@@ -157,6 +161,18 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
         hint_multiplier=mult,
         score_after_hints=score_after_hints,
     )
+
+
+@app.post("/ai-review", response_model=AiReviewResponse)
+def ai_review_endpoint(req: AiReviewRequest):
+    """Run the model as an independent reviewer of the same file, then compare
+    its findings with the student's marked lines and the ground-truth fix."""
+    answer = ex.get_answer(req.exercise_id)
+    findings, available = ai_review.ai_findings(req.exercise_id, answer["code"])
+    cmp = ai_review.compare(answer["real_lines"], req.selected_lines, findings)
+    if not available:
+        cmp["headline"] = "AI review is unavailable right now - showing your findings only."
+    return AiReviewResponse(exercise_id=req.exercise_id, ai_available=available, **cmp)
 
 
 @app.get("/profile/{session_id}", response_model=WeaknessProfile)
