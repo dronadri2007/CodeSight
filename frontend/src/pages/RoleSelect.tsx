@@ -4,6 +4,7 @@ import { GraduationCap, Shield, ArrowRight, Check, Code2, Sparkles } from 'lucid
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
+import { BrandLogo } from '../components/ui/BrandLogo'
 
 export default function RoleSelect() {
   const navigate = useNavigate()
@@ -11,8 +12,8 @@ export default function RoleSelect() {
   return (
     <div className="min-h-screen bg-light-bg flex flex-col justify-center items-center px-6 py-12">
       {/* Brand Header */}
-      <Link to="/" className="mb-10 flex items-center gap-2">
-        <img src="/logo.png" alt="CodeSight" className="h-10 object-contain" />
+      <Link to="/" className="mb-10 flex items-center justify-center">
+        <BrandLogo size="lg" variant="light" />
       </Link>
 
       <div className="w-full max-w-4xl text-center mb-10">

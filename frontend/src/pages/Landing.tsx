@@ -10,6 +10,7 @@ import { Navbar } from '../components/navigation/Navbar'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
+import { BrandLogo } from '../components/ui/BrandLogo'
 import { defectClasses } from '../tokens'
 
 const iconMap = {
@@ -457,11 +458,9 @@ export default function Landing() {
       {/* Final Call To Action */}
       <section className="py-24 px-6 bg-navy-midnight text-white text-center border-t border-navy-border relative overflow-hidden">
         <div className="max-w-4xl mx-auto space-y-6 relative z-10">
-          <img
-            src="/logo.png"
-            alt="CodeSight"
-            className="h-10 mx-auto object-contain brightness-110 mb-4"
-          />
+          <div className="flex justify-center mb-4">
+            <BrandLogo size="lg" variant="dark" />
+          </div>
           <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
             See what your code instincts are really like.
           </h2>
@@ -494,12 +493,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-navy-border bg-navy text-slate py-12 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-xs">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="CodeSight" className="h-6 object-contain" />
-            <span className="text-white font-bold">CodeSight</span>
-            <span>—</span>
-            <span>REVIEW. LEARN. IMPROVE.</span>
-          </div>
+          <BrandLogo size="sm" variant="dark" />
 
           <div className="flex items-center gap-6 text-slate">
             <a href="#platform" className="hover:text-white transition-colors">Platform</a>

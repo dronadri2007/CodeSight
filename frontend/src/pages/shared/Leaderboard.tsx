@@ -42,7 +42,7 @@ export default function Leaderboard() {
   })
 
   return (
-    <div className="min-h-screen bg-navy-midnight text-white flex flex-col">
+    <div className="min-h-screen bg-light-bg text-light-text flex flex-col">
       {/* Top Navbar */}
       <Navbar variant="marketing" />
 
@@ -50,11 +50,11 @@ export default function Leaderboard() {
       <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8 space-y-8">
         {/* Header */}
         <div className="text-center space-y-2 max-w-2xl mx-auto">
-          <Badge variant="navy" size="sm">GLOBAL RANKINGS</Badge>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+          <Badge variant="accent" size="sm">GLOBAL RANKINGS</Badge>
+          <h1 className="text-3xl font-extrabold text-navy tracking-tight">
             Code Review Leaderboard
           </h1>
-          <p className="text-sm text-slate">
+          <p className="text-sm text-light-textSecondary">
             Top engineering practitioners ranked by code review precision and verified bug localization.
           </p>
         </div>
@@ -71,8 +71,8 @@ export default function Leaderboard() {
               onClick={() => setFilter(tab.id as any)}
               className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 filter === tab.id
-                  ? 'bg-aqua text-navy font-bold'
-                  : 'bg-navy-surface border border-navy-border text-slate hover:text-white'
+                  ? 'bg-navy text-white font-bold'
+                  : 'bg-light-card border border-light-border text-light-textSecondary hover:text-navy'
               }`}
             >
               {tab.label}
@@ -83,46 +83,46 @@ export default function Leaderboard() {
         {/* Top 3 Podium */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end pt-4">
           {/* Rank 2 */}
-          <Card dark className="p-6 text-center border-navy-border bg-navy-surface order-2 sm:order-1 space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-navy-midnight border border-navy-border text-slate font-bold text-sm flex items-center justify-center mx-auto">
+          <Card className="p-6 text-center border-light-border bg-light-card order-2 sm:order-1 space-y-3 shadow-card">
+            <div className="w-12 h-12 rounded-xl bg-light-elevated border border-light-border text-light-textSecondary font-bold text-sm flex items-center justify-center mx-auto">
               🥈 2nd
             </div>
             <div>
-              <p className="text-sm font-bold text-white">{filtered[1]?.name || 'Elena'}</p>
-              <p className="text-2xs text-slate">{filtered[1]?.handle}</p>
+              <p className="text-sm font-bold text-navy">{filtered[1]?.name || 'Elena'}</p>
+              <p className="text-2xs text-light-textMuted">{filtered[1]?.handle}</p>
             </div>
-            <div className="text-xl font-mono font-bold text-white">{filtered[1]?.score} pts</div>
+            <div className="text-xl font-mono font-bold text-navy">{filtered[1]?.score} pts</div>
           </Card>
 
           {/* Rank 1 (Tallest) */}
-          <Card dark className="p-8 text-center border-aqua/50 bg-navy-surface order-1 sm:order-2 space-y-3 shadow-aqua-glow sm:-translate-y-2">
-            <div className="w-14 h-14 rounded-2xl bg-aqua/20 border border-aqua/40 text-aqua font-bold text-base flex items-center justify-center mx-auto">
+          <Card className="p-8 text-center border-aqua bg-light-card order-1 sm:order-2 space-y-3 shadow-card-hover sm:-translate-y-2">
+            <div className="w-14 h-14 rounded-2xl bg-aqua-soft border border-aqua/40 text-navy font-bold text-base flex items-center justify-center mx-auto">
               👑 1st
             </div>
             <div>
-              <p className="text-base font-bold text-white">{filtered[0]?.name || 'Afrid Shaik'}</p>
-              <p className="text-2xs text-aqua">{filtered[0]?.handle} (You)</p>
+              <p className="text-base font-bold text-navy">{filtered[0]?.name || 'Afrid Shaik'}</p>
+              <p className="text-2xs text-aqua font-semibold">{filtered[0]?.handle} (You)</p>
             </div>
-            <div className="text-2xl font-mono font-extrabold text-gradient-aqua">{filtered[0]?.score} pts</div>
+            <div className="text-2xl font-mono font-extrabold text-navy">{filtered[0]?.score} pts</div>
             <Badge variant="accent" size="sm">Top Reviewer</Badge>
           </Card>
 
           {/* Rank 3 */}
-          <Card dark className="p-6 text-center border-navy-border bg-navy-surface order-3 sm:order-3 space-y-3">
-            <div className="w-12 h-12 rounded-xl bg-navy-midnight border border-navy-border text-slate font-bold text-sm flex items-center justify-center mx-auto">
+          <Card className="p-6 text-center border-light-border bg-light-card order-3 sm:order-3 space-y-3 shadow-card">
+            <div className="w-12 h-12 rounded-xl bg-light-elevated border border-light-border text-light-textSecondary font-bold text-sm flex items-center justify-center mx-auto">
               🥉 3rd
             </div>
             <div>
-              <p className="text-sm font-bold text-white">{filtered[2]?.name || 'Rahul'}</p>
-              <p className="text-2xs text-slate">{filtered[2]?.handle}</p>
+              <p className="text-sm font-bold text-navy">{filtered[2]?.name || 'Rahul'}</p>
+              <p className="text-2xs text-light-textMuted">{filtered[2]?.handle}</p>
             </div>
-            <div className="text-xl font-mono font-bold text-white">{filtered[2]?.score} pts</div>
+            <div className="text-xl font-mono font-bold text-navy">{filtered[2]?.score} pts</div>
           </Card>
         </div>
 
         {/* Table List */}
-        <div className="rounded-2xl border border-navy-border bg-navy-surface overflow-hidden shadow-xl">
-          <div className="p-4 bg-navy-midnight/80 border-b border-navy-border text-2xs uppercase tracking-wider text-slate font-mono grid grid-cols-12 gap-2">
+        <div className="rounded-2xl border border-light-border bg-light-card overflow-hidden shadow-card">
+          <div className="p-4 bg-light-elevated border-b border-light-border text-2xs uppercase tracking-wider text-light-textMuted font-mono grid grid-cols-12 gap-2">
             <span className="col-span-1">Rank</span>
             <span className="col-span-5">Engineer</span>
             <span className="col-span-2 text-center">Track</span>
@@ -130,39 +130,39 @@ export default function Leaderboard() {
             <span className="col-span-2 text-right">Points</span>
           </div>
 
-          <div className="divide-y divide-navy-border">
+          <div className="divide-y divide-light-border">
             {filtered.map((user) => (
               <div
                 key={user.rank}
                 className={`p-4 grid grid-cols-12 gap-2 items-center text-xs transition-colors ${
-                  user.isCurrentUser ? 'bg-aqua/10 border-l-2 border-aqua' : 'hover:bg-navy-midnight/40'
+                  user.isCurrentUser ? 'bg-aqua-soft/40 border-l-2 border-aqua' : 'hover:bg-light-elevated'
                 }`}
               >
-                <div className="col-span-1 font-mono font-bold text-slate">
+                <div className="col-span-1 font-mono font-bold text-light-textMuted">
                   #{user.rank}
                 </div>
 
                 <div className="col-span-5 flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-navy-midnight border border-navy-border text-aqua font-bold text-2xs flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-light-elevated border border-light-border text-navy font-bold text-xs flex items-center justify-center">
                     {user.avatar}
                   </div>
                   <div>
-                    <span className="font-bold text-white block">{user.name}</span>
-                    <span className="text-2xs text-slate">{user.handle}</span>
+                    <span className="font-bold text-navy block">{user.name}</span>
+                    <span className="text-2xs text-light-textMuted">{user.handle}</span>
                   </div>
                 </div>
 
                 <div className="col-span-2 text-center">
-                  <Badge variant={user.track === 'Professional' ? 'navy' : 'default'} size="sm">
+                  <Badge variant={user.track === 'Professional' ? 'accent' : 'default'} size="sm">
                     {user.track}
                   </Badge>
                 </div>
 
-                <div className="col-span-2 text-center font-mono text-slate">
+                <div className="col-span-2 text-center font-mono text-light-textSecondary">
                   {user.catchRate}%
                 </div>
 
-                <div className="col-span-2 text-right font-mono font-bold text-white">
+                <div className="col-span-2 text-right font-mono font-bold text-navy">
                   {user.score}
                 </div>
               </div>

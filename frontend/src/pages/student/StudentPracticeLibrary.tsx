@@ -26,21 +26,21 @@ export default function StudentPracticeLibrary() {
     : mockStudentExercises.filter((e) => e.defectClassId === selectedClass)
 
   return (
-    <div className="min-h-screen bg-navy-midnight text-white flex flex-col">
+    <div className="min-h-screen bg-light-bg text-light-text flex flex-col">
       {/* Top Navbar */}
       <Navbar variant="student" />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-navy-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-light-border">
           <div>
             <span className="text-xs font-mono font-semibold uppercase tracking-wider text-aqua">
               Student Track · Interactive Coding Drills
             </span>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight mt-1">
+            <h1 className="text-3xl font-extrabold text-navy tracking-tight mt-1">
               Coding Challenges
             </h1>
-            <p className="text-sm text-slate mt-0.5">
+            <p className="text-sm text-light-textSecondary mt-0.5">
               Write functional code. CodeSight tests your implementation and highlights blind spots.
             </p>
           </div>
@@ -54,8 +54,8 @@ export default function StudentPracticeLibrary() {
               onClick={() => setSelectedClass(tab.id)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
                 selectedClass === tab.id
-                  ? 'bg-aqua text-navy font-bold'
-                  : 'bg-navy-surface border border-navy-border text-slate hover:text-white hover:border-navy-borderStrong'
+                  ? 'bg-navy text-white font-bold'
+                  : 'bg-light-card border border-light-border text-light-textSecondary hover:text-navy hover:border-light-borderStrong'
               }`}
             >
               {tab.label}
@@ -73,42 +73,40 @@ export default function StudentPracticeLibrary() {
               transition={{ delay: i * 0.05 }}
             >
               <Card
-                dark
                 hover
                 onClick={() => navigate(`/student/practice/${ex.id}`)}
-                className="p-6 border-navy-border bg-navy-surface flex flex-col justify-between h-full group"
+                className="p-6 border-light-border bg-light-card flex flex-col justify-between h-full group"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-mono text-slate">Challenge 0{ex.number}</span>
+                    <span className="text-xs font-mono text-light-textMuted">Challenge 0{ex.number}</span>
                     <DifficultyBadge difficulty={ex.difficulty} />
                   </div>
 
-                  <h3 className="text-base font-bold text-white group-hover:text-aqua transition-colors mb-2">
+                  <h3 className="text-base font-bold text-navy group-hover:text-aqua transition-colors mb-2">
                     {ex.title}
                   </h3>
-                  <p className="text-xs text-slate line-clamp-2 leading-relaxed mb-4">
+                  <p className="text-xs text-light-textSecondary line-clamp-2 leading-relaxed mb-4">
                     {ex.description}
                   </p>
 
                   <div className="flex items-center gap-2 mb-6">
-                    <Badge variant="navy" size="sm">{ex.language}</Badge>
-                    <Badge variant="default" size="sm" className="bg-navy-midnight text-slate border-navy-border">
+                    <Badge variant="default" size="sm">{ex.language}</Badge>
+                    <Badge variant="muted" size="sm">
                       {ex.defectClass}
                     </Badge>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-navy-border text-xs">
-                  <div className="flex items-center gap-1 text-slate">
+                <div className="flex items-center justify-between pt-4 border-t border-light-border text-xs">
+                  <div className="flex items-center gap-1 text-light-textMuted">
                     <Clock size={12} />
                     <span>~{ex.estimatedMinutes} mins</span>
                   </div>
                   <Button
                     size="sm"
-                    variant="dark"
+                    variant="primary"
                     onClick={() => navigate(`/student/practice/${ex.id}`)}
-                    className="bg-aqua/10 text-aqua hover:bg-aqua/20 border-aqua/30"
                   >
                     Start Coding
                   </Button>

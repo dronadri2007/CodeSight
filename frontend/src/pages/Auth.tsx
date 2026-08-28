@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Eye, ArrowRight, Lock, Mail, User as UserIcon, Code2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
+import { BrandLogo } from '../components/ui/BrandLogo'
 
 export default function Auth() {
   const [searchParams] = useSearchParams()
@@ -24,12 +25,8 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-light-bg flex flex-col justify-center items-center px-6 py-12">
       {/* Brand Logo Header */}
-      <Link to="/" className="mb-8 flex items-center gap-2 group">
-        <img
-          src="/logo.png"
-          alt="CodeSight"
-          className="h-10 object-contain transition-transform group-hover:scale-105"
-        />
+      <Link to="/" className="mb-8 flex items-center justify-center">
+        <BrandLogo size="lg" variant="light" />
       </Link>
 
       <motion.div
