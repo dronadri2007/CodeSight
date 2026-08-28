@@ -22,18 +22,18 @@ export default function RoleSelect() {
   }
 
   return (
-    <div className="min-h-screen bg-light-bg flex flex-col justify-center items-center px-6 py-12">
+    <div className="min-h-screen bg-[#0D1117] text-[#F4F1E8] flex flex-col justify-center items-center px-6 py-12 selection:bg-[#35C6B0]/30 selection:text-[#F4F1E8]">
       {/* Brand Header */}
       <Link to="/" className="mb-10 flex items-center justify-center">
-        <BrandLogo size="lg" variant="light" />
+        <BrandLogo size="lg" variant="dark" />
       </Link>
 
       <div className="w-full max-w-4xl text-center mb-10">
-        <Badge variant="accent" size="sm" className="mb-3">PERSONALIZED ONBOARDING</Badge>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-navy tracking-tight">
+        <Badge variant="navy" size="sm" className="mb-3">PERSONALIZED ONBOARDING</Badge>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F4F1E8] tracking-tight">
           How will you use CodeSight?
         </h1>
-        <p className="text-sm text-light-textSecondary mt-2 max-w-lg mx-auto">
+        <p className="text-sm text-[#AEB7B2] mt-2 max-w-lg mx-auto">
           Choose your primary workflow. You can seamlessly switch modes at any time.
         </p>
       </div>
@@ -48,35 +48,35 @@ export default function RoleSelect() {
           <Card
             hover
             onClick={handleSelectStudent}
-            className="p-8 border-light-border bg-light-card flex-1 flex flex-col justify-between group cursor-pointer"
+            className="p-8 border-[#29333A] bg-[#151C24] text-[#F4F1E8] flex-1 flex flex-col justify-between group cursor-pointer shadow-xl hover:border-[#35C6B0]/50"
           >
             <div>
-              <div className="w-14 h-14 rounded-2xl bg-aqua-soft text-navy flex items-center justify-center mb-6 shadow-sm group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-[#0D1117] border border-[#29333A] text-[#35C6B0] flex items-center justify-center mb-6 shadow-sm group-hover:scale-105 transition-transform">
                 <GraduationCap size={28} />
               </div>
-              <Badge variant="accent" size="sm" className="mb-2">TRACK 01</Badge>
-              <h2 className="text-2xl font-bold text-navy mb-2 group-hover:text-aqua transition-colors">
+              <Badge variant="navy" size="sm" className="mb-2">TRACK 01</Badge>
+              <h2 className="text-2xl font-bold text-[#F4F1E8] mb-2 group-hover:text-[#35C6B0] transition-colors">
                 Student
               </h2>
-              <p className="text-sm font-semibold text-light-text mb-3">
-                Build your coding skills & instincts
+              <p className="text-sm font-semibold text-[#35C6B0] mb-3">
+                Build your coding skills &amp; instincts
               </p>
-              <p className="text-xs text-light-textSecondary leading-relaxed mb-6">
+              <p className="text-xs text-[#AEB7B2] leading-relaxed mb-6">
                 Write code in an interactive Monaco IDE, submit solutions, discover where you struggle (e.g. error handling, logic bounds), and learn the missing patterns.
               </p>
 
-              <div className="space-y-2 mb-8 bg-light-elevated p-3.5 rounded-xl border border-light-border text-2xs text-light-textSecondary">
+              <div className="space-y-2 mb-8 bg-[#0D1117] p-3.5 rounded-xl border border-[#202A31] text-2xs text-[#DDD9CF]">
                 <div className="flex items-center gap-2">
-                  <Check size={12} className="text-success" />
+                  <Check size={12} className="text-[#35B889]" />
                   <span>Monaco interactive coding workspace</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check size={12} className="text-success" />
-                  <span>Automated AI weakness diagnosis</span>
+                  <Check size={12} className="text-[#35B889]" />
+                  <span>Personalized weakness &amp; blind spot analytics</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check size={12} className="text-success" />
-                  <span>Concept modules & micro-checks</span>
+                  <Check size={12} className="text-[#35B889]" />
+                  <span>Vulnerable vs. Safer pattern diffs</span>
                 </div>
               </div>
             </div>
@@ -85,8 +85,9 @@ export default function RoleSelect() {
               fullWidth
               size="lg"
               variant="primary"
-              onClick={() => navigate('/student/dashboard')}
+              onClick={handleSelectStudent}
               iconRight={<ArrowRight size={16} />}
+              className="font-bold shadow-[0_0_20px_rgba(53,198,176,0.25)]"
             >
               Continue as Student
             </Button>
@@ -102,34 +103,34 @@ export default function RoleSelect() {
           <Card
             hover
             onClick={handleSelectPro}
-            className="p-8 border-navy-border bg-navy-surface text-white flex-1 flex flex-col justify-between group cursor-pointer shadow-xl"
+            className="p-8 border-[#29333A] bg-[#151C24] text-[#F4F1E8] flex-1 flex flex-col justify-between group cursor-pointer shadow-xl hover:border-[#35C6B0]/50"
           >
             <div>
-              <div className="w-14 h-14 rounded-2xl bg-navy-midnight border border-navy-border text-aqua-bright flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 rounded-2xl bg-[#0D1117] border border-[#29333A] text-[#58D8C5] flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                 <Shield size={28} />
               </div>
               <Badge variant="navy" size="sm" className="mb-2">TRACK 02</Badge>
-              <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-aqua transition-colors">
+              <h2 className="text-2xl font-bold text-[#F4F1E8] mb-2 group-hover:text-[#35C6B0] transition-colors">
                 AI-Assisted Professional
               </h2>
-              <p className="text-sm font-semibold text-aqua-bright mb-3">
-                Review AI-assisted & unfamiliar code
+              <p className="text-sm font-semibold text-[#58D8C5] mb-3">
+                Review AI-assisted &amp; unfamiliar code
               </p>
-              <p className="text-xs text-slate leading-relaxed mb-6">
-                Receive large real-world codebases (200-500+ lines), spot security & logic vulnerabilities, justify your findings, and benchmark your review judgment against AI.
+              <p className="text-xs text-[#AEB7B2] leading-relaxed mb-6">
+                Receive large real-world codebases (200-500+ lines), spot security &amp; logic vulnerabilities, justify your findings, and benchmark your review judgment against AI.
               </p>
 
-              <div className="space-y-2 mb-8 bg-navy-midnight p-3.5 rounded-xl border border-navy-border text-2xs text-slate">
+              <div className="space-y-2 mb-8 bg-[#0D1117] p-3.5 rounded-xl border border-[#202A31] text-2xs text-[#DDD9CF]">
                 <div className="flex items-center gap-2">
-                  <Check size={12} className="text-aqua" />
-                  <span>Large codebase risk mapping & line tagging</span>
+                  <Check size={12} className="text-[#35C6B0]" />
+                  <span>Large codebase risk mapping &amp; line tagging</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check size={12} className="text-aqua" />
+                  <Check size={12} className="text-[#35C6B0]" />
                   <span>Code X-Ray structural scanning</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check size={12} className="text-aqua" />
+                  <Check size={12} className="text-[#35C6B0]" />
                   <span>AI vs. Human reviewer benchmarking</span>
                 </div>
               </div>
@@ -141,7 +142,7 @@ export default function RoleSelect() {
               variant="dark"
               onClick={handleSelectPro}
               iconRight={<ArrowRight size={16} />}
-              className="bg-aqua text-navy hover:bg-aqua-bright font-bold border-none"
+              className="bg-[#35C6B0] text-[#0D1117] hover:bg-[#58D8C5] font-bold border-none"
             >
               Continue as Professional
             </Button>

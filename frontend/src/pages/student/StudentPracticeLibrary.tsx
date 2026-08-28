@@ -26,21 +26,21 @@ export default function StudentPracticeLibrary() {
     : mockStudentExercises.filter((e) => e.defectClassId === selectedClass)
 
   return (
-    <div className="min-h-screen bg-light-bg text-light-text flex flex-col">
+    <div className="min-h-screen bg-[#0D1117] text-[#F4F1E8] flex flex-col selection:bg-[#35C6B0]/30 selection:text-[#F4F1E8]">
       {/* Top Navbar */}
       <Navbar variant="student" />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-light-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#29333A]">
           <div>
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-aqua">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#35C6B0]">
               Student Track · Interactive Coding Drills
             </span>
-            <h1 className="text-3xl font-extrabold text-navy tracking-tight mt-1">
+            <h1 className="text-3xl font-extrabold text-[#F4F1E8] tracking-tight mt-1">
               Coding Challenges
             </h1>
-            <p className="text-sm text-light-textSecondary mt-0.5">
+            <p className="text-sm text-[#AEB7B2] mt-0.5">
               Write functional code. CodeSight tests your implementation and highlights blind spots.
             </p>
           </div>
@@ -54,8 +54,8 @@ export default function StudentPracticeLibrary() {
               onClick={() => setSelectedClass(tab.id)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
                 selectedClass === tab.id
-                  ? 'bg-navy text-white font-bold'
-                  : 'bg-light-card border border-light-border text-light-textSecondary hover:text-navy hover:border-light-borderStrong'
+                  ? 'bg-[#35C6B0] text-[#0D1117] font-bold shadow-sm'
+                  : 'bg-[#151C24] border border-[#29333A] text-[#AEB7B2] hover:text-[#F4F1E8] hover:border-[#35C6B0]/40'
               }`}
             >
               {tab.label}
@@ -75,31 +75,31 @@ export default function StudentPracticeLibrary() {
               <Card
                 hover
                 onClick={() => navigate(`/student/practice/${ex.id}`)}
-                className="p-6 border-light-border bg-light-card flex flex-col justify-between h-full group"
+                className="p-6 border-[#29333A] bg-[#151C24] text-[#F4F1E8] flex flex-col justify-between h-full group hover:border-[#35C6B0]/50 shadow-xl"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-mono text-light-textMuted">Challenge 0{ex.number}</span>
+                    <span className="text-xs font-mono text-[#AEB7B2]">Challenge 0{ex.number}</span>
                     <DifficultyBadge difficulty={ex.difficulty} />
                   </div>
 
-                  <h3 className="text-base font-bold text-navy group-hover:text-aqua transition-colors mb-2">
+                  <h3 className="text-base font-bold text-[#F4F1E8] group-hover:text-[#35C6B0] transition-colors mb-2">
                     {ex.title}
                   </h3>
-                  <p className="text-xs text-light-textSecondary line-clamp-2 leading-relaxed mb-4">
+                  <p className="text-xs text-[#AEB7B2] line-clamp-2 leading-relaxed mb-4">
                     {ex.description}
                   </p>
 
                   <div className="flex items-center gap-2 mb-6">
-                    <Badge variant="default" size="sm">{ex.language}</Badge>
-                    <Badge variant="muted" size="sm">
+                    <Badge variant="navy" size="sm">{ex.language}</Badge>
+                    <Badge variant="default" size="sm">
                       {ex.defectClass}
                     </Badge>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-light-border text-xs">
-                  <div className="flex items-center gap-1 text-light-textMuted">
+                <div className="flex items-center justify-between pt-4 border-t border-[#29333A] text-xs">
+                  <div className="flex items-center gap-1 text-[#AEB7B2]">
                     <Clock size={12} />
                     <span>~{ex.estimatedMinutes} mins</span>
                   </div>

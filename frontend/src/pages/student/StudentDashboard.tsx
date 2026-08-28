@@ -26,49 +26,49 @@ export default function StudentDashboard() {
   ]
 
   const classRates = [
-    { id: 'logic', name: 'Logic & Boundary', rate: 82, trend: 9, color: '#19B47A' },
-    { id: 'injection', name: 'Injection / Input Validation', rate: 78, trend: 12, color: '#E25D67' },
-    { id: 'resource', name: 'Resource & Performance', rate: 67, trend: 5, color: '#516173' },
-    { id: 'auth', name: 'Auth & Access Control', rate: 61, trend: -4, color: '#E6A23C' },
-    { id: 'concurrency', name: 'Concurrency & State', rate: 55, trend: 8, color: '#38D9E8' },
-    { id: 'error-handling', name: 'Error & Exception Handling', rate: 43, trend: 12, color: '#20C7D9' },
+    { id: 'logic', name: 'Logic & Boundary', rate: 82, trend: 9, color: '#35B889' },
+    { id: 'injection', name: 'Injection / Input Validation', rate: 78, trend: 12, color: '#E0646D' },
+    { id: 'resource', name: 'Resource & Performance', rate: 67, trend: 5, color: '#AEB7B2' },
+    { id: 'auth', name: 'Auth & Access Control', rate: 61, trend: -4, color: '#D9A441' },
+    { id: 'concurrency', name: 'Concurrency & State', rate: 55, trend: 8, color: '#58D8C5' },
+    { id: 'error-handling', name: 'Error & Exception Handling', rate: 43, trend: 12, color: '#35C6B0' },
   ]
 
   return (
-    <div className="min-h-screen bg-light-bg text-light-text flex flex-col">
+    <div className="min-h-screen bg-[#0D1117] text-[#F4F1E8] flex flex-col selection:bg-[#35C6B0]/30 selection:text-[#F4F1E8]">
       {/* Top Navbar */}
       <Navbar variant="student" />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-8">
         {/* Welcome Header & Hero Metric */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-light-border">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#29333A]">
           <div>
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-aqua">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#35C6B0]">
               Student Track · Skill Diagnostics
             </span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-navy">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-[#F4F1E8]">
               Good morning, Afrid.
             </h1>
-            <p className="text-sm text-light-textSecondary mt-1">
+            <p className="text-sm text-[#AEB7B2] mt-1">
               Let's find your next area to improve.
             </p>
           </div>
 
-          <div className="flex items-center gap-6 bg-light-card p-5 rounded-2xl border border-light-border shadow-card">
+          <div className="flex items-center gap-6 bg-[#151C24] p-5 rounded-2xl border border-[#29333A] shadow-xl">
             <div>
-              <span className="text-2xs uppercase tracking-wider text-light-textMuted font-semibold block">
+              <span className="text-2xs uppercase tracking-wider text-[#AEB7B2] font-semibold block">
                 Coding Skill Index
               </span>
-              <div className="text-4xl sm:text-5xl font-extrabold font-mono text-navy">
+              <div className="text-4xl sm:text-5xl font-extrabold font-mono text-[#F4F1E8]">
                 72%
               </div>
             </div>
-            <div className="h-10 w-px bg-light-border" />
-            <div className="space-y-1 text-xs text-light-textSecondary">
-              <p><span className="font-bold text-navy">18</span> challenges solved</p>
-              <p><span className="font-bold text-success">+14%</span> this month</p>
-              <p><span className="font-bold text-warning">4 days</span> practice streak</p>
+            <div className="h-10 w-px bg-[#29333A]" />
+            <div className="space-y-1 text-xs text-[#AEB7B2]">
+              <p><span className="font-bold text-[#F4F1E8]">18</span> challenges solved</p>
+              <p><span className="font-bold text-[#35B889]">+14%</span> this month</p>
+              <p><span className="font-bold text-[#D9A441]">4 days</span> practice streak</p>
             </div>
           </div>
         </div>
@@ -77,17 +77,17 @@ export default function StudentDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-2xl border border-warning/40 bg-warning-subtle/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
+          className="p-6 rounded-2xl border border-[#D9A441]/40 bg-[rgba(217,164,65,0.06)] flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl"
         >
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Badge variant="warning" size="sm" dot>CURRENT WEAKNESS</Badge>
-              <span className="text-xs text-light-textMuted font-mono">Catch rate: 43%</span>
+              <span className="text-xs text-[#AEB7B2] font-mono">Catch rate: 43%</span>
             </div>
-            <h2 className="text-xl font-bold text-navy">
+            <h2 className="text-xl font-bold text-[#F4F1E8]">
               Error &amp; Exception Handling
             </h2>
-            <p className="text-sm text-light-textSecondary max-w-xl leading-relaxed">
+            <p className="text-sm text-[#DDD9CF] max-w-xl leading-relaxed">
               You frequently miss unchecked return values and assume database queries always return populated records.
             </p>
           </div>
@@ -102,7 +102,7 @@ export default function StudentDashboard() {
               Practice This
             </Button>
             <Button
-              variant="secondary"
+              variant="dark"
               size="md"
               onClick={() => navigate('/student/learn/error-handling')}
             >
@@ -116,15 +116,15 @@ export default function StudentDashboard() {
           {/* Left: Skill by Class */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-navy">Coding Skill by Defect Taxonomy</h3>
-              <span className="text-xs text-light-textMuted">Click category to practice</span>
+              <h3 className="text-base font-bold text-[#F4F1E8]">Coding Skill by Defect Taxonomy</h3>
+              <span className="text-xs text-[#AEB7B2]">Click category to practice</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {classRates.map((cls) => (
                 <SkillBar
                   key={cls.id}
-                  dark={false}
+                  dark={true}
                   name={cls.name}
                   value={cls.rate}
                   trend={cls.trend}
@@ -138,16 +138,16 @@ export default function StudentDashboard() {
           {/* Right: Recent Coding Analysis & Recommended */}
           <div className="lg:col-span-5 space-y-6">
             {/* Recommended Challenge */}
-            <Card className="p-5 border-aqua/40 bg-light-card relative overflow-hidden shadow-card">
-              <span className="text-2xs uppercase font-mono tracking-wider text-aqua font-semibold block mb-2">
+            <Card className="p-5 border-[#35C6B0]/40 bg-[#151C24] relative overflow-hidden shadow-xl text-[#F4F1E8]">
+              <span className="text-2xs uppercase font-mono tracking-wider text-[#35C6B0] font-semibold block mb-2">
                 RECOMMENDED PRACTICE
               </span>
-              <h4 className="text-base font-bold text-navy mb-1">{recommendedEx.title}</h4>
-              <p className="text-xs text-light-textSecondary line-clamp-2 mb-4 leading-relaxed">
+              <h4 className="text-base font-bold text-[#F4F1E8] mb-1">{recommendedEx.title}</h4>
+              <p className="text-xs text-[#AEB7B2] line-clamp-2 mb-4 leading-relaxed">
                 {recommendedEx.description}
               </p>
-              <div className="flex items-center justify-between pt-3 border-t border-light-border">
-                <div className="flex items-center gap-1.5 text-xs text-light-textMuted">
+              <div className="flex items-center justify-between pt-3 border-t border-[#29333A]">
+                <div className="flex items-center gap-1.5 text-xs text-[#AEB7B2]">
                   <Clock size={12} />
                   <span>{recommendedEx.estimatedMinutes} mins</span>
                 </div>
@@ -163,10 +163,10 @@ export default function StudentDashboard() {
             </Card>
 
             {/* Recent Submissions */}
-            <Card className="p-5">
+            <Card className="p-5 border-[#29333A] bg-[#151C24] text-[#F4F1E8]">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-bold text-navy">Recent Submissions</h4>
-                <span className="text-2xs text-light-textMuted">Last 5 attempts</span>
+                <h4 className="text-sm font-bold text-[#F4F1E8]">Recent Submissions</h4>
+                <span className="text-2xs text-[#AEB7B2]">Last 5 attempts</span>
               </div>
 
               <div className="space-y-3">
@@ -174,17 +174,17 @@ export default function StudentDashboard() {
                   <div
                     key={i}
                     onClick={() => navigate(`/student/analysis/${sub.id}`)}
-                    className="p-2.5 rounded-xl bg-light-elevated border border-light-border flex items-center justify-between hover:border-light-borderStrong cursor-pointer transition-colors"
+                    className="p-2.5 rounded-xl bg-[#0D1117] border border-[#202A31] flex items-center justify-between hover:border-[#35C6B0]/40 cursor-pointer transition-colors"
                   >
                     <div>
-                      <p className="text-xs font-semibold text-navy">{sub.title}</p>
-                      <span className="text-2xs text-light-textMuted">{sub.class} · {sub.time}</span>
+                      <p className="text-xs font-semibold text-[#F4F1E8]">{sub.title}</p>
+                      <span className="text-2xs text-[#AEB7B2]">{sub.class} · {sub.time}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs font-bold font-mono text-navy block">{sub.score}%</span>
+                      <span className="text-xs font-bold font-mono text-[#F4F1E8] block">{sub.score}%</span>
                       <span className={clsx(
                         'text-2xs font-semibold',
-                        sub.status === 'Strong' ? 'text-success' : sub.status === 'Needs Work' ? 'text-warning' : 'text-slate'
+                        sub.status === 'Strong' ? 'text-[#35B889]' : sub.status === 'Needs Work' ? 'text-[#D9A441]' : 'text-[#AEB7B2]'
                       )}>
                         {sub.status}
                       </span>

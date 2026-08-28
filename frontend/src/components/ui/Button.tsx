@@ -2,7 +2,7 @@ import { forwardRef } from 'react'
 import { clsx } from 'clsx'
 import { Loader2 } from 'lucide-react'
 
-type ButtonVariant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger' | 'success' | 'outline'
+type ButtonVariant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger' | 'success' | 'outline' | 'gold'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,13 +15,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-navy text-white hover:bg-navy-surface active:scale-[0.98] shadow-sm border border-navy/20',
-  secondary: 'bg-light-card border border-light-border text-light-text hover:bg-light-elevated hover:border-light-borderStrong active:scale-[0.98]',
-  dark: 'bg-navy-surface border border-navy-borderStrong text-white hover:bg-navy-elevated hover:border-aqua/50 active:scale-[0.98]',
-  outline: 'bg-transparent border border-navy/20 text-navy hover:bg-navy/5 active:scale-[0.98]',
-  ghost: 'text-light-textSecondary hover:text-navy hover:bg-navy/5 active:scale-[0.98]',
-  danger: 'bg-danger/10 border border-danger/30 text-danger hover:bg-danger/20 active:scale-[0.98]',
-  success: 'bg-success/10 border border-success/30 text-success hover:bg-success/20 active:scale-[0.98]',
+  primary: 'bg-[#35C6B0] text-[#0D1117] font-bold hover:bg-[#58D8C5] shadow-[0_0_20px_rgba(53,198,176,0.25)] active:scale-[0.98] border border-[#35C6B0]/40',
+  secondary: 'bg-[#151C24] border border-[#29333A] text-[#DDD9CF] hover:bg-[#1A232D] hover:text-[#F4F1E8] hover:border-[#35C6B0]/40 active:scale-[0.98]',
+  dark: 'bg-[#151C24] border border-[#29333A] text-[#F4F1E8] hover:bg-[#1A232D] hover:border-[#35C6B0]/50 active:scale-[0.98]',
+  outline: 'bg-transparent border border-[#29333A] text-[#F4F1E8] hover:bg-[#151C24] hover:border-[#35C6B0]/40 active:scale-[0.98]',
+  ghost: 'text-[#AEB7B2] hover:text-[#F4F1E8] hover:bg-[#151C24] active:scale-[0.98]',
+  gold: 'bg-[#D9A441] text-[#0D1117] font-bold hover:bg-[#E8BC5A] shadow-[0_0_20px_rgba(217,164,65,0.25)] active:scale-[0.98] border border-[#D9A441]/40',
+  danger: 'bg-[#E0646D]/10 border border-[#E0646D]/30 text-[#E0646D] hover:bg-[#E0646D]/20 active:scale-[0.98]',
+  success: 'bg-[#35B889]/10 border border-[#35B889]/30 text-[#35B889] hover:bg-[#35B889]/20 active:scale-[0.98]',
 }
 
 const sizeStyles: Record<ButtonSize, string> = {

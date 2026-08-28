@@ -1,44 +1,70 @@
-// CodeSight Design Tokens — Deep Navy & Aqua Identity
-// Inspired by Linear, Vercel, Raycast, and LeetCode
+// CodeSight Design Tokens — Midnight + Ivory + Teal + Warm Gold Identity
 
 export const colors = {
-  // Deep Backgrounds & Navies
-  navy: {
-    DEFAULT: '#0B1726',
-    midnight: '#07111D',
-    surface: '#0F1E31',
-    elevated: '#15253C',
-    subtle: '#1C314E',
-    border: '#1E2C3D',
+  // Midnight & Deep Surface Backgrounds
+  midnight: {
+    DEFAULT: '#0D1117',
+    surface: '#151C24',
+    elevated: '#1A232D',
+    subtle: '#202A31',
   },
-  // Light Backgrounds & Surfaces
-  light: {
-    bg: '#F3F7FA',
-    card: '#FFFFFF',
-    elevated: '#F7FAFC',
-    border: '#DCE4EA',
-    borderStrong: '#CBD5E1',
-    text: '#102033',
-    textSecondary: '#516173',
-    textMuted: '#66758A',
+  // Text Shades (Ivory & Greys)
+  text: {
+    ivory: '#F4F1E8',
+    softIvory: '#DDD9CF',
+    mutedGrey: '#AEB7B2',
   },
-  // Primary Aqua Accents (Brand Identity)
-  aqua: {
-    DEFAULT: '#20C7D9',
-    bright: '#38D9E8',
-    hover: '#19B5C6',
-    soft: '#DDF8FA',
-    subtle: 'rgba(32, 199, 217, 0.12)',
-    border: 'rgba(32, 199, 217, 0.28)',
+  // Main Brand Accent (Teal)
+  teal: {
+    DEFAULT: '#35C6B0',
+    bright: '#58D8C5',
+    soft: '#BFEDE5',
+    subtle: 'rgba(53, 198, 176, 0.12)',
+    border: 'rgba(53, 198, 176, 0.30)',
+  },
+  // Warm Gold (Achievements, milestones, special highlights)
+  gold: {
+    DEFAULT: '#D9A441',
+    highlight: '#E8BC5A',
+    subtle: 'rgba(217, 164, 65, 0.12)',
+    border: 'rgba(217, 164, 65, 0.30)',
+  },
+  // Borders
+  border: {
+    DEFAULT: '#29333A',
+    subtle: '#202A31',
+    strong: '#37454E',
   },
   // Feedback Accents
   feedback: {
-    success: '#19B47A',
-    successSubtle: 'rgba(25, 180, 122, 0.12)',
-    warning: '#E6A23C',
-    warningSubtle: 'rgba(230, 162, 60, 0.12)',
-    danger: '#E25D67',
-    dangerSubtle: 'rgba(226, 93, 103, 0.12)',
+    success: '#35B889',
+    successSubtle: 'rgba(53, 184, 137, 0.12)',
+    warning: '#D9A441',
+    warningSubtle: 'rgba(217, 164, 65, 0.12)',
+    danger: '#E0646D',
+    dangerSubtle: 'rgba(224, 100, 109, 0.12)',
+  },
+  // Backward compatibility alias mappings
+  navy: {
+    DEFAULT: '#0D1117',
+    midnight: '#0D1117',
+    surface: '#151C24',
+    elevated: '#1A232D',
+    subtle: '#202A31',
+    border: '#29333A',
+    borderStrong: '#37454E',
+  },
+  aqua: {
+    DEFAULT: '#35C6B0',
+    bright: '#58D8C5',
+    hover: '#58D8C5',
+    soft: '#BFEDE5',
+    subtle: 'rgba(53, 198, 176, 0.12)',
+    border: 'rgba(53, 198, 176, 0.30)',
+  },
+  slate: {
+    DEFAULT: '#AEB7B2',
+    muted: '#AEB7B2',
   },
 } as const
 
@@ -49,9 +75,9 @@ export const defectClasses = [
     shortLabel: 'Injection',
     description: 'Unsanitized input reaching sensitive operations and query builders',
     icon: 'Shield',
-    color: '#E25D67',
-    bgColor: 'rgba(226, 93, 103, 0.10)',
-    borderColor: 'rgba(226, 93, 103, 0.25)',
+    color: '#E0646D',
+    bgColor: 'rgba(224, 100, 109, 0.10)',
+    borderColor: 'rgba(224, 100, 109, 0.25)',
   },
   {
     id: 'auth',
@@ -59,9 +85,9 @@ export const defectClasses = [
     shortLabel: 'Auth',
     description: 'Timing attacks, token validation flaws, and permission checks',
     icon: 'Lock',
-    color: '#E6A23C',
-    bgColor: 'rgba(230, 162, 60, 0.10)',
-    borderColor: 'rgba(230, 162, 60, 0.25)',
+    color: '#D9A441',
+    bgColor: 'rgba(217, 164, 65, 0.10)',
+    borderColor: 'rgba(217, 164, 65, 0.25)',
   },
   {
     id: 'error-handling',
@@ -69,9 +95,9 @@ export const defectClasses = [
     shortLabel: 'Error Handling',
     description: 'Unchecked return values, swallowed async errors, and nil leaks',
     icon: 'AlertTriangle',
-    color: '#20C7D9',
-    bgColor: 'rgba(32, 199, 217, 0.10)',
-    borderColor: 'rgba(32, 199, 217, 0.25)',
+    color: '#35C6B0',
+    bgColor: 'rgba(53, 198, 176, 0.10)',
+    borderColor: 'rgba(53, 198, 176, 0.25)',
   },
   {
     id: 'concurrency',
@@ -79,9 +105,9 @@ export const defectClasses = [
     shortLabel: 'Concurrency',
     description: 'Race conditions, unsynchronized mutations, and shared mutable state',
     icon: 'Zap',
-    color: '#38D9E8',
-    bgColor: 'rgba(56, 217, 232, 0.10)',
-    borderColor: 'rgba(56, 217, 232, 0.25)',
+    color: '#58D8C5',
+    bgColor: 'rgba(88, 216, 197, 0.10)',
+    borderColor: 'rgba(88, 216, 197, 0.25)',
   },
   {
     id: 'logic',
@@ -89,9 +115,9 @@ export const defectClasses = [
     shortLabel: 'Logic',
     description: 'Off-by-one loops, inverted conditions, and edge-case mishandling',
     icon: 'GitBranch',
-    color: '#19B47A',
-    bgColor: 'rgba(25, 180, 122, 0.10)',
-    borderColor: 'rgba(25, 180, 122, 0.25)',
+    color: '#35B889',
+    bgColor: 'rgba(53, 184, 137, 0.10)',
+    borderColor: 'rgba(53, 184, 137, 0.25)',
   },
   {
     id: 'resource',
@@ -99,9 +125,9 @@ export const defectClasses = [
     shortLabel: 'Resource',
     description: 'Connection pool leaks, unbounded cache growth, and N+1 queries',
     icon: 'Gauge',
-    color: '#516173',
-    bgColor: 'rgba(81, 97, 115, 0.12)',
-    borderColor: 'rgba(81, 97, 115, 0.25)',
+    color: '#AEB7B2',
+    bgColor: 'rgba(174, 183, 178, 0.12)',
+    borderColor: 'rgba(174, 183, 178, 0.25)',
   },
 ] as const
 

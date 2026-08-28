@@ -30,7 +30,7 @@ export function BrandLogo({
       <div
         className={clsx(
           'rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-md',
-          'bg-white border-2 border-aqua/50 shadow-aqua-glow/30',
+          'bg-[#151C24] border-2 border-[#35C6B0]/60 shadow-[0_0_20px_rgba(53,198,176,0.25)]',
           currentSize.circle
         )}
       >
@@ -47,21 +47,19 @@ export function BrandLogo({
           <div className="flex items-center gap-1">
             <span
               className={clsx(
-                'font-extrabold tracking-tight font-sans',
-                currentSize.text,
-                variant === 'dark' ? 'text-white' : variant === 'light' ? 'text-navy' : 'text-navy dark:text-white'
+                'font-extrabold tracking-tight font-sans text-[#F4F1E8]',
+                currentSize.text
               )}
             >
-              Code<span className="text-aqua">Sight</span>
+              Code<span className="text-[#35C6B0]">Sight</span>
             </span>
           </div>
 
           {showTagline && (
             <span
               className={clsx(
-                'font-mono uppercase font-bold tracking-widest mt-1 opacity-80',
-                currentSize.tagline,
-                variant === 'dark' ? 'text-slate' : variant === 'light' ? 'text-light-textMuted' : 'text-slate'
+                'font-mono uppercase font-bold tracking-widest mt-1 text-[#AEB7B2]',
+                currentSize.tagline
               )}
             >
               REVIEW. LEARN. IMPROVE.

@@ -15,22 +15,22 @@ export default function ProDashboard() {
   const primaryEx = mockProExercises[0]
 
   return (
-    <div className="min-h-screen bg-light-bg text-light-text flex flex-col">
+    <div className="min-h-screen bg-[#0D1117] text-[#F4F1E8] flex flex-col selection:bg-[#35C6B0]/30 selection:text-[#F4F1E8]">
       {/* Top Navbar */}
       <Navbar variant="pro" />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-8">
         {/* Header Hero Banner */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-light-border">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#29333A]">
           <div className="space-y-1">
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-aqua">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#35C6B0]">
               Professional Track · AI-Assisted Code Review
             </span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-navy tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-[#F4F1E8] tracking-tight">
               Review with confidence.
             </h1>
-            <p className="text-sm text-light-textSecondary max-w-xl">
+            <p className="text-sm text-[#AEB7B2] max-w-xl">
               AI can write the code. You still need to know whether it is safe.
             </p>
           </div>
@@ -46,7 +46,7 @@ export default function ProDashboard() {
             </Button>
             <Button
               size="lg"
-              variant="secondary"
+              variant="dark"
               onClick={() => navigate('/pro/xray')}
               icon={<Scan size={16} />}
             >
@@ -68,16 +68,16 @@ export default function ProDashboard() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="p-8 border-light-border bg-light-card relative overflow-hidden shadow-card">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-light-border">
+          <Card className="p-8 border-[#29333A] bg-[#151C24] relative overflow-hidden shadow-2xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-[#29333A]">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="accent" size="sm">ACTIVE REVIEW CASE</Badge>
+                  <Badge variant="navy" size="sm">ACTIVE REVIEW CASE</Badge>
                   <Badge variant="warning" size="sm">Auth &amp; Access Control</Badge>
                 </div>
-                <h3 className="text-2xl font-extrabold text-navy">{primaryEx.title}</h3>
-                <p className="text-xs text-light-textMuted font-mono">{primaryEx.repo} · {primaryEx.linesOfCode} lines of code</p>
-                <p className="text-xs text-light-textSecondary max-w-2xl leading-relaxed pt-1">
+                <h3 className="text-2xl font-extrabold text-[#F4F1E8]">{primaryEx.title}</h3>
+                <p className="text-xs text-[#AEB7B2] font-mono">{primaryEx.repo} · {primaryEx.linesOfCode} lines of code</p>
+                <p className="text-xs text-[#DDD9CF] max-w-2xl leading-relaxed pt-1">
                   {primaryEx.architecturalOverview}
                 </p>
               </div>
@@ -93,17 +93,17 @@ export default function ProDashboard() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-xs text-light-textSecondary">
-              <div className="p-3.5 rounded-xl bg-light-elevated border border-light-border">
-                <span className="font-semibold text-navy block mb-1">Risk Profile:</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 text-xs text-[#AEB7B2]">
+              <div className="p-3.5 rounded-xl bg-[#0D1117] border border-[#29333A]">
+                <span className="font-semibold text-[#F4F1E8] block mb-1">Risk Profile:</span>
                 <span>Contains timing attack and unparameterized SQL vulnerabilities.</span>
               </div>
-              <div className="p-3.5 rounded-xl bg-light-elevated border border-light-border">
-                <span className="font-semibold text-navy block mb-1">Review Goal:</span>
+              <div className="p-3.5 rounded-xl bg-[#0D1117] border border-[#29333A]">
+                <span className="font-semibold text-[#F4F1E8] block mb-1">Review Goal:</span>
                 <span>Flag suspect line numbers and provide justification notes.</span>
               </div>
-              <div className="p-3.5 rounded-xl bg-light-elevated border border-light-border">
-                <span className="font-semibold text-navy block mb-1">Evaluator:</span>
+              <div className="p-3.5 rounded-xl bg-[#0D1117] border border-[#29333A]">
+                <span className="font-semibold text-[#F4F1E8] block mb-1">Evaluator:</span>
                 <span>Graded on localization precision, severity, and explanation rigor.</span>
               </div>
             </div>
@@ -115,20 +115,20 @@ export default function ProDashboard() {
           <Card
             hover
             onClick={() => navigate('/pro/xray')}
-            className="p-6 border-light-border bg-light-card flex flex-col justify-between group cursor-pointer"
+            className="p-6 border-[#29333A] bg-[#151C24] flex flex-col justify-between group cursor-pointer shadow-xl hover:border-[#35C6B0]/50"
           >
             <div>
-              <div className="w-10 h-10 rounded-xl bg-aqua-soft text-navy flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#0D1117] border border-[#29333A] text-[#35C6B0] flex items-center justify-center mb-4">
                 <Scan size={20} />
               </div>
-              <h4 className="text-base font-bold text-navy group-hover:text-aqua transition-colors mb-2">
+              <h4 className="text-base font-bold text-[#F4F1E8] group-hover:text-[#35C6B0] transition-colors mb-2">
                 Code X-Ray
               </h4>
-              <p className="text-xs text-light-textSecondary leading-relaxed">
+              <p className="text-xs text-[#AEB7B2] leading-relaxed">
                 Survey the architectural risk landscape across 6 vulnerability archetypes before line inspection.
               </p>
             </div>
-            <div className="pt-4 mt-4 border-t border-light-border flex items-center justify-between text-2xs font-semibold text-navy">
+            <div className="pt-4 mt-4 border-t border-[#29333A] flex items-center justify-between text-2xs font-semibold text-[#35C6B0]">
               <span>Run X-Ray Scan</span>
               <ArrowRight size={12} />
             </div>
@@ -137,20 +137,20 @@ export default function ProDashboard() {
           <Card
             hover
             onClick={() => navigate('/pro/versus')}
-            className="p-6 border-light-border bg-light-card flex flex-col justify-between group cursor-pointer"
+            className="p-6 border-[#29333A] bg-[#151C24] flex flex-col justify-between group cursor-pointer shadow-xl hover:border-[#D9A441]/50"
           >
             <div>
-              <div className="w-10 h-10 rounded-xl bg-warning-subtle text-warning flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#0D1117] border border-[#29333A] text-[#D9A441] flex items-center justify-center mb-4">
                 <Eye size={20} />
               </div>
-              <h4 className="text-base font-bold text-navy group-hover:text-warning transition-colors mb-2">
+              <h4 className="text-base font-bold text-[#F4F1E8] group-hover:text-[#D9A441] transition-colors mb-2">
                 AI Reviewer vs. You
               </h4>
-              <p className="text-xs text-light-textSecondary leading-relaxed">
+              <p className="text-xs text-[#AEB7B2] leading-relaxed">
                 Benchmark your human review instincts side-by-side against automated AI scanner findings.
               </p>
             </div>
-            <div className="pt-4 mt-4 border-t border-light-border flex items-center justify-between text-2xs font-semibold text-navy">
+            <div className="pt-4 mt-4 border-t border-[#29333A] flex items-center justify-between text-2xs font-semibold text-[#D9A441]">
               <span>View Benchmark</span>
               <ArrowRight size={12} />
             </div>
@@ -159,20 +159,20 @@ export default function ProDashboard() {
           <Card
             hover
             onClick={() => navigate('/pro/false-positive')}
-            className="p-6 border-light-border bg-light-card flex flex-col justify-between group cursor-pointer"
+            className="p-6 border-[#29333A] bg-[#151C24] flex flex-col justify-between group cursor-pointer shadow-xl hover:border-[#E0646D]/50"
           >
             <div>
-              <div className="w-10 h-10 rounded-xl bg-danger-subtle text-danger flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#0D1117] border border-[#29333A] text-[#E0646D] flex items-center justify-center mb-4">
                 <Shield size={20} />
               </div>
-              <h4 className="text-base font-bold text-navy group-hover:text-danger transition-colors mb-2">
+              <h4 className="text-base font-bold text-[#F4F1E8] group-hover:text-[#E0646D] transition-colors mb-2">
                 False Positive Trainer
               </h4>
-              <p className="text-xs text-light-textSecondary leading-relaxed">
+              <p className="text-xs text-[#AEB7B2] leading-relaxed">
                 "Don't Over-Review" — Learn to differentiate unfamiliar valid crypto helpers from true security flaws.
               </p>
             </div>
-            <div className="pt-4 mt-4 border-t border-light-border flex items-center justify-between text-2xs font-semibold text-navy">
+            <div className="pt-4 mt-4 border-t border-[#29333A] flex items-center justify-between text-2xs font-semibold text-[#E0646D]">
               <span>Start Challenge</span>
               <ArrowRight size={12} />
             </div>

@@ -17,8 +17,8 @@
   }
 
   body {
-    background-color: #F3F7FA;
-    color: #102033;
+    background-color: #0D1117;
+    color: #F4F1E8;
     font-family: 'Inter', 'Geist', system-ui, sans-serif;
     line-height: 1.6;
     min-height: 100vh;
@@ -32,46 +32,48 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: #0D1117;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #CBD5E1;
+    background: #29333A;
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #94A3B8;
+    background: #35C6B0;
   }
 
   ::selection {
-    background: rgba(32, 199, 217, 0.25);
-    color: #0B1726;
+    background: rgba(53, 198, 176, 0.25);
+    color: #F4F1E8;
   }
 }
 
 @layer utilities {
-  .text-gradient-aqua {
-    background: linear-gradient(135deg, #20C7D9 0%, #38D9E8 100%);
+  .text-gradient-teal {
+    background: linear-gradient(135deg, #35C6B0 0%, #58D8C5 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .text-gradient-navy {
-    background: linear-gradient(135deg, #0B1726 0%, #1E3A5F 100%);
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #D9A441 0%, #E8BC5A 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .bg-grid-pattern {
-    background-image: radial-gradient(rgba(81, 97, 115, 0.12) 1px, transparent 1px);
-    background-size: 24px 24px;
+  .text-gradient-ivory {
+    background: linear-gradient(135deg, #F4F1E8 0%, #DDD9CF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .bg-grid-dark {
-    background-image: radial-gradient(rgba(32, 199, 217, 0.08) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(53, 198, 176, 0.08) 1px, transparent 1px);
     background-size: 20px 20px;
   }
 
@@ -89,24 +91,24 @@
 .monaco-editor,
 .monaco-editor-background,
 .monaco-editor .margin {
-  background-color: #07111D !important;
+  background-color: #0D1117 !important;
 }
 
 .monaco-editor .line-numbers {
-  color: #516173 !important;
+  color: #AEB7B2 !important;
 }
 
 .monaco-editor .current-line {
-  background-color: rgba(32, 199, 217, 0.04) !important;
+  background-color: rgba(53, 198, 176, 0.04) !important;
   border: none !important;
 }
 
 .selected-line-decoration {
-  background: rgba(32, 199, 217, 0.14) !important;
-  border-left: 3px solid #20C7D9 !important;
+  background: rgba(53, 198, 176, 0.14) !important;
+  border-left: 3px solid #35C6B0 !important;
 }
 
 .flagged-line-decoration {
-  background: rgba(226, 93, 103, 0.14) !important;
-  border-left: 3px solid #E25D67 !important;
+  background: rgba(224, 100, 109, 0.14) !important;
+  border-left: 3px solid #E0646D !important;
 }
