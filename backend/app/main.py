@@ -1,60 +1,60 @@
-"""CodeSight API — Day 1 stub.
+"""CodeSight API.
 
-Every endpoint returns data in the shape defined in CONTRACT.md so the
-frontend can build against it immediately. Day 2: replace the /grade stub
-with the real Claude call in app/grader.py, and the in-memory exercise
-data with the curated store.
+Endpoints (see CONTRACT.md):
+  GET  /health
+  GET  /exercises
+  GET  /exercises/{id}
+  POST /grade
+  GET  /profile/{session_id}
 """
-import os
+import logging
+from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-load_dotenv()
+from app import exercises as ex
+from app.config import ALLOWED_ORIGINS, DB_IS_SQLITE, GRADER_MODEL
+from app.db import get_db, init_db
+from app.grader import grade_explanation
+from app.localisation import score_localisation
+from app.models import Attempt
+from app.profile import build_profile
+from app.schemas import (
+    ExerciseFile,
+    ExerciseSummary,
+    GradeRequest,
+    GradeResponse,
+    WeaknessProfile,
+)
 
-app = FastAPI(title="CodeSight API")
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("codesight")
 
-_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
+# Create tables at import time so any ASGI runner (and TestClient without a
+# lifespan context) has them. create_all is idempotent.
+init_db()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    if DB_IS_SQLITE:
+        log.warning("DATABASE_URL unset — using local SQLite file (dev only).")
+    log.info("grader model: %s", GRADER_MODEL)
+    yield
+
+
+app = FastAPI(title="CodeSight API", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _origins if o.strip()],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# --- stub exercise data -------------------------------------------------------
-# Day 2: replace with the curated exercise store (15-20 real bug-fix commits).
-_EXERCISES = [
-    {
-        "id": "ex-001",
-        "language": "python",
-        "title": "User lookup by email",
-        "defect_class": "injection",
-        "line_count": 3,
-    },
-]
-
-_FILES = {
-    "ex-001": {
-        "id": "ex-001",
-        "language": "python",
-        "filename": "users.py",
-        "code": (
-            "def get_user(email):\n"
-            "    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n"
-            "    return db.execute(q).fetchone()\n"
-        ),
-        "line_count": 3,
-    },
-}
-
-
-class GradeRequest(BaseModel):
-    exercise_id: str
-    selected_lines: list[int]
-    explanation: str
 
 
 @app.get("/health")
@@ -62,40 +62,64 @@ def health():
     return {"ok": True}
 
 
-@app.get("/exercises")
+@app.get("/exercises", response_model=list[ExerciseSummary])
 def list_exercises():
-    return _EXERCISES
+    return ex.list_summaries()
 
 
-@app.get("/exercises/{exercise_id}")
+@app.get("/exercises/{exercise_id}", response_model=ExerciseFile)
 def get_exercise(exercise_id: str):
-    f = _FILES.get(exercise_id)
-    if f is None:
-        raise HTTPException(status_code=404, detail="unknown exercise")
-    return f
+    return ex.get_file(exercise_id)
 
 
-@app.post("/grade")
-def grade(req: GradeRequest):
-    # STUB — fixed response in the CONTRACT.md shape.
-    # Day 2: from app.grader import grade_review; call it here.
-    return {
-        "localisation": {
-            "score": 1.0,
-            "verdict": "hit",
-            "real_lines": [2],
-            "note": "stub response — not really graded yet",
+@app.post("/grade", response_model=GradeResponse)
+def grade(req: GradeRequest, db: Session = Depends(get_db)):
+    answer = ex.get_answer(req.exercise_id)
+
+    loc = score_localisation(req.selected_lines, answer["real_lines"])
+
+    expl = grade_explanation(
+        exercise_id=req.exercise_id,
+        code=answer["code"],
+        fix_diff=answer["fix_diff"],
+        reference=answer["reference"],
+        selected_lines=req.selected_lines,
+        explanation=req.explanation,
+        localisation_verdict=loc["verdict"],
+    )
+
+    db.add(
+        Attempt(
+            session_id=req.session_id,
+            exercise_id=req.exercise_id,
+            defect_class=answer["defect_class"],
+            selected_lines=req.selected_lines,
+            explanation=req.explanation,
+            localisation_score=loc["score"],
+            localisation_verdict=loc["verdict"],
+            explanation_score=expl["explanation_score"],
+            explanation_verdict=expl["explanation_verdict"],
+        )
+    )
+    db.commit()
+
+    return GradeResponse(
+        localisation=loc,
+        explanation={
+            "score": expl["explanation_score"],
+            "verdict": expl["explanation_verdict"],
+            "note": expl["explanation_note"],
         },
-        "explanation": {
-            "score": 0.8,
-            "verdict": "strong",
-            "note": "stub response",
+        teaching={
+            "where": expl["teaching_where"],
+            "why_missed": expl["teaching_why_missed"],
+            "pattern": expl["teaching_pattern"],
         },
-        "teaching": {
-            "where": "Line 2 builds the query with f-string interpolation of email.",
-            "why_missed": "stub",
-            "pattern": "User input concatenated into a query string is an injection risk.",
-        },
-        "defect_class": "injection",
-        "reference_fix": "Use a parameterised query: db.execute(sql, (email,))",
-    }
+        defect_class=answer["defect_class"],
+        reference_fix=answer["reference"],
+    )
+
+
+@app.get("/profile/{session_id}", response_model=WeaknessProfile)
+def profile(session_id: str, db: Session = Depends(get_db)):
+    return build_profile(db, session_id)
