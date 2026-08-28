@@ -19,7 +19,12 @@ from sqlalchemy.orm import Session
 
 from app import ai_review
 from app import exercises as ex
-from app.config import ALLOWED_ORIGINS, DB_IS_SQLITE, GRADER_MODEL
+from app.config import (
+    ALLOWED_ORIGIN_REGEX,
+    ALLOWED_ORIGINS,
+    DB_IS_SQLITE,
+    GRADER_MODEL,
+)
 from app.db import get_db, init_db
 from app.grader import diagnostics, grade_explanation
 from app.hints import score_multiplier
@@ -62,6 +67,7 @@ app = FastAPI(title="CodeSight API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX or None,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -84,6 +90,7 @@ def debug(probe: bool = False):
     return {
         "db": "sqlite" if DB_IS_SQLITE else "postgres",
         "allowed_origins": ALLOWED_ORIGINS,
+        "allowed_origin_regex": ALLOWED_ORIGIN_REGEX,
         "grader": diagnostics(run_probe=probe),
     }
 
