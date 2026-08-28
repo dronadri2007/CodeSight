@@ -57,6 +57,11 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root():
+    return {"service": "codesight-api", "docs": "/docs", "health": "/health"}
+
+
 @app.get("/health")
 def health():
     return {"ok": True}
