@@ -10,9 +10,18 @@ GRADER_MODEL: str = os.getenv("GRADER_MODEL", "gemini-3.6-flash")
 
 ALLOWED_ORIGINS: list[str] = [
     o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    for o in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000"
+    ).split(",")
     if o.strip()
 ]
+
+# Any Vercel deploy (production + previews) plus localhost on any port, without
+# needing the exact URL. Override with ALLOWED_ORIGIN_REGEX; set to "" to disable.
+ALLOWED_ORIGIN_REGEX: str = os.getenv(
+    "ALLOWED_ORIGIN_REGEX",
+    r"https://[a-z0-9-]+\.vercel\.app|http://localhost:\d+",
+)
 
 # Postgres in prod; local SQLite file if DATABASE_URL is unset.
 _raw_db_url = os.getenv("DATABASE_URL", "").strip()

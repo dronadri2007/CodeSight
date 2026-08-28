@@ -8,7 +8,8 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-from app.schemas import ExerciseFile, ExerciseSummary
+from app.hints import score_multiplier
+from app.schemas import ExerciseFile, ExerciseSummary, HintResponse
 
 _DATA = Path(__file__).parent / "data" / "exercises.json"
 
@@ -49,6 +50,23 @@ def get_file(exercise_id: str) -> ExerciseFile:
         filename=r["filename"],
         code=r["code"],
         line_count=_line_count(r["code"]),
+        hint_count=len(r.get("hints", [])),
+    )
+
+
+def get_hint(exercise_id: str, index: int) -> HintResponse:
+    """index is 1-based. 404 for an unknown exercise or an out-of-range hint."""
+    r = _EXERCISES.get(exercise_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="unknown exercise")
+    hints = r.get("hints", [])
+    if index < 1 or index > len(hints):
+        raise HTTPException(status_code=404, detail="no such hint")
+    return HintResponse(
+        index=index,
+        text=hints[index - 1],
+        total=len(hints),
+        score_multiplier=score_multiplier(index),
     )
 
 

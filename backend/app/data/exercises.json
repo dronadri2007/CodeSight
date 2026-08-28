@@ -10,7 +10,12 @@
       2
     ],
     "fix_diff": "-    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n+    q = \"SELECT * FROM users WHERE email = ?\"\n-    return db.execute(q).fetchone()\n+    return db.execute(q, (email,)).fetchone()\n",
-    "reference": "The query is built by interpolating email straight into the SQL string, so a crafted value changes the query (SQL injection). Fix: use a parameterised query and pass email as a bound parameter."
+    "reference": "The query is built by interpolating email straight into the SQL string, so a crafted value changes the query (SQL injection). Fix: use a parameterised query and pass email as a bound parameter.",
+    "hints": [
+      "Look at how the `email` argument reaches the database.",
+      "The query string is built with an f-string. What if `email` contains a quote?",
+      "Line 2 drops user input straight into SQL. That is injection."
+    ]
   },
   {
     "id": "ex-004",
@@ -23,7 +28,12 @@
       4
     ],
     "fix_diff": "-    os.system(f\"ping -c 1 {host}\")\n+    subprocess.run([\"ping\", \"-c\", \"1\", host], check=True)\n",
-    "reference": "host is interpolated into a shell command string, so a value like '8.8.8.8; rm -rf /' runs as a second shell command. Fix: pass an argument list to subprocess.run and do not use the shell."
+    "reference": "host is interpolated into a shell command string, so a value like '8.8.8.8; rm -rf /' runs as a second shell command. Fix: pass an argument list to subprocess.run and do not use the shell.",
+    "hints": [
+      "Where does `host` end up?",
+      "It is handed to a shell. Which characters are special to a shell?",
+      "Line 4 runs `host` through the shell unescaped, so `; rm -rf /` would execute."
+    ]
   },
   {
     "id": "ex-005",
@@ -36,7 +46,12 @@
       2
     ],
     "fix_diff": "-    path = \"uploads/\" + filename\n+    safe = os.path.basename(filename)\n+    path = os.path.join(\"uploads\", safe)\n",
-    "reference": "filename is concatenated onto the base directory with no sanitisation, so '../../etc/passwd' escapes the uploads folder (path traversal). Fix: strip the directory part with os.path.basename before joining."
+    "reference": "filename is concatenated onto the base directory with no sanitisation, so '../../etc/passwd' escapes the uploads folder (path traversal). Fix: strip the directory part with os.path.basename before joining.",
+    "hints": [
+      "What decides which file is opened?",
+      "`filename` is joined to a base path with no checks. What if it is `../../secret`?",
+      "Line 2 lets the caller escape the uploads directory."
+    ]
   },
   {
     "id": "ex-006",
@@ -50,7 +65,12 @@
       3
     ],
     "fix_diff": "     note = Note.get(note_id)\n+    if note.owner_id != current_user.id:\n+        raise PermissionError(\"not your note\")\n     note.delete()\n",
-    "reference": "Any authenticated user can delete any note by id - nothing checks that the note belongs to current_user (broken access control). Fix: compare note.owner_id to the caller and reject otherwise."
+    "reference": "Any authenticated user can delete any note by id - nothing checks that the note belongs to current_user (broken access control). Fix: compare note.owner_id to the caller and reject otherwise.",
+    "hints": [
+      "Who is allowed to delete a note?",
+      "Is `current_user` ever compared to the note?",
+      "Nothing checks that the note belongs to the caller before it is deleted."
+    ]
   },
   {
     "id": "ex-007",
@@ -63,7 +83,12 @@
       3
     ],
     "fix_diff": "-    return db.query(Invoice).filter(Invoice.id == invoice_id).first()\n+    return db.query(Invoice).filter(\n+        Invoice.id == invoice_id, Invoice.user_id == user.id\n+    ).first()\n",
-    "reference": "The query filters only by invoice id, so passing any id returns another user's invoice (IDOR). Fix: also filter by Invoice.user_id == user.id."
+    "reference": "The query filters only by invoice id, so passing any id returns another user's invoice (IDOR). Fix: also filter by Invoice.user_id == user.id.",
+    "hints": [
+      "What does the query filter on?",
+      "Only the invoice id, not the user.",
+      "Line 3 returns any invoice by id, including other users' invoices."
+    ]
   },
   {
     "id": "ex-008",
@@ -76,7 +101,12 @@
       2
     ],
     "fix_diff": "-    if user.role == \"admin\" or \"editor\":\n+    if user.role in (\"admin\", \"editor\"):\n",
-    "reference": "user.role == \"admin\" or \"editor\" parses as (user.role == \"admin\") or (\"editor\"), and the non-empty string \"editor\" is always truthy - so every user passes. Fix: user.role in (\"admin\", \"editor\")."
+    "reference": "user.role == \"admin\" or \"editor\" parses as (user.role == \"admin\") or (\"editor\"), and the non-empty string \"editor\" is always truthy - so every user passes. Fix: user.role in (\"admin\", \"editor\").",
+    "hints": [
+      "Read the `if` condition out loud.",
+      "`x == \"admin\" or \"editor\"` -- how does Python group that?",
+      "`\"editor\"` on its own is always truthy, so line 2 always passes."
+    ]
   },
   {
     "id": "ex-002",
@@ -90,7 +120,12 @@
       6
     ],
     "fix_diff": "-        except Exception:\n-            pass\n+        except requests.RequestException as e:\n+            last_error = e\n+            time.sleep(1)\n-    return None\n+    raise last_error\n",
-    "reference": "The bare except Exception: pass swallows every error with no backoff and no signal to the caller - a failing URL just returns None silently. Fix: catch the specific network exception, keep the last error, back off between tries, and raise on final failure."
+    "reference": "The bare except Exception: pass swallows every error with no backoff and no signal to the caller - a failing URL just returns None silently. Fix: catch the specific network exception, keep the last error, back off between tries, and raise on final failure.",
+    "hints": [
+      "What happens when `requests.get` raises?",
+      "The `except` catches everything and does nothing with it.",
+      "Lines 5-6 swallow the error; the caller just gets None with no signal."
+    ]
   },
   {
     "id": "ex-009",
@@ -103,7 +138,12 @@
       4
     ],
     "fix_diff": "-    subprocess.run([\"pg_dump\", \"mydb\", \"-f\", \"backup.sql\"])\n+    result = subprocess.run([\"pg_dump\", \"mydb\", \"-f\", \"backup.sql\"])\n+    if result.returncode != 0:\n+        raise RuntimeError(\"pg_dump failed\")\n",
-    "reference": "subprocess.run without check=True and without inspecting returncode means a failed pg_dump is ignored, and upload() then ships a truncated or empty backup. Fix: pass check=True or test result.returncode."
+    "reference": "subprocess.run without check=True and without inspecting returncode means a failed pg_dump is ignored, and upload() then ships a truncated or empty backup. Fix: pass check=True or test result.returncode.",
+    "hints": [
+      "How does the code know the backup succeeded?",
+      "`subprocess.run` here never checks the result.",
+      "Line 4 ignores a failed pg_dump, so line 5 uploads a bad file."
+    ]
   },
   {
     "id": "ex-010",
@@ -117,7 +157,12 @@
       6
     ],
     "fix_diff": "-    except ValueError:\n-        cfg = None\n-    return cfg[\"timeout\"]\n+    except ValueError as e:\n+        raise ConfigError(\"config is not valid JSON\") from e\n+    return cfg.get(\"timeout\", 30)\n",
-    "reference": "On a parse failure cfg is set to None and the next line does cfg[\"timeout\"], raising a confusing TypeError instead of a useful error - the except block makes things worse. Fix: re-raise a clear error, or return a default."
+    "reference": "On a parse failure cfg is set to None and the next line does cfg[\"timeout\"], raising a confusing TypeError instead of a useful error - the except block makes things worse. Fix: re-raise a clear error, or return a default.",
+    "hints": [
+      "What is `cfg` if the JSON is invalid?",
+      "It is set to None, then used on the next line.",
+      "Lines 5-6: `cfg` becomes None and `cfg[\"timeout\"]` throws a confusing TypeError."
+    ]
   },
   {
     "id": "ex-011",
@@ -130,7 +175,12 @@
       1
     ],
     "fix_diff": "-def append_row(row, rows=[]):\n+def append_row(row, rows=None):\n+    if rows is None:\n+        rows = []\n",
-    "reference": "The default list rows=[] is created once when the function is defined and shared by every call that does not pass its own list, so rows accumulate across unrelated calls. Fix: default to None and build a fresh list inside."
+    "reference": "The default list rows=[] is created once when the function is defined and shared by every call that does not pass its own list, so rows accumulate across unrelated calls. Fix: default to None and build a fresh list inside.",
+    "hints": [
+      "Call `append_row(1)` twice with no second argument. What comes back?",
+      "The default `[]` is created once, not per call.",
+      "Line 1: `rows=[]` is shared across every call that omits the argument."
+    ]
   },
   {
     "id": "ex-012",
@@ -144,7 +194,12 @@
       3
     ],
     "fix_diff": "-    if key not in cache:\n-        cache[key] = factory()\n+    with lock:\n+        if key not in cache:\n+            cache[key] = factory()\n",
-    "reference": "Between the 'key not in cache' check and the assignment, another thread can run the same check, so factory() runs twice and one result is lost (check-then-act race / cache stampede). Fix: guard the check-and-set with a lock."
+    "reference": "Between the 'key not in cache' check and the assignment, another thread can run the same check, so factory() runs twice and one result is lost (check-then-act race / cache stampede). Fix: guard the check-and-set with a lock.",
+    "hints": [
+      "Two threads call this at once with a brand new key. What happens?",
+      "Both can pass the `not in` check before either assigns.",
+      "Lines 2-3 are a check-then-act race, so `factory()` runs twice."
+    ]
   },
   {
     "id": "ex-013",
@@ -158,7 +213,12 @@
       3
     ],
     "fix_diff": "-    for i in range(len(arr)):\n-        if arr[i] == arr[i + 1]:\n+    for i in range(len(arr) - 1):\n+        if arr[i] == arr[i + 1]:\n",
-    "reference": "On the last iteration i == len(arr) - 1, so arr[i + 1] is out of range and raises IndexError. Fix: iterate to len(arr) - 1."
+    "reference": "On the last iteration i == len(arr) - 1, so arr[i + 1] is out of range and raises IndexError. Fix: iterate to len(arr) - 1.",
+    "hints": [
+      "What is `i` on the last iteration?",
+      "`len(arr) - 1` -- and then the code reads `arr[i + 1]`.",
+      "Line 2's range is one too long; line 3 goes out of bounds."
+    ]
   },
   {
     "id": "ex-014",
@@ -171,7 +231,12 @@
       2
     ],
     "fix_diff": "-    if age > 18:\n+    if age >= 18:\n",
-    "reference": "age > 18 excludes people who are exactly 18, who are adults. Fix: use >=."
+    "reference": "age > 18 excludes people who are exactly 18, who are adults. Fix: use >=.",
+    "hints": [
+      "Is an 18-year-old an adult?",
+      "`age > 18` says no.",
+      "Line 2 should use `>=`."
+    ]
   },
   {
     "id": "ex-015",
@@ -184,7 +249,12 @@
       2
     ],
     "fix_diff": "-    if not is_member:\n+    if is_member:\n",
-    "reference": "The 10% discount is applied to non-members and withheld from members - the condition is inverted. Fix: if is_member:."
+    "reference": "The 10% discount is applied to non-members and withheld from members - the condition is inverted. Fix: if is_member:.",
+    "hints": [
+      "Who actually gets the discount here?",
+      "`if not is_member` applies it to non-members.",
+      "Line 2's condition is inverted."
+    ]
   },
   {
     "id": "ex-016",
@@ -198,7 +268,12 @@
       5
     ],
     "fix_diff": "-        conn = connect(host)\n-        results.append(conn.ping())\n+        with connect(host) as conn:\n+            results.append(conn.ping())\n",
-    "reference": "Each connect(host) opens a connection that is never closed, so a long host list exhausts sockets / file descriptors. Fix: use the connection as a context manager or close it in a finally."
+    "reference": "Each connect(host) opens a connection that is never closed, so a long host list exhausts sockets / file descriptors. Fix: use the connection as a context manager or close it in a finally.",
+    "hints": [
+      "What happens to each `conn` after `ping()`?",
+      "It is never closed.",
+      "Lines 4-5 leak one connection per host."
+    ]
   },
   {
     "id": "ex-017",
@@ -212,7 +287,12 @@
       4
     ],
     "fix_diff": "     out = []\n+    seen = set()\n     for item in items:\n-        if item not in out:\n+        if item not in seen:\n+            seen.add(item)\n             out.append(item)\n",
-    "reference": "item not in out is O(n) on a list, inside an O(n) loop, so dedupe is O(n^2) and slow on large inputs. Fix: track membership in a set."
+    "reference": "item not in out is O(n) on a list, inside an O(n) loop, so dedupe is O(n^2) and slow on large inputs. Fix: track membership in a set.",
+    "hints": [
+      "How expensive is `item not in out` when `out` is a list?",
+      "O(n) -- and it sits inside an O(n) loop.",
+      "Line 4 makes this O(n^2); a set would fix it."
+    ]
   },
   {
     "id": "ex-003",
@@ -223,7 +303,11 @@
     "code": "def average(values):\n    if not values:\n        return 0.0\n    return sum(values) / len(values)\n",
     "real_lines": [],
     "fix_diff": "",
-    "reference": "This function is correct. The empty-list guard returns 0.0, and the division is safe for any non-empty numeric list. Flagging any line here is a false positive."
+    "reference": "This function is correct. The empty-list guard returns 0.0, and the division is safe for any non-empty numeric list. Flagging any line here is a false positive.",
+    "hints": [
+      "Is there actually a bug? Check the empty-list case first.",
+      "The guard on line 2 handles empty input; the division is safe otherwise. This file is clean."
+    ]
   },
   {
     "id": "ex-018",
@@ -234,7 +318,11 @@
     "code": "HANDLERS = {\"add\": do_add, \"sub\": do_sub}\n\ndef dispatch(op, *args):\n    handler = HANDLERS.get(op)\n    if handler is None:\n        raise ValueError(f\"unknown op: {op}\")\n    return handler(*args)\n",
     "real_lines": [],
     "fix_diff": "",
-    "reference": "This is correct. op is only used as a dict key and in an error message - it is never eval'd or exec'd, and unknown ops are rejected. Flagging the f-string or the dynamic call is a false positive."
+    "reference": "This is correct. op is only used as a dict key and in an error message - it is never eval'd or exec'd, and unknown ops are rejected. Flagging the f-string or the dynamic call is a false positive.",
+    "hints": [
+      "Is `op` ever executed as code?",
+      "No. It is only a dict key and an error string, and unknown ops are rejected. This file is clean."
+    ]
   },
   {
     "id": "ex-019",
@@ -245,6 +333,10 @@
     "code": "def find_users(db, name):\n    sql = \"SELECT * FROM users WHERE name = %s\"\n    return db.execute(sql, (name,)).fetchall()\n",
     "real_lines": [],
     "fix_diff": "",
-    "reference": "This is correct. name is passed as a bound parameter in the second argument to execute, not interpolated into the SQL - there is no injection. Flagging line 2 or 3 is a false positive."
+    "reference": "This is correct. name is passed as a bound parameter in the second argument to execute, not interpolated into the SQL - there is no injection. Flagging line 2 or 3 is a false positive.",
+    "hints": [
+      "Is `name` interpolated into the SQL, or passed separately?",
+      "It is a bound parameter in the second argument to `execute`. No injection. This file is clean."
+    ]
   }
 ]
