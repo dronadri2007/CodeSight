@@ -6,7 +6,9 @@
     "defect_class": "injection",
     "filename": "users.py",
     "code": "def get_user(email):\n    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n    return db.execute(q).fetchone()\n",
-    "real_lines": [2],
+    "real_lines": [
+      2
+    ],
     "fix_diff": "-    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n-    return db.execute(q).fetchone()\n+    q = \"SELECT * FROM users WHERE email = ?\"\n+    return db.execute(q, (email,)).fetchone()\n",
     "reference": "The query is built by interpolating `email` straight into the SQL string, so a crafted value changes the query (SQL injection). Fix: use a parameterised query and pass `email` as a bound parameter."
   },
@@ -17,9 +19,12 @@
     "defect_class": "error-handling",
     "filename": "retry.py",
     "code": "def fetch_with_retry(url, tries=3):\n    for _ in range(tries):\n        try:\n            return requests.get(url)\n        except Exception:\n            pass\n    return None\n",
-    "real_lines": [5, 6],
+    "real_lines": [
+      5,
+      6
+    ],
     "fix_diff": "-        except Exception:\n-            pass\n+        except requests.RequestException as e:\n+            last_error = e\n+            time.sleep(1)\n...\n-    return None\n+    raise last_error\n",
-    "reference": "The bare `except Exception: pass` swallows every error with no backoff and no signal to the caller — a failing URL just returns None silently. Fix: catch the specific network exception, keep the last error, back off between tries, and raise on final failure."
+    "reference": "The bare `except Exception: pass` swallows every error with no backoff and no signal to the caller - a failing URL just returns None silently. Fix: catch the specific network exception, keep the last error, back off between tries, and raise on final failure."
   },
   {
     "id": "ex-003",
