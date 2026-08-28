@@ -70,9 +70,8 @@ export default function ConceptLibrary() {
                 <div className="mb-4">
                   <ProgressBar
                     value={rate}
-                    label={`Catch rate: ${rate}%`}
-                    showValue
-                    color={rate >= 70 ? 'success' : rate >= 50 ? 'accent' : 'warning'}
+                    size="sm"
+                    color={rate > 70 ? 'success' : rate > 40 ? 'aqua' : 'warning'}
                   />
                   {catchData.attempts > 0 && (
                     <p className="text-2xs text-text-muted mt-1">{catchData.attempts} exercise{catchData.attempts !== 1 ? 's' : ''} attempted</p>

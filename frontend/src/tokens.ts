@@ -1,34 +1,44 @@
-// CodeSight Design Tokens
-// Single source of truth - also consumed by tailwind.config.js
+// CodeSight Design Tokens — Deep Navy & Aqua Identity
+// Inspired by Linear, Vercel, Raycast, and LeetCode
 
 export const colors = {
-  bg: {
-    primary: '#08090B',
-    secondary: '#0D0F12',
-    surface: '#111419',
-    elevated: '#151922',
-    subtle: '#1A1F2B',
+  // Deep Backgrounds & Navies
+  navy: {
+    DEFAULT: '#0B1726',
+    midnight: '#07111D',
+    surface: '#0F1E31',
+    elevated: '#15253C',
+    subtle: '#1C314E',
+    border: '#1E2C3D',
   },
-  border: {
-    default: '#242833',
-    subtle: '#1C2030',
-    strong: '#3A4255',
+  // Light Backgrounds & Surfaces
+  light: {
+    bg: '#F3F7FA',
+    card: '#FFFFFF',
+    elevated: '#F7FAFC',
+    border: '#DCE4EA',
+    borderStrong: '#CBD5E1',
+    text: '#102033',
+    textSecondary: '#516173',
+    textMuted: '#66758A',
   },
-  text: {
-    primary: '#F5F7FA',
-    secondary: '#A7AFBC',
-    muted: '#697282',
+  // Primary Aqua Accents (Brand Identity)
+  aqua: {
+    DEFAULT: '#20C7D9',
+    bright: '#38D9E8',
+    hover: '#19B5C6',
+    soft: '#DDF8FA',
+    subtle: 'rgba(32, 199, 217, 0.12)',
+    border: 'rgba(32, 199, 217, 0.28)',
   },
-  accent: {
-    primary: '#5B7CFF',
-    hover: '#4A6AEF',
-    secondary: '#7C5CFF',
-    subtle: 'rgba(91, 124, 255, 0.12)',
-  },
-  status: {
-    success: '#36D399',
-    warning: '#F5B94C',
-    danger: '#FF5C6C',
+  // Feedback Accents
+  feedback: {
+    success: '#19B47A',
+    successSubtle: 'rgba(25, 180, 122, 0.12)',
+    warning: '#E6A23C',
+    warningSubtle: 'rgba(230, 162, 60, 0.12)',
+    danger: '#E25D67',
+    dangerSubtle: 'rgba(226, 93, 103, 0.12)',
   },
 } as const
 
@@ -37,53 +47,64 @@ export const defectClasses = [
     id: 'injection',
     label: 'Injection / Input Validation',
     shortLabel: 'Injection',
-    description: 'Unsanitized input reaching sensitive operations',
+    description: 'Unsanitized input reaching sensitive operations and query builders',
     icon: 'Shield',
-    color: '#FF5C6C',
+    color: '#E25D67',
+    bgColor: 'rgba(226, 93, 103, 0.10)',
+    borderColor: 'rgba(226, 93, 103, 0.25)',
   },
   {
     id: 'auth',
     label: 'Auth & Access Control',
     shortLabel: 'Auth',
-    description: 'Authentication flaws and privilege issues',
+    description: 'Timing attacks, token validation flaws, and permission checks',
     icon: 'Lock',
-    color: '#F5B94C',
+    color: '#E6A23C',
+    bgColor: 'rgba(230, 162, 60, 0.10)',
+    borderColor: 'rgba(230, 162, 60, 0.25)',
   },
   {
     id: 'error-handling',
     label: 'Error & Exception Handling',
     shortLabel: 'Error Handling',
-    description: 'Unchecked returns, swallowed exceptions',
+    description: 'Unchecked return values, swallowed async errors, and nil leaks',
     icon: 'AlertTriangle',
-    color: '#5B7CFF',
+    color: '#20C7D9',
+    bgColor: 'rgba(32, 199, 217, 0.10)',
+    borderColor: 'rgba(32, 199, 217, 0.25)',
   },
   {
     id: 'concurrency',
     label: 'Concurrency & State',
     shortLabel: 'Concurrency',
-    description: 'Race conditions, shared mutable state',
+    description: 'Race conditions, unsynchronized mutations, and shared mutable state',
     icon: 'Zap',
-    color: '#7C5CFF',
+    color: '#38D9E8',
+    bgColor: 'rgba(56, 217, 232, 0.10)',
+    borderColor: 'rgba(56, 217, 232, 0.25)',
   },
   {
     id: 'logic',
     label: 'Logic & Boundary',
     shortLabel: 'Logic',
-    description: 'Off-by-one errors, incorrect conditions',
+    description: 'Off-by-one loops, inverted conditions, and edge-case mishandling',
     icon: 'GitBranch',
-    color: '#36D399',
+    color: '#19B47A',
+    bgColor: 'rgba(25, 180, 122, 0.10)',
+    borderColor: 'rgba(25, 180, 122, 0.25)',
   },
   {
     id: 'resource',
     label: 'Resource & Performance',
     shortLabel: 'Resource',
-    description: 'Memory leaks, N+1 queries, inefficient loops',
+    description: 'Connection pool leaks, unbounded cache growth, and N+1 queries',
     icon: 'Gauge',
-    color: '#A7AFBC',
+    color: '#516173',
+    bgColor: 'rgba(81, 97, 115, 0.12)',
+    borderColor: 'rgba(81, 97, 115, 0.25)',
   },
 ] as const
 
 export type DefectClassId = typeof defectClasses[number]['id']
+export type UserRole = 'student' | 'professional'
 export type Difficulty = 'Easy' | 'Medium' | 'Hard'
-export type ExerciseStatus = 'not-started' | 'completed' | 'needs-practice' | 'in-progress'
-export type Language = 'Python' | 'JavaScript' | 'TypeScript' | 'Go' | 'Java' | 'Ruby'

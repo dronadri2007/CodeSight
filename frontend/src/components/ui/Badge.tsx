@@ -2,45 +2,52 @@ import { clsx } from 'clsx'
 
 interface BadgeProps {
   children: React.ReactNode
-  variant?: 'default' | 'accent' | 'success' | 'warning' | 'danger' | 'muted'
+  variant?: 'default' | 'accent' | 'success' | 'warning' | 'danger' | 'muted' | 'navy'
   size?: 'sm' | 'md'
   dot?: boolean
   className?: string
 }
 
 const variants = {
-  default: 'bg-bg-elevated border-border text-text-secondary',
-  accent: 'bg-accent-subtle border-accent/30 text-accent',
+  default: 'bg-light-elevated border-light-border text-light-textSecondary',
+  accent: 'bg-aqua-soft border-aqua/30 text-navy font-semibold',
+  navy: 'bg-navy-surface border-navy-borderStrong text-aqua-bright font-mono',
   success: 'bg-success-subtle border-success/30 text-success',
   warning: 'bg-warning-subtle border-warning/30 text-warning',
   danger: 'bg-danger-subtle border-danger/30 text-danger',
-  muted: 'bg-bg-surface border-border text-text-muted',
+  muted: 'bg-light-bg border-light-border text-light-textMuted',
 }
 
 export function Badge({ children, variant = 'default', size = 'sm', dot, className }: BadgeProps) {
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded border font-medium',
+        'inline-flex items-center gap-1.5 rounded-md border font-medium select-none',
         size === 'sm' ? 'px-2 py-0.5 text-2xs' : 'px-2.5 py-1 text-xs',
         variants[variant],
         className
       )}
     >
-      {dot && <span className={clsx('w-1.5 h-1.5 rounded-full', {
-        'bg-text-secondary': variant === 'default',
-        'bg-accent': variant === 'accent',
-        'bg-success': variant === 'success',
-        'bg-warning': variant === 'warning',
-        'bg-danger': variant === 'danger',
-        'bg-text-muted': variant === 'muted',
-      })} />}
+      {dot && (
+        <span className={clsx('w-1.5 h-1.5 rounded-full', {
+          'bg-light-textSecondary': variant === 'default',
+          'bg-aqua': variant === 'accent',
+          'bg-aqua-bright': variant === 'navy',
+          'bg-success': variant === 'success',
+          'bg-warning': variant === 'warning',
+          'bg-danger': variant === 'danger',
+          'bg-light-textMuted': variant === 'muted',
+        })} />
+      )}
       {children}
     </span>
   )
 }
 
-interface DifficultyBadgeProps { difficulty: 'Easy' | 'Medium' | 'Hard'; className?: string }
+interface DifficultyBadgeProps {
+  difficulty: 'Easy' | 'Medium' | 'Hard'
+  className?: string
+}
 
 export function DifficultyBadge({ difficulty, className }: DifficultyBadgeProps) {
   return (
@@ -53,15 +60,11 @@ export function DifficultyBadge({ difficulty, className }: DifficultyBadgeProps)
   )
 }
 
-interface StatusBadgeProps { status: 'not-started' | 'completed' | 'needs-practice' | 'in-progress'; className?: string }
-
-export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const map = {
-    'not-started': { variant: 'muted' as const, label: 'Not Started' },
-    completed: { variant: 'success' as const, label: 'Completed' },
-    'needs-practice': { variant: 'warning' as const, label: 'Needs Practice' },
-    'in-progress': { variant: 'accent' as const, label: 'In Progress' },
-  }
-  const { variant, label } = map[status]
-  return <Badge variant={variant} dot className={className}>{label}</Badge>
+export function StatusBadge({ status, className }: { status: 'New' | 'In Progress' | 'Completed' | 'Review Ready'; className?: string }) {
+  const variant = status === 'Completed' ? 'success' : status === 'In Progress' ? 'warning' : 'navy'
+  return (
+    <Badge variant={variant} dot size="sm" className={className}>
+      {status}
+    </Badge>
+  )
 }

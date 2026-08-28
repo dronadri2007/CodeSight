@@ -5,14 +5,14 @@ interface ProgressBarProps {
   max?: number
   label?: string
   showValue?: boolean
-  color?: 'accent' | 'success' | 'warning' | 'danger'
+  color?: 'aqua' | 'success' | 'warning' | 'danger'
+  dark?: boolean
   size?: 'sm' | 'md'
-  animated?: boolean
   className?: string
 }
 
 const colorMap = {
-  accent: 'bg-accent',
+  aqua: 'bg-aqua',
   success: 'bg-success',
   warning: 'bg-warning',
   danger: 'bg-danger',
@@ -23,27 +23,27 @@ export function ProgressBar({
   max = 100,
   label,
   showValue,
-  color = 'accent',
+  color = 'aqua',
+  dark = false,
   size = 'md',
-  animated = true,
   className,
 }: ProgressBarProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100))
   return (
-    <div className={clsx('flex flex-col gap-1', className)}>
+    <div className={clsx('flex flex-col gap-1.5', className)}>
       {(label || showValue) && (
-        <div className="flex justify-between items-center">
-          {label && <span className="text-xs text-text-secondary">{label}</span>}
-          {showValue && <span className="text-xs font-mono text-text-muted">{Math.round(pct)}%</span>}
+        <div className="flex justify-between items-center text-xs">
+          {label && <span className={clsx('font-medium', dark ? 'text-slate' : 'text-light-textSecondary')}>{label}</span>}
+          {showValue && <span className={clsx('font-mono font-bold', dark ? 'text-white' : 'text-navy')}>{Math.round(pct)}%</span>}
         </div>
       )}
-      <div className={clsx('w-full bg-border rounded-full overflow-hidden', size === 'sm' ? 'h-1' : 'h-1.5')}>
+      <div className={clsx(
+        'w-full rounded-full overflow-hidden',
+        dark ? 'bg-navy-elevated' : 'bg-light-border',
+        size === 'sm' ? 'h-1.5' : 'h-2'
+      )}>
         <div
-          className={clsx(
-            'h-full rounded-full',
-            colorMap[color],
-            animated && 'transition-all duration-700 ease-out'
-          )}
+          className={clsx('h-full rounded-full transition-all duration-700 ease-out', colorMap[color])}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -57,39 +57,45 @@ interface SkillBarProps {
   trend?: number
   attempts?: number
   color?: string
+  dark?: boolean
   onClick?: () => void
   className?: string
 }
 
-export function SkillBar({ name, value, trend, attempts, color, onClick, className }: SkillBarProps) {
+export function SkillBar({ name, value, trend, attempts, color, dark = false, onClick, className }: SkillBarProps) {
   return (
     <div
       className={clsx(
-        'flex flex-col gap-2 p-3 rounded-lg border border-border bg-bg-surface',
-        onClick && 'cursor-pointer hover:border-border-strong transition-colors duration-150',
+        'flex flex-col gap-2 p-4 rounded-xl border transition-all select-none',
+        dark
+          ? 'bg-navy-surface border-navy-border text-white hover:border-aqua/40'
+          : 'bg-light-card border-light-border text-light-text hover:border-light-borderStrong shadow-sm',
+        onClick && 'cursor-pointer hover:-translate-y-0.5',
         className
       )}
       onClick={onClick}
     >
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-text-primary">{name}</span>
+        <span className="text-sm font-semibold">{name}</span>
         <div className="flex items-center gap-2">
           {trend !== undefined && (
-            <span className={clsx('text-xs font-medium', trend >= 0 ? 'text-success' : 'text-danger')}>
+            <span className={clsx('text-xs font-bold font-mono', trend >= 0 ? 'text-success' : 'text-danger')}>
               {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
             </span>
           )}
-          <span className="text-sm font-bold font-mono text-text-primary">{value}%</span>
+          <span className={clsx('text-sm font-extrabold font-mono', dark ? 'text-aqua-bright' : 'text-navy')}>{value}%</span>
         </div>
       </div>
-      <div className="w-full h-1.5 bg-border rounded-full overflow-hidden">
+      <div className={clsx('w-full h-2 rounded-full overflow-hidden', dark ? 'bg-navy-elevated' : 'bg-light-border')}>
         <div
           className="h-full rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${value}%`, backgroundColor: color || '#5B7CFF' }}
+          style={{ width: `${value}%`, backgroundColor: color || '#20C7D9' }}
         />
       </div>
       {attempts !== undefined && (
-        <span className="text-2xs text-text-muted">{attempts} attempt{attempts !== 1 ? 's' : ''}</span>
+        <span className={clsx('text-2xs', dark ? 'text-slate' : 'text-light-textMuted')}>
+          {attempts} exercise{attempts !== 1 ? 's' : ''} recorded
+        </span>
       )}
     </div>
   )

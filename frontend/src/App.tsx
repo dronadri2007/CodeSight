@@ -1,76 +1,78 @@
-import React, { Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AppShell } from './components/layout/AppShell'
-import { Toast } from './components/ui/Overlays'
-import { LoadingSkeleton } from './components/ui/LoadingSkeleton'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import Landing from './pages/Landing'
+import Auth from './pages/Auth'
+import RoleSelect from './pages/RoleSelect'
 
-// Lazy load all pages
-const Landing = React.lazy(() => import('./pages/Landing'))
-const Dashboard = React.lazy(() => import('./pages/Dashboard'))
-const ExerciseLibrary = React.lazy(() => import('./pages/ExerciseLibrary'))
-const ReviewWorkspace = React.lazy(() => import('./pages/ReviewWorkspace'))
-const ReviewResult = React.lazy(() => import('./pages/ReviewResult'))
-const LearnConcept = React.lazy(() => import('./pages/LearnConcept'))
-const MicroCheck = React.lazy(() => import('./pages/MicroCheck'))
-const ProgressProfile = React.lazy(() => import('./pages/ProgressProfile'))
-const ConceptLibrary = React.lazy(() => import('./pages/ConceptLibrary'))
-const AIVsYou = React.lazy(() => import('./pages/AIVsYou'))
-const FalsePositiveChallenge = React.lazy(() => import('./pages/FalsePositiveChallenge'))
-const MultiplayerLobby = React.lazy(() => import('./pages/MultiplayerLobby'))
-const MultiplayerBattle = React.lazy(() => import('./pages/MultiplayerBattle'))
-const MultiplayerResults = React.lazy(() => import('./pages/MultiplayerResults'))
-const CodeXRay = React.lazy(() => import('./pages/CodeXRay'))
-const Profile = React.lazy(() => import('./pages/Profile'))
-const Settings = React.lazy(() => import('./pages/Settings'))
-const Leaderboard = React.lazy(() => import('./pages/Leaderboard'))
+// Student Track Pages
+import StudentDashboard from './pages/student/StudentDashboard'
+import StudentPracticeLibrary from './pages/student/StudentPracticeLibrary'
+import StudentWorkspace from './pages/student/StudentWorkspace'
+import StudentAnalysisResult from './pages/student/StudentAnalysisResult'
+import StudentLearnConcept from './pages/student/StudentLearnConcept'
+import StudentMicroCheck from './pages/student/StudentMicroCheck'
+import StudentProgress from './pages/student/StudentProgress'
 
-function PageLoader() {
-  return (
-    <div className="flex items-center justify-center h-full min-h-[400px]">
-      <div className="w-6 h-6 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-    </div>
-  )
-}
+// Professional Track Pages
+import ProDashboard from './pages/pro/ProDashboard'
+import ProReviewWorkspace from './pages/pro/ProReviewWorkspace'
+import ProCodeXRay from './pages/pro/ProCodeXRay'
+import ProReviewResults from './pages/pro/ProReviewResults'
+import ProAIVsHuman from './pages/pro/ProAIVsHuman'
+import ProFalsePositive from './pages/pro/ProFalsePositive'
 
-function ShellRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <AppShell>
-      <Suspense fallback={<PageLoader />}>{children}</Suspense>
-    </AppShell>
-  )
-}
+// Shared & Multiplayer Pages
+import Leaderboard from './pages/shared/Leaderboard'
+import Profile from './pages/shared/Profile'
+import Settings from './pages/shared/Settings'
+import MultiplayerLobby from './pages/shared/MultiplayerLobby'
+import MultiplayerBattle from './pages/shared/MultiplayerBattle'
+import MultiplayerResults from './pages/shared/MultiplayerResults'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Toast />
-      <Routes>
-        {/* Marketing */}
-        <Route path="/" element={<Suspense fallback={<PageLoader />}><Landing /></Suspense>} />
+    <Routes>
+      {/* Public & Onboarding */}
+      <Route path="/" element={<Landing />} />
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/role-select" element={<RoleSelect />} />
 
-        {/* App shell routes */}
-        <Route path="/dashboard" element={<ShellRoute><Dashboard /></ShellRoute>} />
-        <Route path="/practice" element={<ShellRoute><ExerciseLibrary /></ShellRoute>} />
-        <Route path="/practice/:id" element={<ShellRoute><ReviewWorkspace /></ShellRoute>} />
-        <Route path="/practice/:id/result" element={<ShellRoute><ReviewResult /></ShellRoute>} />
-        <Route path="/learn" element={<ShellRoute><ConceptLibrary /></ShellRoute>} />
-        <Route path="/learn/:conceptId" element={<ShellRoute><LearnConcept /></ShellRoute>} />
-        <Route path="/learn/:conceptId/check" element={<ShellRoute><MicroCheck /></ShellRoute>} />
-        <Route path="/progress" element={<ShellRoute><ProgressProfile /></ShellRoute>} />
-        <Route path="/versus" element={<ShellRoute><AIVsYou /></ShellRoute>} />
-        <Route path="/false-positives" element={<ShellRoute><FalsePositiveChallenge /></ShellRoute>} />
-        <Route path="/battle" element={<ShellRoute><MultiplayerLobby /></ShellRoute>} />
-        <Route path="/battle/:roomId" element={<ShellRoute><MultiplayerBattle /></ShellRoute>} />
-        <Route path="/battle/:roomId/results" element={<ShellRoute><MultiplayerResults /></ShellRoute>} />
-        <Route path="/xray" element={<ShellRoute><CodeXRay /></ShellRoute>} />
-        <Route path="/leaderboard" element={<ShellRoute><Leaderboard /></ShellRoute>} />
-        <Route path="/profile" element={<ShellRoute><Profile /></ShellRoute>} />
-        <Route path="/settings" element={<ShellRoute><Settings /></ShellRoute>} />
-        <Route path="/help" element={<Navigate to="/dashboard" replace />} />
+      {/* Student Track Routes */}
+      <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+      <Route path="/student/dashboard" element={<StudentDashboard />} />
+      <Route path="/student/practice" element={<StudentPracticeLibrary />} />
+      <Route path="/student/practice/:id" element={<StudentWorkspace />} />
+      <Route path="/student/analysis/:id" element={<StudentAnalysisResult />} />
+      <Route path="/student/learn/:conceptId" element={<StudentLearnConcept />} />
+      <Route path="/student/learn/:conceptId/check" element={<StudentMicroCheck />} />
+      <Route path="/student/progress" element={<StudentProgress />} />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </BrowserRouter>
+      {/* Professional Track Routes */}
+      <Route path="/pro" element={<Navigate to="/pro/dashboard" replace />} />
+      <Route path="/pro/dashboard" element={<ProDashboard />} />
+      <Route path="/pro/review/:id" element={<ProReviewWorkspace />} />
+      <Route path="/pro/xray" element={<ProCodeXRay />} />
+      <Route path="/pro/results/:id" element={<ProReviewResults />} />
+      <Route path="/pro/versus" element={<ProAIVsHuman />} />
+      <Route path="/pro/false-positive" element={<ProFalsePositive />} />
+
+      {/* Shared & Arena */}
+      <Route path="/battle" element={<MultiplayerLobby />} />
+      <Route path="/battle/:roomId" element={<MultiplayerBattle />} />
+      <Route path="/battle/:roomId/results" element={<MultiplayerResults />} />
+      <Route path="/leaderboard" element={<Leaderboard />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/profile/:id" element={<Profile />} />
+      <Route path="/settings" element={<Settings />} />
+
+      {/* Legacy Fallbacks */}
+      <Route path="/practice" element={<Navigate to="/student/practice" replace />} />
+      <Route path="/practice/:id" element={<Navigate to="/student/practice/stu-01" replace />} />
+      <Route path="/learn" element={<Navigate to="/student/learn/injection" replace />} />
+      <Route path="/learn/:conceptId" element={<Navigate to="/student/learn/error-handling" replace />} />
+      <Route path="/progress" element={<Navigate to="/student/progress" replace />} />
+
+      {/* Catch-all fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   )
 }
