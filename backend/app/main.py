@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app import exercises as ex
 from app.config import ALLOWED_ORIGINS, DB_IS_SQLITE, GRADER_MODEL
 from app.db import get_db, init_db
-from app.grader import grade_explanation
+from app.grader import diagnostics, grade_explanation
 from app.localisation import score_localisation
 from app.models import Attempt
 from app.profile import build_profile
@@ -65,6 +65,17 @@ def root():
 @app.get("/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/debug")
+def debug(probe: bool = False):
+    """Deploy sanity check. /debug?probe=1 runs one live grader call and
+    returns the exception if it fails. No secrets in the response."""
+    return {
+        "db": "sqlite" if DB_IS_SQLITE else "postgres",
+        "allowed_origins": ALLOWED_ORIGINS,
+        "grader": diagnostics(run_probe=probe),
+    }
 
 
 @app.get("/exercises", response_model=list[ExerciseSummary])

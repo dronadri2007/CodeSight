@@ -69,6 +69,34 @@ def _fallback(reference: str, loc_verdict: str) -> dict:
     }
 
 
+def diagnostics(run_probe: bool = False) -> dict:
+    """Safe status for debugging deploys. Never returns the key itself."""
+    info = {
+        "gemini_key_present": bool(GEMINI_API_KEY),
+        "grader_model": GRADER_MODEL,
+        "client_initialised": _client is not None,
+    }
+    if run_probe and _client is not None:
+        try:
+            resp = _client.models.generate_content(
+                model=GRADER_MODEL,
+                contents="Return a JSON object grading a trivial code review.",
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM,
+                    temperature=0.0,
+                    response_mime_type="application/json",
+                    response_schema=ExplanationGrade,
+                    max_output_tokens=900,
+                ),
+            )
+            info["probe"] = "ok"
+            info["probe_parsed"] = getattr(resp, "parsed", None) is not None
+        except Exception as e:  # noqa: BLE001 - diagnostic surface
+            info["probe"] = "error"
+            info["probe_error"] = f"{type(e).__name__}: {e}"
+    return info
+
+
 def grade_explanation(
     *,
     exercise_id: str,
