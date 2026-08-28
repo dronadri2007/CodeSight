@@ -9,8 +9,74 @@
     "real_lines": [
       2
     ],
-    "fix_diff": "-    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n-    return db.execute(q).fetchone()\n+    q = \"SELECT * FROM users WHERE email = ?\"\n+    return db.execute(q, (email,)).fetchone()\n",
-    "reference": "The query is built by interpolating `email` straight into the SQL string, so a crafted value changes the query (SQL injection). Fix: use a parameterised query and pass `email` as a bound parameter."
+    "fix_diff": "-    q = f\"SELECT * FROM users WHERE email = '{email}'\"\n+    q = \"SELECT * FROM users WHERE email = ?\"\n-    return db.execute(q).fetchone()\n+    return db.execute(q, (email,)).fetchone()\n",
+    "reference": "The query is built by interpolating email straight into the SQL string, so a crafted value changes the query (SQL injection). Fix: use a parameterised query and pass email as a bound parameter."
+  },
+  {
+    "id": "ex-004",
+    "language": "python",
+    "title": "Ping a host",
+    "defect_class": "injection",
+    "filename": "net.py",
+    "code": "import os\n\ndef ping(host):\n    os.system(f\"ping -c 1 {host}\")\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    os.system(f\"ping -c 1 {host}\")\n+    subprocess.run([\"ping\", \"-c\", \"1\", host], check=True)\n",
+    "reference": "host is interpolated into a shell command string, so a value like '8.8.8.8; rm -rf /' runs as a second shell command. Fix: pass an argument list to subprocess.run and do not use the shell."
+  },
+  {
+    "id": "ex-005",
+    "language": "python",
+    "title": "Read an uploaded file",
+    "defect_class": "injection",
+    "filename": "uploads.py",
+    "code": "def read_upload(filename):\n    path = \"uploads/\" + filename\n    with open(path) as f:\n        return f.read()\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    path = \"uploads/\" + filename\n+    safe = os.path.basename(filename)\n+    path = os.path.join(\"uploads\", safe)\n",
+    "reference": "filename is concatenated onto the base directory with no sanitisation, so '../../etc/passwd' escapes the uploads folder (path traversal). Fix: strip the directory part with os.path.basename before joining."
+  },
+  {
+    "id": "ex-006",
+    "language": "python",
+    "title": "Delete a note",
+    "defect_class": "auth",
+    "filename": "notes.py",
+    "code": "def delete_note(note_id, current_user):\n    note = Note.get(note_id)\n    note.delete()\n    return {\"deleted\": note_id}\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "     note = Note.get(note_id)\n+    if note.owner_id != current_user.id:\n+        raise PermissionError(\"not your note\")\n     note.delete()\n",
+    "reference": "Any authenticated user can delete any note by id - nothing checks that the note belongs to current_user (broken access control). Fix: compare note.owner_id to the caller and reject otherwise."
+  },
+  {
+    "id": "ex-007",
+    "language": "python",
+    "title": "Fetch an invoice",
+    "defect_class": "auth",
+    "filename": "billing.py",
+    "code": "@app.get(\"/invoices/{invoice_id}\")\ndef get_invoice(invoice_id, user):\n    return db.query(Invoice).filter(Invoice.id == invoice_id).first()\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    return db.query(Invoice).filter(Invoice.id == invoice_id).first()\n+    return db.query(Invoice).filter(\n+        Invoice.id == invoice_id, Invoice.user_id == user.id\n+    ).first()\n",
+    "reference": "The query filters only by invoice id, so passing any id returns another user's invoice (IDOR). Fix: also filter by Invoice.user_id == user.id."
+  },
+  {
+    "id": "ex-008",
+    "language": "python",
+    "title": "Can this user edit?",
+    "defect_class": "auth",
+    "filename": "perms.py",
+    "code": "def can_edit(user):\n    if user.role == \"admin\" or \"editor\":\n        return True\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if user.role == \"admin\" or \"editor\":\n+    if user.role in (\"admin\", \"editor\"):\n",
+    "reference": "user.role == \"admin\" or \"editor\" parses as (user.role == \"admin\") or (\"editor\"), and the non-empty string \"editor\" is always truthy - so every user passes. Fix: user.role in (\"admin\", \"editor\")."
   },
   {
     "id": "ex-002",
@@ -23,8 +89,130 @@
       5,
       6
     ],
-    "fix_diff": "-        except Exception:\n-            pass\n+        except requests.RequestException as e:\n+            last_error = e\n+            time.sleep(1)\n...\n-    return None\n+    raise last_error\n",
-    "reference": "The bare `except Exception: pass` swallows every error with no backoff and no signal to the caller - a failing URL just returns None silently. Fix: catch the specific network exception, keep the last error, back off between tries, and raise on final failure."
+    "fix_diff": "-        except Exception:\n-            pass\n+        except requests.RequestException as e:\n+            last_error = e\n+            time.sleep(1)\n-    return None\n+    raise last_error\n",
+    "reference": "The bare except Exception: pass swallows every error with no backoff and no signal to the caller - a failing URL just returns None silently. Fix: catch the specific network exception, keep the last error, back off between tries, and raise on final failure."
+  },
+  {
+    "id": "ex-009",
+    "language": "python",
+    "title": "Nightly backup",
+    "defect_class": "error-handling",
+    "filename": "backup.py",
+    "code": "import subprocess\n\ndef run_backup():\n    subprocess.run([\"pg_dump\", \"mydb\", \"-f\", \"backup.sql\"])\n    upload(\"backup.sql\")\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    subprocess.run([\"pg_dump\", \"mydb\", \"-f\", \"backup.sql\"])\n+    result = subprocess.run([\"pg_dump\", \"mydb\", \"-f\", \"backup.sql\"])\n+    if result.returncode != 0:\n+        raise RuntimeError(\"pg_dump failed\")\n",
+    "reference": "subprocess.run without check=True and without inspecting returncode means a failed pg_dump is ignored, and upload() then ships a truncated or empty backup. Fix: pass check=True or test result.returncode."
+  },
+  {
+    "id": "ex-010",
+    "language": "python",
+    "title": "Load config",
+    "defect_class": "error-handling",
+    "filename": "config.py",
+    "code": "def load_config(raw):\n    try:\n        cfg = json.loads(raw)\n    except ValueError:\n        cfg = None\n    return cfg[\"timeout\"]\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "-    except ValueError:\n-        cfg = None\n-    return cfg[\"timeout\"]\n+    except ValueError as e:\n+        raise ConfigError(\"config is not valid JSON\") from e\n+    return cfg.get(\"timeout\", 30)\n",
+    "reference": "On a parse failure cfg is set to None and the next line does cfg[\"timeout\"], raising a confusing TypeError instead of a useful error - the except block makes things worse. Fix: re-raise a clear error, or return a default."
+  },
+  {
+    "id": "ex-011",
+    "language": "python",
+    "title": "Append a row",
+    "defect_class": "concurrency",
+    "filename": "sheet.py",
+    "code": "def append_row(row, rows=[]):\n    rows.append(row)\n    return rows\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "-def append_row(row, rows=[]):\n+def append_row(row, rows=None):\n+    if rows is None:\n+        rows = []\n",
+    "reference": "The default list rows=[] is created once when the function is defined and shared by every call that does not pass its own list, so rows accumulate across unrelated calls. Fix: default to None and build a fresh list inside."
+  },
+  {
+    "id": "ex-012",
+    "language": "python",
+    "title": "Get or create",
+    "defect_class": "concurrency",
+    "filename": "cache.py",
+    "code": "def get_or_create(cache, key, factory):\n    if key not in cache:\n        cache[key] = factory()\n    return cache[key]\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "-    if key not in cache:\n-        cache[key] = factory()\n+    with lock:\n+        if key not in cache:\n+            cache[key] = factory()\n",
+    "reference": "Between the 'key not in cache' check and the assignment, another thread can run the same check, so factory() runs twice and one result is lost (check-then-act race / cache stampede). Fix: guard the check-and-set with a lock."
+  },
+  {
+    "id": "ex-013",
+    "language": "python",
+    "title": "Adjacent duplicates",
+    "defect_class": "logic",
+    "filename": "scan.py",
+    "code": "def has_adjacent_dupes(arr):\n    for i in range(len(arr)):\n        if arr[i] == arr[i + 1]:\n            return True\n    return False\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "-    for i in range(len(arr)):\n-        if arr[i] == arr[i + 1]:\n+    for i in range(len(arr) - 1):\n+        if arr[i] == arr[i + 1]:\n",
+    "reference": "On the last iteration i == len(arr) - 1, so arr[i + 1] is out of range and raises IndexError. Fix: iterate to len(arr) - 1."
+  },
+  {
+    "id": "ex-014",
+    "language": "python",
+    "title": "Adult check",
+    "defect_class": "logic",
+    "filename": "age.py",
+    "code": "def is_adult(age):\n    if age > 18:\n        return True\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if age > 18:\n+    if age >= 18:\n",
+    "reference": "age > 18 excludes people who are exactly 18, who are adults. Fix: use >=."
+  },
+  {
+    "id": "ex-015",
+    "language": "python",
+    "title": "Member discount",
+    "defect_class": "logic",
+    "filename": "pricing.py",
+    "code": "def final_price(price, is_member):\n    if not is_member:\n        price = price * 0.9\n    return price\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if not is_member:\n+    if is_member:\n",
+    "reference": "The 10% discount is applied to non-members and withheld from members - the condition is inverted. Fix: if is_member:."
+  },
+  {
+    "id": "ex-016",
+    "language": "python",
+    "title": "Check hosts",
+    "defect_class": "resource",
+    "filename": "healthcheck.py",
+    "code": "def check_hosts(hosts):\n    results = []\n    for host in hosts:\n        conn = connect(host)\n        results.append(conn.ping())\n    return results\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "-        conn = connect(host)\n-        results.append(conn.ping())\n+        with connect(host) as conn:\n+            results.append(conn.ping())\n",
+    "reference": "Each connect(host) opens a connection that is never closed, so a long host list exhausts sockets / file descriptors. Fix: use the connection as a context manager or close it in a finally."
+  },
+  {
+    "id": "ex-017",
+    "language": "python",
+    "title": "Deduplicate",
+    "defect_class": "resource",
+    "filename": "dedupe.py",
+    "code": "def dedupe(items):\n    out = []\n    for item in items:\n        if item not in out:\n            out.append(item)\n    return out\n",
+    "real_lines": [
+      2,
+      4
+    ],
+    "fix_diff": "     out = []\n+    seen = set()\n     for item in items:\n-        if item not in out:\n+        if item not in seen:\n+            seen.add(item)\n             out.append(item)\n",
+    "reference": "item not in out is O(n) on a list, inside an O(n) loop, so dedupe is O(n^2) and slow on large inputs. Fix: track membership in a set."
   },
   {
     "id": "ex-003",
@@ -36,5 +224,27 @@
     "real_lines": [],
     "fix_diff": "",
     "reference": "This function is correct. The empty-list guard returns 0.0, and the division is safe for any non-empty numeric list. Flagging any line here is a false positive."
+  },
+  {
+    "id": "ex-018",
+    "language": "python",
+    "title": "Operation dispatch",
+    "defect_class": "clean",
+    "filename": "ops.py",
+    "code": "HANDLERS = {\"add\": do_add, \"sub\": do_sub}\n\ndef dispatch(op, *args):\n    handler = HANDLERS.get(op)\n    if handler is None:\n        raise ValueError(f\"unknown op: {op}\")\n    return handler(*args)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This is correct. op is only used as a dict key and in an error message - it is never eval'd or exec'd, and unknown ops are rejected. Flagging the f-string or the dynamic call is a false positive."
+  },
+  {
+    "id": "ex-019",
+    "language": "python",
+    "title": "Find users by name",
+    "defect_class": "clean",
+    "filename": "search.py",
+    "code": "def find_users(db, name):\n    sql = \"SELECT * FROM users WHERE name = %s\"\n    return db.execute(sql, (name,)).fetchall()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This is correct. name is passed as a bound parameter in the second argument to execute, not interpolated into the SQL - there is no injection. Flagging line 2 or 3 is a false positive."
   }
 ]
