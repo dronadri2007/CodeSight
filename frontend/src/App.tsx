@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import RoleSelect from './pages/RoleSelect'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
 
 // Student Track Pages
 import StudentDashboard from './pages/student/StudentDashboard'
@@ -31,38 +32,187 @@ import MultiplayerResults from './pages/shared/MultiplayerResults'
 export default function App() {
   return (
     <Routes>
-      {/* Public & Onboarding */}
+      {/* Public Pages: ONLY visible before login */}
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
-      <Route path="/role-select" element={<RoleSelect />} />
 
-      {/* Student Track Routes */}
+      {/* Role Selection: Requires login */}
+      <Route
+        path="/role-select"
+        element={
+          <ProtectedRoute>
+            <RoleSelect />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Student Track Routes */}
       <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-      <Route path="/student/dashboard" element={<StudentDashboard />} />
-      <Route path="/student/practice" element={<StudentPracticeLibrary />} />
-      <Route path="/student/practice/:id" element={<StudentWorkspace />} />
-      <Route path="/student/analysis/:id" element={<StudentAnalysisResult />} />
-      <Route path="/student/learn/:conceptId" element={<StudentLearnConcept />} />
-      <Route path="/student/learn/:conceptId/check" element={<StudentMicroCheck />} />
-      <Route path="/student/progress" element={<StudentProgress />} />
+      <Route
+        path="/student/dashboard"
+        element={
+          <ProtectedRoute>
+            <StudentDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice"
+        element={
+          <ProtectedRoute>
+            <StudentPracticeLibrary />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice/:id"
+        element={
+          <ProtectedRoute>
+            <StudentWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/analysis/:id"
+        element={
+          <ProtectedRoute>
+            <StudentAnalysisResult />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/learn/:conceptId"
+        element={
+          <ProtectedRoute>
+            <StudentLearnConcept />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/learn/:conceptId/check"
+        element={
+          <ProtectedRoute>
+            <StudentMicroCheck />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/progress"
+        element={
+          <ProtectedRoute>
+            <StudentProgress />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Professional Track Routes */}
+      {/* Protected Professional Track Routes */}
       <Route path="/pro" element={<Navigate to="/pro/dashboard" replace />} />
-      <Route path="/pro/dashboard" element={<ProDashboard />} />
-      <Route path="/pro/review/:id" element={<ProReviewWorkspace />} />
-      <Route path="/pro/xray" element={<ProCodeXRay />} />
-      <Route path="/pro/results/:id" element={<ProReviewResults />} />
-      <Route path="/pro/versus" element={<ProAIVsHuman />} />
-      <Route path="/pro/false-positive" element={<ProFalsePositive />} />
+      <Route
+        path="/pro/dashboard"
+        element={
+          <ProtectedRoute>
+            <ProDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/review/:id"
+        element={
+          <ProtectedRoute>
+            <ProReviewWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/xray"
+        element={
+          <ProtectedRoute>
+            <ProCodeXRay />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/results/:id"
+        element={
+          <ProtectedRoute>
+            <ProReviewResults />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/versus"
+        element={
+          <ProtectedRoute>
+            <ProAIVsHuman />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/false-positive"
+        element={
+          <ProtectedRoute>
+            <ProFalsePositive />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Shared & Arena */}
-      <Route path="/battle" element={<MultiplayerLobby />} />
-      <Route path="/battle/:roomId" element={<MultiplayerBattle />} />
-      <Route path="/battle/:roomId/results" element={<MultiplayerResults />} />
-      <Route path="/leaderboard" element={<Leaderboard />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/profile/:id" element={<Profile />} />
-      <Route path="/settings" element={<Settings />} />
+      {/* Protected Shared & Arena Routes */}
+      <Route
+        path="/battle"
+        element={
+          <ProtectedRoute>
+            <MultiplayerLobby />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/battle/:roomId"
+        element={
+          <ProtectedRoute>
+            <MultiplayerBattle />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/battle/:roomId/results"
+        element={
+          <ProtectedRoute>
+            <MultiplayerResults />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leaderboard"
+        element={
+          <ProtectedRoute>
+            <Leaderboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile/:id"
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Legacy Fallbacks */}
       <Route path="/practice" element={<Navigate to="/student/practice" replace />} />

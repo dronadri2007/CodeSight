@@ -5,10 +5,12 @@ import { Eye, ArrowRight, Lock, Mail, User as UserIcon, Code2 } from 'lucide-rea
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { BrandLogo } from '../components/ui/BrandLogo'
+import { useAuthStore } from '../store/authStore'
 
 export default function Auth() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const login = useAuthStore((state) => state.login)
   const isSignUpDefault = searchParams.get('mode') === 'signup'
 
   const [isSignUp, setIsSignUp] = useState(isSignUpDefault)
@@ -18,7 +20,7 @@ export default function Auth() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Navigate directly to role selection after authenticating
+    login(name || 'Afrid Shaik', email || 'afrid@example.com')
     navigate('/role-select')
   }
 

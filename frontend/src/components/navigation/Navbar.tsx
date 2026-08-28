@@ -3,12 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   Code2, Shield, User, Menu, X, ArrowRight, CheckCircle2,
   Sparkles, Layers, BookOpen, TrendingUp, Trophy, Settings as SettingsIcon,
-  HelpCircle, Swords
+  HelpCircle, Swords, LogOut
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { BrandLogo } from '../ui/BrandLogo'
+import { useAuthStore } from '../../store/authStore'
 
 interface NavbarProps {
   variant?: 'marketing' | 'student' | 'pro'
@@ -18,6 +19,12 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { isAuthenticated, user, logout } = useAuthStore()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
 
   // Marketing Navigation Links
   const marketingLinks = [
@@ -128,7 +135,7 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
 
         {/* Right Controls */}
         <div className="hidden sm:flex items-center gap-3">
-          {variant === 'marketing' ? (
+          {!isAuthenticated ? (
             <>
               <Button
                 variant="ghost"
@@ -149,10 +156,15 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
             </>
           ) : (
             <div className="flex items-center gap-3">
-              {/* Role Switcher */}
+              {/* Switch Role */}
               <button
                 onClick={() => navigate('/role-select')}
-                className="text-xs px-3 py-1.5 rounded-xl border border-navy-borderStrong bg-navy-surface text-slate hover:text-white transition-colors flex items-center gap-1.5"
+                className={clsx(
+                  'text-xs px-3 py-1.5 rounded-xl border transition-colors flex items-center gap-1.5',
+                  isDarkNav
+                    ? 'border-navy-borderStrong bg-navy-surface text-slate hover:text-white'
+                    : 'border-light-border bg-light-elevated text-light-textSecondary hover:text-navy'
+                )}
                 title="Switch learning track"
               >
                 <Layers size={13} className="text-aqua" />
@@ -160,11 +172,23 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
               </button>
 
               {/* User Avatar */}
-              <Link to="/profile" className="flex items-center gap-2 pl-2">
-                <div className="w-9 h-9 rounded-xl bg-aqua/20 border border-aqua/40 flex items-center justify-center text-xs font-bold text-aqua shadow-sm">
-                  AF
+              <Link to="/profile" className="flex items-center gap-2 pl-1">
+                <div className="w-9 h-9 rounded-xl bg-aqua-soft border border-aqua/40 flex items-center justify-center text-xs font-bold text-navy shadow-sm">
+                  {user?.avatar || 'AF'}
                 </div>
               </Link>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className={clsx(
+                  'p-2 rounded-xl transition-colors',
+                  isDarkNav ? 'text-slate hover:text-danger' : 'text-light-textMuted hover:text-danger'
+                )}
+                title="Sign Out"
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           )}
         </div>
@@ -207,7 +231,7 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
                 key={item.label}
                 to={item.to}
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium py-1.5 text-slate hover:text-white"
+                className="text-sm font-medium py-1.5 text-light-textSecondary hover:text-navy"
               >
                 {item.label}
               </Link>
@@ -218,15 +242,15 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
                 key={item.label}
                 to={item.to}
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium py-1.5 text-slate hover:text-white"
+                className="text-sm font-medium py-1.5 text-light-textSecondary hover:text-navy"
               >
                 {item.label}
               </Link>
             ))}
           </div>
 
-          <div className="pt-3 border-t border-navy-border/40 flex flex-col gap-2">
-            {variant === 'marketing' ? (
+          <div className="pt-3 border-t border-light-border/60 flex flex-col gap-2">
+            {!isAuthenticated ? (
               <>
                 <Button fullWidth variant="secondary" onClick={() => { navigate('/auth'); setMobileMenuOpen(false) }}>
                   Sign In
@@ -236,9 +260,14 @@ export function Navbar({ variant = 'marketing' }: NavbarProps) {
                 </Button>
               </>
             ) : (
-              <Button fullWidth variant="dark" size="sm" onClick={() => { navigate('/role-select'); setMobileMenuOpen(false) }}>
-                Switch Track (Student / Pro)
-              </Button>
+              <>
+                <Button fullWidth variant="secondary" size="sm" onClick={() => { navigate('/role-select'); setMobileMenuOpen(false) }}>
+                  Switch Track (Student / Pro)
+                </Button>
+                <Button fullWidth variant="danger" size="sm" onClick={() => { handleLogout(); setMobileMenuOpen(false) }}>
+                  Sign Out
+                </Button>
+              </>
             )}
           </div>
         </div>

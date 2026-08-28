@@ -5,9 +5,21 @@ import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { BrandLogo } from '../components/ui/BrandLogo'
+import { useAuthStore } from '../store/authStore'
 
 export default function RoleSelect() {
   const navigate = useNavigate()
+  const setRole = useAuthStore((state) => state.setRole)
+
+  const handleSelectStudent = () => {
+    setRole('student')
+    navigate('/student/dashboard')
+  }
+
+  const handleSelectPro = () => {
+    setRole('professional')
+    navigate('/pro/dashboard')
+  }
 
   return (
     <div className="min-h-screen bg-light-bg flex flex-col justify-center items-center px-6 py-12">
@@ -35,7 +47,7 @@ export default function RoleSelect() {
         >
           <Card
             hover
-            onClick={() => navigate('/student/dashboard')}
+            onClick={handleSelectStudent}
             className="p-8 border-light-border bg-light-card flex-1 flex flex-col justify-between group cursor-pointer"
           >
             <div>
@@ -89,7 +101,7 @@ export default function RoleSelect() {
         >
           <Card
             hover
-            onClick={() => navigate('/pro/dashboard')}
+            onClick={handleSelectPro}
             className="p-8 border-navy-border bg-navy-surface text-white flex-1 flex flex-col justify-between group cursor-pointer shadow-xl"
           >
             <div>
@@ -127,7 +139,7 @@ export default function RoleSelect() {
               fullWidth
               size="lg"
               variant="dark"
-              onClick={() => navigate('/pro/dashboard')}
+              onClick={handleSelectPro}
               iconRight={<ArrowRight size={16} />}
               className="bg-aqua text-navy hover:bg-aqua-bright font-bold border-none"
             >
