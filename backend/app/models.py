@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, Float, String, Text
+from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -26,6 +26,7 @@ class Attempt(Base):
 
     selected_lines: Mapped[list] = mapped_column(JSON, default=list)
     explanation: Mapped[str] = mapped_column(Text, default="")
+    hints_used: Mapped[int] = mapped_column(Integer, default=0)
 
     localisation_score: Mapped[float] = mapped_column(Float, default=0.0)
     localisation_verdict: Mapped[str] = mapped_column(String(32), default="")

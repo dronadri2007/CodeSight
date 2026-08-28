@@ -4,8 +4,10 @@ Endpoints (see CONTRACT.md):
   GET  /health
   GET  /exercises
   GET  /exercises/{id}
+  GET  /exercises/{id}/hints/{n}
   POST /grade
   GET  /profile/{session_id}
+  GET  /progress/{session_id}
 """
 import logging
 from contextlib import asynccontextmanager
@@ -18,14 +20,18 @@ from app import exercises as ex
 from app.config import ALLOWED_ORIGINS, DB_IS_SQLITE, GRADER_MODEL
 from app.db import get_db, init_db
 from app.grader import diagnostics, grade_explanation
+from app.hints import score_multiplier
 from app.localisation import score_localisation
 from app.models import Attempt
 from app.profile import build_profile
+from app.progress import build_progress
 from app.schemas import (
     ExerciseFile,
     ExerciseSummary,
     GradeRequest,
     GradeResponse,
+    HintResponse,
+    ProgressReport,
     WeaknessProfile,
 )
 
@@ -88,6 +94,13 @@ def get_exercise(exercise_id: str):
     return ex.get_file(exercise_id)
 
 
+@app.get("/exercises/{exercise_id}/hints/{index}", response_model=HintResponse)
+def get_hint(exercise_id: str, index: int):
+    """One hint at a time. `index` is 1-based. `score_multiplier` is what the
+    final grade is scaled by if the student stops asking here."""
+    return ex.get_hint(exercise_id, index)
+
+
 @app.post("/grade", response_model=GradeResponse)
 def grade(req: GradeRequest, db: Session = Depends(get_db)):
     answer = ex.get_answer(req.exercise_id)
@@ -104,6 +117,12 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
         localisation_verdict=loc["verdict"],
     )
 
+    # Raw scores are stored unchanged so the weakness profile stays unaided.
+    # Hints only scale the score shown for this attempt.
+    mult = score_multiplier(req.hints_used)
+    combined = (loc["score"] + expl["explanation_score"]) / 2
+    score_after_hints = round(combined * mult, 2)
+
     db.add(
         Attempt(
             session_id=req.session_id,
@@ -111,6 +130,7 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
             defect_class=answer["defect_class"],
             selected_lines=req.selected_lines,
             explanation=req.explanation,
+            hints_used=req.hints_used,
             localisation_score=loc["score"],
             localisation_verdict=loc["verdict"],
             explanation_score=expl["explanation_score"],
@@ -133,9 +153,17 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
         },
         defect_class=answer["defect_class"],
         reference_fix=answer["reference"],
+        hints_used=req.hints_used,
+        hint_multiplier=mult,
+        score_after_hints=score_after_hints,
     )
 
 
 @app.get("/profile/{session_id}", response_model=WeaknessProfile)
 def profile(session_id: str, db: Session = Depends(get_db)):
     return build_profile(db, session_id)
+
+
+@app.get("/progress/{session_id}", response_model=ProgressReport)
+def progress(session_id: str, db: Session = Depends(get_db)):
+    return build_progress(db, session_id)
