@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-GRADER_MODEL: str = os.getenv("GRADER_MODEL", "claude-opus-5")
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
+GRADER_MODEL: str = os.getenv("GRADER_MODEL", "gemini-2.5-flash")
 
 ALLOWED_ORIGINS: list[str] = [
     o.strip()

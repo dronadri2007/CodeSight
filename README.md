@@ -8,7 +8,7 @@ why.
 
 ## Repo layout
 
-    backend/     FastAPI + Claude grading. Built by the backend pair.
+    backend/     FastAPI + Gemini grading. Built by the backend pair.
     frontend/    React (Stitch + Antigravity) + Monaco review surface.
                  Built by the frontend pair.
     CONTRACT.md  The API shape. Both sides build against this file.
@@ -25,7 +25,7 @@ Backend:
     .venv\Scripts\activate        # Windows
     # source .venv/bin/activate   # macOS / Linux
     pip install -r requirements.txt
-    copy .env.example .env         # then paste your ANTHROPIC_API_KEY
+    copy .env.example .env         # then paste your GEMINI_API_KEY
     uvicorn app.main:app --reload --port 8000
 
 Frontend:
@@ -37,5 +37,5 @@ Frontend:
 
 ## Deploy
 
-- Backend to Railway. Set `ANTHROPIC_API_KEY` and `ALLOWED_ORIGINS`.
+- Backend to Railway. Set `GEMINI_API_KEY` and `ALLOWED_ORIGINS`.
 - Frontend to Vercel. Set `VITE_API_BASE_URL` to the Railway URL.

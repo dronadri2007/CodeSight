@@ -59,7 +59,7 @@ class GradeResponse(BaseModel):
 
 # --- model-facing schema for the grader call -----------------------------
 class ExplanationGrade(BaseModel):
-    """What Claude returns for the explanation + teaching half of the grade."""
+    """What the grader model returns for the explanation + teaching half."""
 
     explanation_score: float
     explanation_verdict: Literal["strong", "partial", "weak"]

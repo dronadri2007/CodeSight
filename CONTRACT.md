@@ -101,7 +101,7 @@ Field rules:
   - `localisation.verdict`: `hit` | `near` | `miss` | `false_positive`.
   - A **clean** exercise has `real_lines: []`; selecting nothing scores 1.0
     (`hit`), selecting anything scores 0.0 (`false_positive`).
-- `explanation` + `teaching` come from one Claude call. If the model is
+- `explanation` + `teaching` come from one Gemini call. If the model is
   unavailable the call degrades gracefully: `explanation.score` 0.0,
   `verdict` `weak`, and `teaching` points at the reference.
   - `explanation.verdict`: `strong` | `partial` | `weak`.
