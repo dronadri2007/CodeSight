@@ -8,16 +8,15 @@ import hashlib
 import json
 import logging
 
-from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
 
 from app.config import GEMINI_API_KEY, GRADER_MODEL
+from app.gemini import client as _client
+from app.gemini import generate
 from app.schemas import ExplanationGrade
 
 log = logging.getLogger("codesight.grader")
-
-_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 SYSTEM = """You grade a student's code review. You do not review the code yourself.
 
@@ -78,7 +77,7 @@ def diagnostics(run_probe: bool = False) -> dict:
     }
     if run_probe and _client is not None:
         try:
-            resp = _client.models.generate_content(
+            resp = generate(
                 model=GRADER_MODEL,
                 contents="Return a JSON object grading a trivial code review.",
                 config=types.GenerateContentConfig(
@@ -124,7 +123,7 @@ def grade_explanation(
     )
 
     try:
-        resp = _client.models.generate_content(
+        resp = generate(
             model=GRADER_MODEL,
             contents=user,
             config=types.GenerateContentConfig(

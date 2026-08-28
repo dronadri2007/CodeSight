@@ -4,15 +4,14 @@ Runs the model as an independent reviewer of the same file the student saw
 (blind to the student's answer), then compares AI findings, the student's
 marked lines, and the ground-truth fix lines.
 """
-import hashlib
 import json
 import logging
 
-from google.genai import errors as genai_errors
 from google.genai import types
 
-from app.grader import _client  # reuse the configured client (may be None)
 from app.config import GRADER_MODEL
+from app.gemini import client as _client
+from app.gemini import generate
 from app.schemas import AiReviewOutput
 
 log = logging.getLogger("codesight.ai_review")
@@ -45,7 +44,7 @@ def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool, str | No
         return [], False, "no api key"
 
     try:
-        resp = _client.models.generate_content(
+        resp = generate(
             model=GRADER_MODEL,
             contents=f"Review this file:\n\n{code}",
             config=types.GenerateContentConfig(
@@ -57,8 +56,7 @@ def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool, str | No
             ),
         )
         parsed = getattr(resp, "parsed", None)
-        raw = resp.text
-        data = parsed.model_dump() if parsed is not None else json.loads(raw)
+        data = parsed.model_dump() if parsed is not None else json.loads(resp.text)
         findings = [
             {
                 "lines": [int(x) for x in f.get("lines", [])],
