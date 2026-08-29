@@ -9202,5 +9202,398 @@
       "Look at line 6 where string concatenation is used to build the SQL statement.",
       "Replace string concatenation with parameterized queries using a tuple of arguments in cursor.execute."
     ]
+  },
+  {
+    "id": "ex-g0467",
+    "language": "python",
+    "title": "Uncaught Exception in Search Endpoint",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_database(query):\n    try:\n        results = execute_query(query)\n    except DatabaseConnectionError:\n        log_error()\n    return results\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    return results\n+    return results if 'results' in locals() else []",
+    "reference": "The function attempts to return the variable 'results' even if an exception occurs inside the try block. Because an exception prevents 'results' from ever being bound, this raises an UnboundLocalError. The fix ensures that a default value is returned when the try block fails.",
+    "hints": [
+      "Look closely at what happens to the return value when an exception is caught.",
+      "Trace the execution flow if execute_query raises a DatabaseConnectionError.",
+      "The variable 'results' is never created if the try block fails before assignment."
+    ]
+  },
+  {
+    "id": "ex-g0468",
+    "language": "python",
+    "title": "Search Query Pagination Indexing",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def get_paginated_results(items, page, page_size):\n    start_idx = (page - 1) * page_size\n    end_idx = start_idx + page_size\n    return items[start_idx:end_idx]\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code looks like it might cause an IndexError or handle negative slicing unexpectedly at first glance, but Python list slicing is safe against out-of-bounds indices and negative indices behave predictably. Therefore, this implementation is fully correct and robust.",
+    "hints": [
+      "Check how Python handles list slicing when the end index exceeds the length of the list.",
+      "Verify what happens when page is 1 and page_size is a standard integer."
+    ]
+  },
+  {
+    "id": "ex-g0469",
+    "language": "python",
+    "title": "Insecure Password Comparison",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hashlib\n\ndef verify_password(stored_hash, provided_password):\n    provided_hash = hashlib.sha256(provided_password.encode()).hexdigest()\n    return provided_hash == stored_hash\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    return provided_hash == stored_hash\n+    return hmac.compare_digest(provided_hash, stored_hash)",
+    "reference": "Using the standard equality operator (==) to compare cryptographic hashes or tokens is vulnerable to timing attacks. An attacker can measure the exact time it takes for the comparison to fail, allowing them to guess the hash character by character. Replacing it with hmac.compare_digest ensures constant-time execution, preventing timing-based side-channel leaks.",
+    "hints": [
+      "Examine how the two hashes are compared at the end of the function.",
+      "Standard comparison operators in Python short-circuit when a mismatch is found.",
+      "Look into the hmac module and its constant-time comparison functions."
+    ]
+  },
+  {
+    "id": "ex-g0470",
+    "language": "python",
+    "title": "Uncaught ValueError in Rate Limiter Window Parsing",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "def parse_rate_limit(header_value):\n    try:\n        limit, window = header_value.split(\":\")\n        return int(limit), int(window)\n    except ValueError:\n        return None\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-    except ValueError:\n+    except (ValueError, AttributeError):\n         return None",
+    "reference": "The function attempts to split a rate limit header string and convert the parts to integers. If the input is None or not a string, the split method raises an AttributeError rather than a ValueError, causing the program to crash. Catching AttributeError alongside ValueError ensures the function gracefully handles invalid input types.",
+    "hints": [
+      "Consider what happens if the input is not a string.",
+      "Look at the methods being called inside the try block.",
+      "The split() method will fail with a specific exception if header_value is None."
+    ]
+  },
+  {
+    "id": "ex-g0471",
+    "language": "python",
+    "title": "Caching layer retrieval with default value",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_data(cache, key):\n    if cache.get(key) is None:\n        cache[key] = \"default_value\"\n    return cache[key]\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code correctly checks if the key is missing or explicitly maps to None using 'is None', rather than a falsy check 'not cache.get(key)', which would incorrectly reset valid cached values that evaluate to False (like 0, False, or empty strings). This pattern is safe and correct.",
+    "hints": [
+      "Check how the cache handles values that evaluate to False, such as integer 0 or an empty string.",
+      "Verify if using 'is None' prevents overwriting valid stored data compared to a standard truthiness check."
+    ]
+  },
+  {
+    "id": "ex-g0472",
+    "language": "python",
+    "title": "Unsafe File Extension Check",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def allowed_file(filename):\n    allowed_extensions = ['txt', 'pdf', 'png']\n    return filename.split('.')[-1] in allowed_extensions\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- upload.py\n+++ upload.py\n@@ -3,1 +3,1 @@\n-    return filename.split('.')[-1] in allowed_extensions\n+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions",
+    "reference": "Checking file extensions naively using split('.')[-1] is vulnerable to case sensitivity issues and missing extension edge cases. Additionally, files like 'malicious.php.png' could bypass this simple check if not handled correctly. Using rsplit with lower() ensures reliable validation of the actual file type.",
+    "hints": [
+      "Consider what happens if a filename contains uppercase letters like 'PNG'.",
+      "Look closely at how the extension is extracted and compared against the allowed list.",
+      "Use rsplit to get the extension safely and convert it to lowercase before checking."
+    ]
+  },
+  {
+    "id": "ex-g0473",
+    "language": "python",
+    "title": "Missing Authorization Check in Search Endpoint",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_documents(request, query):\n    user = request.user\n    if not user:\n        return {\"error\": \"Unauthorized\"}, 401\n    \n    results = Document.objects.filter(title__icontains=query)\n    return {\"results\": list(results)}, 200\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -6,1 +6,1 g\n-    results = Document.objects.filter(title__icontains=query)\n+    results = Document.objects.filter(owner=user, title__icontains=query)",
+    "reference": "Although the code verifies that a user is present, it fails to filter the query results by the authenticated user's identity. This allows any authenticated user to search and view documents belonging to other users, leading to an Insecure Direct Object Reference (IDOR) or Broken Object Level Authorization vulnerability. The fix is to add a scope restriction such as filtering by the user property.",
+    "hints": [
+      "Examine how the query filters documents from the database.",
+      "Check if the search is restricted to resources belonging only to the currently authenticated user.",
+      "Add 'owner=user' or a similar constraint to the database filter query."
+    ]
+  },
+  {
+    "id": "ex-g0474",
+    "language": "python",
+    "title": "Suspicious CSV Column Indexing",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef get_active_usernames(file_path):\n    with open(file_path, mode='r', encoding='utf-8') as f:\n        reader = csv.reader(f)\n        header = next(reader, None)\n        if not header:\n            return []\n        \n        return [row[1] for row in reader if len(row) > 1 and row[0].lower() == 'active']\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and robust. A novice reviewer might suspect an IndexError due to hardcoding row[1] and row[0], but the code explicitly checks len(row) > 1 beforehand, ensuring safety even with jagged CSV rows.",
+    "hints": [
+      "Check how the row length is validated before accessing indices.",
+      "Verify if rows shorter than the expected index are safely filtered out."
+    ]
+  },
+  {
+    "id": "ex-g0475",
+    "language": "python",
+    "title": "Report Row Accumulation Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_summary(data_rows):\n    summary = {}\n    for row in data_rows:\n        category = row[\"category\"]\n        total = summary.get(category, 0)\n        total += row[\"amount\"]\n    return summary\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-        total += row[\"amount\"]\n+        summary[category] = total + row[\"amount\"]",
+    "reference": "The bug occurs because the accumulated total is calculated and stored in a local variable 'total', but it is never written back into the 'summary' dictionary. As a result, the dictionary only ever holds the initial value or is left completely empty for that category depending on how it was initialized. Fixing this requires explicitly updating the dictionary key with the newly computed sum.",
+    "hints": [
+      "Check how values are being stored and retrieved from the dictionary.",
+      "Look closely at the variable 'total' and where its updated value goes.",
+      "The dictionary 'summary' is never updated with the new sum before the end of the loop iteration."
+    ]
+  },
+  {
+    "id": "ex-g0476",
+    "language": "python",
+    "title": "Unclosed File Resource in Webhook Logger",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def log_webhook(payload):\n    f = open(\"webhooks.log\", \"a\")\n    f.write(payload + \"\\n\")\n    return {\"status\": \"logged\"}\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,2 +2,2 @@\n-    f = open(\"webhooks.log\", \"a\")\n-    f.write(payload + \"\\n\")\n+    with open(\"webhooks.log\", \"a\") as f:\n+        f.write(payload + \"\\n\")",
+    "reference": "The function opens a file to append webhook data but never closes it. This can lead to file descriptor leaks and data not being flushed properly to disk. Using a context manager ('with' statement) ensures the file is automatically and safely closed after the block executes.",
+    "hints": [
+      "Examine how system resources like files are acquired and released.",
+      "Consider what happens to the file handle if the write operation completes or fails.",
+      "Use a context manager ('with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0477",
+    "language": "python",
+    "title": "Shared SMTP Connection in ThreadPool",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom concurrent.futures import ThreadPoolExecutor\n\nclass Mailer:\n    def __init__(self, host):\n        self.client = smtplib.SMTP(host)\n\n    def send(self, recipient, message):\n        self.client.sendmail(\"noreply@example.com\", recipient, message)\n\n    def send_bulk(self, recipients):\n        with ThreadPoolExecutor(max_workers=4) as executor:\n            executor.map(lambda r: self.send(r, \"Hello\"), recipients)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "@@ -9,1 +9,2 @@\n-        self.client.sendmail(\"noreply@example.com\", recipient, message)\n+        with smtplib.SMTP(self.client.host) as smtp:\n+            smtp.sendmail(\"noreply@example.com\", recipient, message)",
+    "reference": "The code shares a single smtplib.SMTP client instance across multiple threads in a ThreadPoolExecutor. Because SMTP sessions maintain mutable state and are not thread-safe, concurrent calls to sendmail on the same connection will corrupt the protocol stream and raise exceptions. The fix ensures that each thread initializes its own connection or uses a threading lock appropriately.",
+    "hints": [
+      "Look at how the network client is initialized and where it is accessed.",
+      "Examine the thread safety guarantees of the networking library being used.",
+      "Consider whether multiple worker threads are trying to write to the same resource concurrently."
+    ]
+  },
+  {
+    "id": "ex-g0478",
+    "language": "python",
+    "title": "Uncaught Exception in Job Queue",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import time\n\ndef process_jobs(queue):\n    while len(queue) > 0:\n        job = queue.pop(0)\n        try:\n            job()\n        except IndexError:\n            print(f\"Failed to execute job: {job}\")\n",
+    "real_lines": [
+      6,
+      7,
+      8
+    ],
+    "fix_diff": "@@ -6,3 +6,3 @@\n         try:\n             job()\n-        except IndexError:\n+        except Exception:",
+    "reference": "When executing arbitrary functions in a job queue, they can raise various types of exceptions, not just an IndexError. Catching only IndexError leaves the worker vulnerable to crashing when jobs fail with other errors like ValueError or TypeError. Changing the except clause to catch the broad Exception class ensures the queue continues processing subsequent jobs even if one fails.",
+    "hints": [
+      "Look closely at the exception type being caught in the try-except block.",
+      "Consider what kinds of errors an arbitrary function might raise during execution.",
+      "Catching a specific built-in exception like IndexError is too narrow for general job processing."
+    ]
+  },
+  {
+    "id": "ex-g0479",
+    "language": "python",
+    "title": "Unclosed File Resource in PDF Report Exporter",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_exporter.py",
+    "code": "def generate_summary_report(data, output_path):\n    report_file = open(output_path, \"w\")\n    summary_text = f\"Total Records: {len(data)}\\n\"\n    report_file.write(summary_text)\n    if not data:\n        raise ValueError(\"Cannot generate report for empty data.\")\n    report_file.close()\n    return True\n",
+    "real_lines": [
+      2,
+      7
+    ],
+    "fix_diff": "@@ -2,6 +2,5 @@\n def generate_summary_report(data, output_path):\n-    report_file = open(output_path, \"w\")\n+    with open(output_path, \"w\") as report_file:\n         summary_text = f\"Total Records: {len(data)}\\n\"\n         report_file.write(summary_text)\n         if not data:\n             raise ValueError(\"Cannot generate report for empty data.\")\n-    report_file.close()\n         return True",
+    "reference": "When opening files in Python, it is crucial to ensure they are properly closed even if exceptions occur during execution. In this function, if the input data is empty, a ValueError is raised before reaching the close() method, leaving the file descriptor dangling and potentially locking the file. Using a context manager via the 'with' statement guarantees that the file resource is safely cleaned up regardless of whether an exception is raised.",
+    "hints": [
+      "Examine how file resources are acquired and released throughout the function.",
+      "Consider what happens to the file handle if an exception is raised midway through execution.",
+      "Refactor the file handling to use a context manager ('with' statement) to automatically manage resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0480",
+    "language": "python",
+    "title": "Unsafe File Upload Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import threading\n\nactive_uploads = 0\n\ndef handle_upload(file_data):\n    global active_uploads\n    active_uploads += 1\n    save_to_disk(file_data)\n    active_uploads -= 1\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -7,1 +7,5 @@\n-    active_uploads += 1\n+    with upload_lock:\n+        global active_uploads\n+        active_uploads += 1\n+    try:\n+        save_to_disk(file_data)\n+    finally:\n+        with upload_lock:\n+            active_uploads -= 1",
+    "reference": "The code modifies a shared global variable across multiple threads without synchronization. This can lead to race conditions where increment and decrement operations interfere with each other, causing an inaccurate count of active uploads. Using a threading lock ensures that these critical sections are accessed atomically.",
+    "hints": [
+      "Check how the global state is modified when multiple requests are handled simultaneously.",
+      "Look at the operations performed on the active_uploads variable.",
+      "Consider using a threading.Lock to protect the critical section where active_uploads is updated."
+    ]
+  },
+  {
+    "id": "ex-g0481",
+    "language": "python",
+    "title": "Unthreadsafe SMTP Connection Pool Reuse",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom threading import local\n\n_thread_local = local()\n\ndef get_shared_client():\n    if not hasattr(_thread_local, \"client\"):\n        _thread_local.client = smtplib.SMTP(\"localhost\", 25)\n    return _thread_local.client\n\ndef send_email(to_addr, msg):\n    client = get_shared_client()\n    client.sendmail(\"admin@example.com\", to_addr, msg)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- mailer.py\n+++ mailer.py\n@@ -6,4 +6,4 @@\n def get_shared_client():\n     if not hasattr(_thread_local, \"client\"):\n         _thread_local.client = smtplib.SMTP(\"localhost\", 25)\n-    return _thread_local.client\n+    return smtplib.SMTP(\"localhost\", 25)",
+    "reference": "Although the code uses threading.local() to isolate SMTP clients per thread, reusing a single persistent SMTP connection across multiple calls within the same thread can lead to race conditions if multiple tasks or async routines execute concurrently on that thread, or if connection state becomes corrupted. SMTP clients maintain strict command-response sequences, and interleaving sendmail operations over a shared persistent socket without locking will cause protocol desynchronization. The fix is to instantiate a fresh connection per call or ensure proper context management.",
+    "hints": [
+      "Examine how the SMTP client instance is retrieved and stored.",
+      "Consider what happens if multiple operations attempt to use the same thread-local client object concurrently.",
+      "Avoid sharing stateful network clients across invocations; instantiate them per request instead."
+    ]
+  },
+  {
+    "id": "ex-g0482",
+    "language": "python",
+    "title": "Race Condition in Temporary File Creation",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\nfrom werkzeug.utils import secure_filename\n\ndef save_upload(file_storage, upload_dir):\n    filename = secure_filename(file_storage.filename)\n    temp_path = os.path.join(upload_dir, filename)\n    if os.path.exists(temp_path):\n        raise FileExistsError(\"File already exists\")\n    file_storage.save(temp_path)\n    return temp_path\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -7,2 +7,2 @@\n-    if os.path.exists(temp_path):\n-        raise FileExistsError(\"File already exists\")\n+    fd = os.open(temp_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)\n+    with os.fdopen(fd, 'wb') as f:\n+        file_storage.save(f)",
+    "reference": "This code suffers from a classic Time-of-Check to Time-of-Use (TOCTOU) race condition. Between the time os.path.exists checks if the file exists and the time file_storage.save writes to it, another thread or process could create a file with the same name, leading to unintended overwrites or security issues. The fix is to use atomic file creation flags like os.O_CREAT combined with os.O_EXCL to ensure the operation fails atomically if the file already exists.",
+    "hints": [
+      "Consider what happens if two requests arrive simultaneously with the same filename.",
+      "Look closely at the check-then-act pattern using os.path.exists.",
+      "Use atomic file system flags such as os.O_EXCL instead of checking existence beforehand."
+    ]
+  },
+  {
+    "id": "ex-g0483",
+    "language": "python",
+    "title": "Unusual Hashing Algorithm Selection",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hashlib\n\ndef verify_password(stored_hash: str, provided_password: str) -> bool:\n    salt = stored_hash[:32]\n    key = hashlib.pbkdf2_hmac('sha256', provided_password.encode('utf-8'), salt.encode('utf-8'), 100000)\n    return stored_hash == salt + key.hex()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This implementation uses standard PBKDF2-HMAC with SHA-256 and 100,000 iterations, which is a cryptographically secure key derivation function recommended for password hashing. Although custom slicing and string concatenation are used instead of a higher-level library like bcrypt, the code is secure and functions correctly.",
+    "hints": [
+      "Check the iteration count used in the key derivation function.",
+      "Verify how the salt is extracted and combined with the generated key."
+    ]
+  },
+  {
+    "id": "ex-g0484",
+    "language": "python",
+    "title": "CSV Command Injection",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nimport subprocess\n\ndef process_csv_row(row_string):\n    reader = csv.reader([row_string])\n    row = next(reader)\n    cmd = f\"echo {row[0]}\"\n    subprocess.run(cmd, shell=True)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    cmd = f\"echo {row[0]}\"\n-    subprocess.run(cmd, shell=True)\n+    subprocess.run([\"echo\", row[0]])",
+    "reference": "Using shell=True with subprocess allows shell command injection if the input data contains shell metacharacters like semicolons or backticks. Passing the command and arguments as a list avoids invoking the shell entirely, neutralizing injection risks. Always avoid shell=True when processing untrusted input.",
+    "hints": [
+      "Examine how external processes are invoked in the function.",
+      "Look closely at the use of the shell parameter in the subprocess module.",
+      "Avoid shell=True and pass command arguments as a list instead of a formatted string."
+    ]
+  },
+  {
+    "id": "ex-g0485",
+    "language": "python",
+    "title": "SQL Injection in Webhook Log",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import sqlite3\n\ndef log_webhook(event_type, payload):\n    conn = sqlite3.connect('events.db')\n    cursor = conn.cursor()\n    query = \"INSERT INTO logs (event_type, payload) VALUES ('\" + event_type + \"', '\" + payload + \"')\"\n    cursor.execute(query)\n    conn.commit()\n    conn.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"INSERT INTO logs (event_type, payload) VALUES ('\" + event_type + \"', '\" + payload + \"')\"\n+    query = \"INSERT INTO logs (event_type, payload) VALUES (?, ?)\"\n+    cursor.execute(query, (event_type, payload))",
+    "reference": "This code suffers from an SQL injection vulnerability because untrusted webhook parameters are directly concatenated into the SQL query string. An attacker could craft a malicious event type or payload to execute arbitrary SQL commands against the database. The fix is to use parameterized queries with placeholders, allowing the database driver to safely escape the input.",
+    "hints": [
+      "Examine how the SQL query string is constructed using string concatenation.",
+      "Look closely at the execute() method call and how variables are passed into it.",
+      "Replace the concatenated variables with question mark placeholders and pass them as a tuple to cursor.execute()."
+    ]
+  },
+  {
+    "id": "ex-g0486",
+    "language": "python",
+    "title": "Mutable Default Argument in Global Logger",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "from datetime import datetime\n\ndef log_request(path, history=[]):\n    history.append((datetime.now(), path))\n    print(f\"Logged {path}. Total requests: {len(history)}\")\n    return history\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -3,1 +3,2 @@\n-def log_request(path, history=[]):\n+def log_request(path, history=None):\n+    if history is None:\n+        history = []",
+    "reference": "Python evaluates default arguments once when the function is defined, not each time it is called. When multiple concurrent threads or sequential calls invoke this function without providing a 'history' argument, they all share and mutate the exact same list object. This creates race conditions and state leakage across requests. Fixing it requires using 'None' as the default value and instantiating a new list inside the function body.",
+    "hints": [
+      "Look closely at how function arguments are initialized in Python.",
+      "Consider what happens when a default argument is a mutable object like a list.",
+      "Initialize the history variable to None by default and create a new list inside the function if it is None."
+    ]
   }
 ]
