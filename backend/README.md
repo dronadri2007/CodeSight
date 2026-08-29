@@ -60,6 +60,7 @@ demo or on a CI schedule.
 | `app/integrity.py` | optional `/grade` telemetry → integrity score + flags (advisory, never rescores) |
 | `app/profile.py` | aggregate a session's attempts → weakest class + next step |
 | `app/progress.py` | attempt timeline + running catch-rate + per-class first-vs-latest |
+| `app/leaderboard.py` | rank sessions by `0.7*catch_rate + 0.3*avg_explanation` (min attempts, tier filter, `you` row) |
 | `app/concepts.py` | recommendation engine — `data/concepts.json` (6 defect-class concepts + videos + a 3-question micro-check quiz) |
 | `app/tiers.py` | beginner/intermediate/pro, promotion test (3 curated next-tier exercises, mean loc >= 0.7) |
 | `app/reports.py` | exercise reporting — 3 distinct sessions hides an exercise from listings |
@@ -100,7 +101,7 @@ fields never leave the server — only `/grade` reads them.
 
 `GET /health` · `GET /exercises[?tier=&source=]` · `GET /exercises/{id}` ·
 `GET /exercises/{id}/hints/{n}` · `POST /grade` · `POST /ai-review` ·
-`GET /profile/{session_id}` · `GET /progress/{session_id}` ·
+`GET /profile/{session_id}` · `GET /progress/{session_id}` · `GET /leaderboard` ·
 `GET /concepts` · `GET /concept/{id}` ·
 `GET /concept/{id}/micro-check` · `POST /concept/{id}/micro-check` ·
 `GET /session/{id}` ·

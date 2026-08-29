@@ -366,6 +366,79 @@ def test_profile_needs_two_attempts_before_recommending(client):
     assert d["weakest_class"] is None
 
 
+# --- /leaderboard ------------------------------------------------
+_HIT = {"ex-001": [2], "ex-013": [2, 3], "ex-014": [2], "ex-015": [2]}
+_MISS = {"ex-001": [9], "ex-013": [9], "ex-014": [9], "ex-015": [9]}
+
+
+def _play(client, session_id, correct: int, wrong: int = 0):
+    ids = list(_HIT)
+    for i in range(correct):
+        eid = ids[i % len(ids)]
+        client.post("/grade", json={"session_id": session_id, "exercise_id": eid,
+                                    "selected_lines": _HIT[eid], "explanation": "x"})
+    for i in range(wrong):
+        eid = ids[i % len(ids)]
+        client.post("/grade", json={"session_id": session_id, "exercise_id": eid,
+                                    "selected_lines": _MISS[eid], "explanation": "x"})
+
+
+def test_leaderboard_empty(client):
+    d = client.get("/leaderboard").json()
+    assert d["entries"] == []
+    assert d["total_ranked"] == 0
+    assert d["you"] is None
+
+
+def test_leaderboard_ranks_by_score(client):
+    _play(client, "ace", correct=4)
+    _play(client, "mid", correct=2, wrong=2)
+    _play(client, "low", correct=0, wrong=4)
+    d = client.get("/leaderboard").json()
+    order = [e["session_id"] for e in d["entries"]]
+    assert order == ["ace", "mid", "low"]
+    assert [e["rank"] for e in d["entries"]] == [1, 2, 3]
+    assert d["entries"][0]["catch_rate"] == 1.0
+    assert d["entries"][0]["score"] >= d["entries"][1]["score"] >= d["entries"][2]["score"]
+
+
+def test_leaderboard_min_attempts_filter(client):
+    _play(client, "grinder", correct=5)
+    _play(client, "dabbler", correct=2)  # only 2 attempts
+    default = client.get("/leaderboard").json()
+    assert {e["session_id"] for e in default["entries"]} == {"grinder"}
+    loosened = client.get("/leaderboard?min_attempts=2").json()
+    assert {e["session_id"] for e in loosened["entries"]} == {"grinder", "dabbler"}
+
+
+def test_leaderboard_you_row(client):
+    _play(client, "ace", correct=4)
+    _play(client, "me", correct=3, wrong=1)
+    _play(client, "rival", correct=4)
+    d = client.get("/leaderboard?session_id=me").json()
+    assert d["you"]["session_id"] == "me"
+    assert d["you"]["rank"] == next(e["rank"] for e in d["entries"] if e["session_id"] == "me")
+    # a session with too few attempts is not ranked -> no you row
+    _play(client, "newbie", correct=1)
+    assert client.get("/leaderboard?session_id=newbie").json()["you"] is None
+
+
+def test_leaderboard_limit_caps_entries_not_total(client):
+    for name in ("a", "b", "c", "d"):
+        _play(client, name, correct=3)
+    d = client.get("/leaderboard?limit=2").json()
+    assert len(d["entries"]) == 2
+    assert d["total_ranked"] == 4
+
+
+def test_leaderboard_tier_filter(client):
+    _play(client, "s1", correct=3)
+    client.get("/session/s1")  # creates the LearnerSession row at beginner
+    assert {e["session_id"] for e in client.get("/leaderboard?tier=beginner").json()["entries"]} == {"s1"}
+    assert client.get("/leaderboard?tier=intermediate").json()["entries"] == []
+    assert client.get("/leaderboard?tier=wizard").status_code == 422
+
+
 # --- concepts (recommendation engine) --------------------------------
 def test_concepts_list(client):
     ids = {c["id"] for c in client.get("/concepts").json()}

@@ -4,7 +4,7 @@ Endpoints (see CONTRACT.md):
   GET  /health · GET /debug
   GET  /exercises [?tier= &source=] · GET /exercises/{id} · GET /exercises/{id}/hints/{n}
   POST /grade · POST /ai-review · POST /exercises/{id}/report
-  GET  /profile/{session_id} · GET /progress/{session_id}
+  GET  /profile/{session_id} · GET /progress/{session_id} · GET /leaderboard
   GET  /session/{session_id}
   GET  /concepts · GET /concept/{id}
   GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
@@ -13,11 +13,11 @@ Endpoints (see CONTRACT.md):
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app import ai_review, concepts, reports, tiers
+from app import ai_review, concepts, leaderboard as lb, reports, tiers
 from app import exercises as ex
 from app.config import (
     ALLOWED_ORIGIN_REGEX,
@@ -43,6 +43,7 @@ from app.schemas import (
     GradeRequest,
     GradeResponse,
     HintResponse,
+    Leaderboard,
     MicroCheck,
     MicroCheckRequest,
     MicroCheckResult,
@@ -228,6 +229,24 @@ def profile(session_id: str, db: Session = Depends(get_db)):
 @app.get("/progress/{session_id}", response_model=ProgressReport)
 def progress(session_id: str, db: Session = Depends(get_db)):
     return build_progress(db, session_id)
+
+
+@app.get("/leaderboard", response_model=Leaderboard)
+def leaderboard(
+    limit: int = Query(20, ge=1, le=100),
+    min_attempts: int = Query(3, ge=1, le=50),
+    tier: str | None = Query(None),
+    session_id: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Sessions ranked by 0.7*catch_rate + 0.3*avg_explanation, over sessions
+    with >= min_attempts. `tier` filters to one tier; `session_id` adds a
+    `you` row with that session's rank."""
+    if tier is not None and not lb.is_valid_tier(tier):
+        raise HTTPException(status_code=422, detail="unknown tier")
+    return lb.build_leaderboard(
+        db, limit=limit, min_attempts=min_attempts, tier=tier, session_id=session_id
+    )
 
 
 # --- concepts (recommendation engine) --------------------------------

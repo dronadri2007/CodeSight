@@ -125,6 +125,25 @@ class WeaknessProfile(BaseModel):
     recommendation: str
 
 
+# --- GET /leaderboard --------------------------------------------------
+class LeaderboardEntry(BaseModel):
+    rank: int
+    session_id: str
+    tier: Tier
+    attempts: int
+    catch_rate: float        # mean localisation_score, 0.0-1.0
+    avg_explanation: float   # mean explanation_score, 0.0-1.0
+    score: float             # composite: 0.7*catch_rate + 0.3*avg_explanation
+
+
+class Leaderboard(BaseModel):
+    generated_at: str
+    min_attempts: int
+    total_ranked: int        # sessions meeting min_attempts (may exceed len(entries))
+    entries: list[LeaderboardEntry]
+    you: LeaderboardEntry | None = None   # the ?session_id caller's row, if ranked
+
+
 # --- POST /ai-review -------------------------------------------------
 class AiReviewRequest(BaseModel):
     exercise_id: str

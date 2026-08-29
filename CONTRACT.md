@@ -309,6 +309,59 @@ Response 200:
 
 ---
 
+## GET /leaderboard
+
+Sessions ranked by review skill.
+
+Query params (all optional):
+
+| param | default | meaning |
+|---|---|---|
+| `limit` | 20 | max rows in `entries` (1–100) |
+| `min_attempts` | 3 | only rank sessions with at least this many graded submissions (1–50) |
+| `tier` | — | filter to one tier (`beginner` \| `intermediate` \| `pro`); 422 if unknown |
+| `session_id` | — | also return a `you` row with that session's rank |
+
+Response 200:
+
+    {
+      "generated_at": "2026-08-29T18:20:00+00:00",
+      "min_attempts": 3,
+      "total_ranked": 42,
+      "entries": [
+        {
+          "rank": 1,
+          "session_id": "web-8f3a2c",
+          "tier": "intermediate",
+          "attempts": 27,
+          "catch_rate": 0.88,
+          "avg_explanation": 0.71,
+          "score": 0.829
+        }
+      ],
+      "you": {
+        "rank": 14,
+        "session_id": "web-1a2b3c",
+        "tier": "beginner",
+        "attempts": 9,
+        "catch_rate": 0.62,
+        "avg_explanation": 0.40,
+        "score": 0.554
+      }
+    }
+
+- `score` = `0.7 * catch_rate + 0.3 * avg_explanation`, rounded to 3dp.
+  `catch_rate` is the mean `localisation_score`, `avg_explanation` the mean
+  `explanation_score`, over all the session's attempts.
+- Sorted by `score` desc, then `attempts` desc, then `session_id`.
+- `total_ranked` counts every session meeting `min_attempts` and can exceed
+  `len(entries)` when `limit` is smaller.
+- `you` is `null` when no `session_id` is given, or when that session is not
+  ranked (too few attempts, or filtered out by `tier`).
+- Empty / not-enough-data → `entries: []`, `total_ranked: 0`, `you: null`.
+
+---
+
 ## GET /concepts
 
 Recommendation engine — the six defect-class concepts.
