@@ -8,3 +8,6 @@ venv/
 *.db
 .idea/
 .vscode/
+
+# grader-benchmark local grade cache (re-derivable; costs quota to refill)
+benchmark/cache.json

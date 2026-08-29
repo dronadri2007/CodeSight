@@ -4,6 +4,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+Tier = Literal["beginner", "intermediate", "pro"]
+
+
 # --- GET /exercises ----------------------------------------------------------
 class ExerciseSummary(BaseModel):
     id: str
@@ -11,6 +14,8 @@ class ExerciseSummary(BaseModel):
     title: str
     defect_class: str
     line_count: int
+    difficulty: str
+    source: str  # "curated" | "generated"
 
 
 # --- GET /exercises/{id} ---------------------------------------------------
@@ -21,6 +26,8 @@ class ExerciseFile(BaseModel):
     code: str
     line_count: int
     hint_count: int
+    difficulty: str
+    source: str
 
 
 # --- GET /exercises/{id}/hints/{n} --------------------------------------
@@ -32,12 +39,31 @@ class HintResponse(BaseModel):
 
 
 # --- POST /grade -----------------------------------------------------------
+class GradeTelemetry(BaseModel):
+    """Optional behavioural signals the frontend may send with a submission.
+    Used only to compute an integrity score — never to block or rescore."""
+
+    time_to_submit_ms: int | None = Field(default=None, ge=0)  # exercise open -> submit
+    paste_count: int = Field(default=0, ge=0)                  # pastes into the explanation
+    pasted_chars: int = Field(default=0, ge=0)                 # total characters pasted
+    tab_blur_count: int = Field(default=0, ge=0)              # times the tab lost focus
+    tab_blur_ms: int = Field(default=0, ge=0)                 # total unfocused time
+    keystroke_count: int = Field(default=0, ge=0)            # keystrokes in the explanation
+
+
 class GradeRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     exercise_id: str
     selected_lines: list[int] = Field(default_factory=list)
     explanation: str = Field(default="", max_length=4000)
     hints_used: int = Field(default=0, ge=0, le=10)
+    telemetry: GradeTelemetry | None = None
+
+
+class IntegritySignal(BaseModel):
+    score: float                                    # 0.0-1.0, 1.0 = no concerns
+    verdict: Literal["clean", "review", "flagged"]
+    flags: list[str]                                # human-readable reasons, may be empty
 
 
 class LocalisationResult(BaseModel):
@@ -68,6 +94,7 @@ class GradeResponse(BaseModel):
     hints_used: int
     hint_multiplier: float          # 1.0 / 0.9 / 0.75 / 0.5
     score_after_hints: float        # mean(loc, expl) * multiplier, 0.0-1.0
+    integrity: IntegritySignal | None = None   # present only when telemetry was sent
 
 
 # --- model-facing schema for the grader call -----------------------------
@@ -156,3 +183,106 @@ class ProgressReport(BaseModel):
     total_attempts: int
     timeline: list[TimelinePoint]
     by_class: list[ClassTrend]
+
+
+# --- concepts (recommendation engine) --------------------------------
+class ConceptVideo(BaseModel):
+    title: str
+    url: str
+
+
+class ConceptSummary(BaseModel):
+    id: str
+    title: str
+
+
+class Concept(BaseModel):
+    id: str
+    title: str
+    summary: str
+    example_bad: str
+    example_good: str
+    videos: list[ConceptVideo]
+    practice_exercise_ids: list[str]
+    micro_check_count: int  # number of questions in this concept's check
+
+
+# --- concept micro-check -------------------------------------------
+class MicroCheckQuestion(BaseModel):
+    id: str
+    prompt: str
+    options: list[str]          # answer key NOT included
+
+
+class MicroCheck(BaseModel):
+    concept_id: str
+    questions: list[MicroCheckQuestion]
+
+
+class MicroCheckAnswer(BaseModel):
+    question_id: str
+    choice_index: int = Field(ge=0)
+
+
+class MicroCheckRequest(BaseModel):
+    answers: list[MicroCheckAnswer] = Field(default_factory=list)
+
+
+class MicroCheckQuestionResult(BaseModel):
+    question_id: str
+    correct: bool
+    your_index: int | None     # None if unanswered / out of range
+    correct_index: int
+    explanation: str
+
+
+class MicroCheckResult(BaseModel):
+    concept_id: str
+    total: int
+    correct: int
+    score: float               # correct / total, 0.0-1.0
+    passed: bool               # score >= 2/3
+    results: list[MicroCheckQuestionResult]
+    practice_exercise_ids: list[str]   # useful when the learner should practise
+
+
+# --- GET /session/{id} ----------------------------------------------
+class SessionInfo(BaseModel):
+    session_id: str
+    tier: Tier
+    next_tier: Tier | None            # None when already pro
+    promotion_test_available: bool
+
+
+# --- promotion test ------------------------------------------------
+class PromotionTest(BaseModel):
+    session_id: str
+    eligible: bool
+    from_tier: Tier
+    to_tier: Tier | None
+    exercise_ids: list[str]           # 3 curated exercises from the next tier
+    reason: str
+
+
+class PromotionResult(BaseModel):
+    session_id: str
+    passed: bool
+    from_tier: Tier
+    to_tier: Tier | None
+    tier_after: Tier                  # tier now (== to_tier if passed)
+    scores: list[float]              # first-attempt localisation per test exercise
+    mean_score: float
+    needed: float                    # pass threshold
+    missing: list[str]               # test exercises not yet attempted
+
+
+# --- POST /exercises/{id}/report -----------------------------------
+class ReportRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=64)
+    reason: str = Field(default="", max_length=500)
+
+
+class ReportResponse(BaseModel):
+    exercise_id: str
+    reports: int
+    hidden: bool                      # dropped from listings at >= threshold

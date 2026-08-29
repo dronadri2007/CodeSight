@@ -20,7 +20,32 @@ def test_exercise_list_has_no_answer_fields(client):
     items = client.get("/exercises").json()
     assert len(items) >= 3
     for it in items:
-        assert set(it) == {"id", "language", "title", "defect_class", "line_count"}
+        assert set(it) == {
+            "id", "language", "title", "defect_class", "line_count",
+            "difficulty", "source",
+        }
+        assert it["difficulty"] in {"beginner", "intermediate", "pro"}
+        assert it["source"] in {"curated", "generated"}
+        assert not any(k in it for k in ("real_lines", "fix_diff", "reference", "code"))
+
+
+def test_exercises_tier_gate_is_cumulative(client):
+    beginner = {e["id"] for e in client.get("/exercises?tier=beginner").json()}
+    inter = {e["id"] for e in client.get("/exercises?tier=intermediate").json()}
+    all_ex = {e["id"] for e in client.get("/exercises").json()}
+    assert beginner < inter <= all_ex
+    assert all(e["difficulty"] == "beginner" for e in client.get("/exercises?tier=beginner").json())
+    assert all(e["difficulty"] in {"beginner", "intermediate"}
+               for e in client.get("/exercises?tier=intermediate").json())
+
+
+def test_exercises_unknown_tier_is_422(client):
+    assert client.get("/exercises?tier=wizard").status_code == 422
+
+
+def test_exercises_source_filter(client):
+    curated = client.get("/exercises?source=curated").json()
+    assert curated and all(e["source"] == "curated" for e in curated)
 
 
 def test_exercise_file_hides_answers(client):
@@ -46,12 +71,86 @@ def test_grade_response_shape(client):
     ).json()
     assert set(d) == {
         "localisation", "explanation", "teaching", "defect_class", "reference_fix",
-        "hints_used", "hint_multiplier", "score_after_hints",
+        "hints_used", "hint_multiplier", "score_after_hints", "integrity",
     }
     assert set(d["localisation"]) == {"score", "verdict", "real_lines", "note"}
     assert set(d["explanation"]) == {"score", "verdict", "note"}
     assert set(d["teaching"]) == {"where", "why_missed", "pattern"}
     assert d["defect_class"] == "injection"
+    assert d["integrity"] is None  # no telemetry sent
+
+
+# --- integrity telemetry -------------------------------------------
+def test_grade_integrity_clean_when_typed_normally(client):
+    expl = "The user email is interpolated straight into the SQL string on line 2, "
+    expl += "so an attacker can inject a quote and change the query. Bind it instead."
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-001", "selected_lines": [2],
+            "explanation": expl,
+            "telemetry": {
+                "time_to_submit_ms": 95_000, "paste_count": 0, "pasted_chars": 0,
+                "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": len(expl) + 20,
+            },
+        },
+    ).json()
+    assert d["integrity"]["verdict"] == "clean"
+    assert d["integrity"]["score"] == 1.0
+    assert d["integrity"]["flags"] == []
+
+
+def test_grade_integrity_flags_a_dominant_paste(client):
+    expl = "x" * 200
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-001", "selected_lines": [2],
+            "explanation": expl,
+            "telemetry": {
+                "time_to_submit_ms": 8_000, "paste_count": 1, "pasted_chars": 200,
+                "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": 3,
+            },
+        },
+    ).json()
+    assert d["integrity"]["verdict"] == "flagged"
+    assert d["integrity"]["score"] < 0.4
+    assert any("pasted" in f for f in d["integrity"]["flags"])
+    # the grade itself is untouched by integrity
+    assert d["score_after_hints"] == client.post(
+        "/grade",
+        json={"session_id": "t2", "exercise_id": "ex-001", "selected_lines": [2], "explanation": expl},
+    ).json()["score_after_hints"]
+
+
+def test_grade_integrity_flags_off_tab_time(client):
+    expl = "This code fails to check that the row exists before using it. " * 3
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-002", "selected_lines": [1],
+            "explanation": expl,
+            "telemetry": {
+                "time_to_submit_ms": 120_000, "paste_count": 0, "pasted_chars": 0,
+                "tab_blur_count": 2, "tab_blur_ms": 45_000, "keystroke_count": len(expl),
+            },
+        },
+    ).json()
+    assert d["integrity"]["verdict"] in {"review", "flagged"}
+    assert any("focused" in f for f in d["integrity"]["flags"])
+
+
+def test_grade_integrity_ignores_signals_on_short_answers(client):
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-001", "selected_lines": [2],
+            "explanation": "sql injection",
+            "telemetry": {"time_to_submit_ms": 200, "paste_count": 0, "pasted_chars": 0,
+                          "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": 1},
+        },
+    ).json()
+    assert d["integrity"]["verdict"] == "clean"
 
 
 def test_grade_correct_line_is_hit(client):
@@ -265,3 +364,180 @@ def test_profile_needs_two_attempts_before_recommending(client):
     d = client.get(f"/profile/{s}").json()
     assert d["total_attempts"] == 1
     assert d["weakest_class"] is None
+
+
+# --- concepts (recommendation engine) --------------------------------
+def test_concepts_list(client):
+    ids = {c["id"] for c in client.get("/concepts").json()}
+    assert ids == {"injection", "auth", "error-handling", "concurrency", "logic", "resource"}
+
+
+def test_concept_detail_shape(client):
+    c = client.get("/concept/injection").json()
+    assert set(c) == {
+        "id", "title", "summary", "example_bad", "example_good",
+        "videos", "practice_exercise_ids", "micro_check_count",
+    }
+    assert c["videos"] and all(set(v) == {"title", "url"} for v in c["videos"])
+    assert c["practice_exercise_ids"]
+    assert c["micro_check_count"] == 3
+
+
+def test_concept_unknown_is_404(client):
+    assert client.get("/concept/telepathy").status_code == 404
+
+
+# --- concept micro-check --------------------------------------------
+def test_micro_check_questions_hide_the_answer_key(client):
+    d = client.get("/concept/injection/micro-check").json()
+    assert d["concept_id"] == "injection"
+    assert len(d["questions"]) == 3
+    for q in d["questions"]:
+        assert set(q) == {"id", "prompt", "options"}
+        assert len(q["options"]) >= 2
+
+
+def test_micro_check_unknown_concept_is_404(client):
+    assert client.get("/concept/nope/micro-check").status_code == 404
+    assert client.post("/concept/nope/micro-check", json={"answers": []}).status_code == 404
+
+
+def test_micro_check_all_correct_passes(client):
+    # answer key lives server-side; pull it via the module for the test
+    from app.concepts import _CONCEPTS
+
+    key = _CONCEPTS["auth"]["micro_check"]
+    body = {"answers": [{"question_id": q["id"], "choice_index": q["answer_index"]} for q in key]}
+    d = client.post("/concept/auth/micro-check", json=body).json()
+    assert d["total"] == 3
+    assert d["correct"] == 3
+    assert d["score"] == 1.0
+    assert d["passed"] is True
+    assert all(r["correct"] for r in d["results"])
+    assert all("explanation" in r and "correct_index" in r for r in d["results"])
+
+
+def test_micro_check_one_wrong_still_passes_two_of_three(client):
+    from app.concepts import _CONCEPTS
+
+    key = _CONCEPTS["logic"]["micro_check"]
+    answers = [{"question_id": q["id"], "choice_index": q["answer_index"]} for q in key]
+    answers[0]["choice_index"] = (key[0]["answer_index"] + 1) % len(key[0]["options"])
+    d = client.post("/concept/logic/micro-check", json={"answers": answers}).json()
+    assert d["correct"] == 2
+    assert d["passed"] is True
+    assert d["results"][0]["correct"] is False
+    assert d["results"][0]["your_index"] == answers[0]["choice_index"]
+
+
+def test_micro_check_missing_answers_count_wrong_and_fail(client):
+    d = client.post("/concept/resource/micro-check", json={"answers": []}).json()
+    assert d["correct"] == 0
+    assert d["score"] == 0.0
+    assert d["passed"] is False
+    assert all(r["your_index"] is None for r in d["results"])
+    assert d["practice_exercise_ids"] == ["ex-016", "ex-017"]
+
+
+# --- session tier -------------------------------------------------
+def test_session_defaults_to_beginner(client):
+    d = client.get("/session/newbie").json()
+    assert d["tier"] == "beginner"
+    assert d["next_tier"] == "intermediate"
+    assert d["promotion_test_available"] is True
+
+
+# --- promotion test --------------------------------------------
+def test_promotion_test_offers_three_next_tier_exercises(client):
+    d = client.get("/promotion-test/pt1").json()
+    assert d["eligible"] is True
+    assert d["from_tier"] == "beginner"
+    assert d["to_tier"] == "intermediate"
+    assert len(d["exercise_ids"]) == 3
+    # all three are intermediate + curated
+    for xid in d["exercise_ids"]:
+        f = client.get(f"/exercises/{xid}").json()
+        assert f["difficulty"] == "intermediate" and f["source"] == "curated"
+
+
+def test_promotion_blocked_until_all_three_attempted(client):
+    s = "pt2"
+    ids = client.get(f"/promotion-test/{s}").json()["exercise_ids"]
+    client.post("/grade", json={"session_id": s, "exercise_id": ids[0], "selected_lines": [2], "explanation": "x"})
+    d = client.post(f"/promotion-test/{s}/evaluate").json()
+    assert d["passed"] is False
+    assert set(d["missing"]) == set(ids[1:])
+    assert client.get(f"/session/{s}").json()["tier"] == "beginner"
+
+
+def test_promotion_passes_and_persists_tier(client):
+    s = "pt3"
+    ids = client.get(f"/promotion-test/{s}").json()["exercise_ids"]
+    # a wide selection [1..5] covers the defect in every small snippet ->
+    # first-attempt localisation is a hit for all three
+    for xid in ids:
+        client.post("/grade", json={
+            "session_id": s, "exercise_id": xid,
+            "selected_lines": [1, 2, 3, 4, 5], "explanation": "covering the defect",
+        })
+    d = client.post(f"/promotion-test/{s}/evaluate").json()
+    assert d["passed"] is True
+    assert d["from_tier"] == "beginner" and d["to_tier"] == "intermediate"
+    assert d["mean_score"] >= d["needed"]
+    assert client.get(f"/session/{s}").json()["tier"] == "intermediate"
+
+
+def test_promotion_fails_when_scores_too_low(client):
+    s = "ptlow"
+    ids = client.get(f"/promotion-test/{s}").json()["exercise_ids"]
+    for xid in ids:  # wildly wrong line -> localisation miss/false_positive
+        client.post("/grade", json={
+            "session_id": s, "exercise_id": xid, "selected_lines": [99], "explanation": "x",
+        })
+    d = client.post(f"/promotion-test/{s}/evaluate").json()
+    assert d["passed"] is False
+    assert client.get(f"/session/{s}").json()["tier"] == "beginner"
+
+
+def test_promotion_test_at_pro_is_ineligible(client):
+    s = "topdog"
+    # force to pro by two promotions
+    for _ in range(2):
+        for xid in client.get(f"/promotion-test/{s}").json()["exercise_ids"]:
+            client.post("/grade", json={
+                "session_id": s, "exercise_id": xid,
+                "selected_lines": [1, 2, 3, 4, 5], "explanation": "x",
+            })
+        client.post(f"/promotion-test/{s}/evaluate")
+    assert client.get(f"/session/{s}").json()["tier"] == "pro"
+    d = client.get(f"/promotion-test/{s}").json()
+    assert d["eligible"] is False
+    assert d["to_tier"] is None
+
+
+# --- exercise reporting -------------------------------------------
+def test_report_hides_exercise_after_three_distinct_sessions(client):
+    xid = "ex-002"
+    for i, sess in enumerate(["a", "b"]):
+        r = client.post(f"/exercises/{xid}/report", json={"session_id": sess, "reason": "bad"}).json()
+        assert r["hidden"] is False
+    r = client.post(f"/exercises/{xid}/report", json={"session_id": "c", "reason": "bad"}).json()
+    assert r["reports"] == 3 and r["hidden"] is True
+    # gone from the listing
+    assert xid not in {e["id"] for e in client.get("/exercises").json()}
+    # still resolvable by id (in-progress attempt)
+    assert client.get(f"/exercises/{xid}").status_code == 200
+    assert client.post("/grade", json={
+        "session_id": "x", "exercise_id": xid, "selected_lines": [5, 6], "explanation": "x",
+    }).status_code == 200
+
+
+def test_report_same_session_thrice_does_not_hide(client):
+    xid = "ex-005"
+    for _ in range(3):
+        r = client.post(f"/exercises/{xid}/report", json={"session_id": "spammer"}).json()
+    assert r["reports"] == 1 and r["hidden"] is False
+
+
+def test_report_unknown_exercise_is_404(client):
+    assert client.post("/exercises/nope/report", json={"session_id": "a"}).status_code == 404

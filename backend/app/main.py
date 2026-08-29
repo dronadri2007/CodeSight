@@ -1,23 +1,23 @@
 """CodeSight API.
 
 Endpoints (see CONTRACT.md):
-  GET  /health
-  GET  /exercises
-  GET  /exercises/{id}
-  GET  /exercises/{id}/hints/{n}
-  POST /grade
-  POST /ai-review
-  GET  /profile/{session_id}
-  GET  /progress/{session_id}
+  GET  /health · GET /debug
+  GET  /exercises [?tier= &source=] · GET /exercises/{id} · GET /exercises/{id}/hints/{n}
+  POST /grade · POST /ai-review · POST /exercises/{id}/report
+  GET  /profile/{session_id} · GET /progress/{session_id}
+  GET  /session/{session_id}
+  GET  /concepts · GET /concept/{id}
+  GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
+  GET  /promotion-test/{session_id} · POST /promotion-test/{session_id}/evaluate
 """
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app import ai_review
+from app import ai_review, concepts, reports, tiers
 from app import exercises as ex
 from app.config import (
     ALLOWED_ORIGIN_REGEX,
@@ -28,6 +28,7 @@ from app.config import (
 from app.db import get_db, init_db
 from app.grader import diagnostics, grade_explanation
 from app.hints import score_multiplier
+from app.integrity import score_integrity
 from app.localisation import score_localisation
 from app.models import Attempt
 from app.profile import build_profile
@@ -35,12 +36,22 @@ from app.progress import build_progress
 from app.schemas import (
     AiReviewRequest,
     AiReviewResponse,
+    Concept,
+    ConceptSummary,
     ExerciseFile,
     ExerciseSummary,
     GradeRequest,
     GradeResponse,
     HintResponse,
+    MicroCheck,
+    MicroCheckRequest,
+    MicroCheckResult,
     ProgressReport,
+    PromotionResult,
+    PromotionTest,
+    ReportRequest,
+    ReportResponse,
+    SessionInfo,
     WeaknessProfile,
 )
 
@@ -96,13 +107,30 @@ def debug(probe: bool = False):
 
 
 @app.get("/exercises", response_model=list[ExerciseSummary])
-def list_exercises():
-    return ex.list_summaries()
+def list_exercises(
+    tier: str | None = None,
+    source: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """`tier` gates cumulatively (beginner -> +intermediate -> +pro).
+    `source=curated` hides generated exercises. Exercises reported by 3+
+    sessions are omitted."""
+    return ex.list_summaries(
+        tier=tier, source=source, hidden_ids=reports.hidden_exercise_ids(db)
+    )
 
 
 @app.get("/exercises/{exercise_id}", response_model=ExerciseFile)
 def get_exercise(exercise_id: str):
     return ex.get_file(exercise_id)
+
+
+@app.post("/exercises/{exercise_id}/report", response_model=ReportResponse)
+def report_exercise(exercise_id: str, req: ReportRequest, db: Session = Depends(get_db)):
+    if not ex.exists(exercise_id):
+        raise HTTPException(status_code=404, detail="unknown exercise")
+    count, hidden = reports.record_report(db, exercise_id, req.session_id, req.reason)
+    return ReportResponse(exercise_id=exercise_id, reports=count, hidden=hidden)
 
 
 @app.get("/exercises/{exercise_id}/hints/{index}", response_model=HintResponse)
@@ -134,6 +162,10 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
     combined = (loc["score"] + expl["explanation_score"]) / 2
     score_after_hints = round(combined * mult, 2)
 
+    # Integrity telemetry is optional and advisory only — it never changes the
+    # grade above, it is just recorded and surfaced.
+    integrity = score_integrity(req.explanation, req.telemetry) if req.telemetry else None
+
     db.add(
         Attempt(
             session_id=req.session_id,
@@ -146,6 +178,9 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
             localisation_verdict=loc["verdict"],
             explanation_score=expl["explanation_score"],
             explanation_verdict=expl["explanation_verdict"],
+            integrity_score=integrity.score if integrity else None,
+            integrity_verdict=integrity.verdict if integrity else "",
+            telemetry=req.telemetry.model_dump() if req.telemetry else None,
         )
     )
     db.commit()
@@ -167,6 +202,7 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
         hints_used=req.hints_used,
         hint_multiplier=mult,
         score_after_hints=score_after_hints,
+        integrity=integrity,
     )
 
 
@@ -192,3 +228,40 @@ def profile(session_id: str, db: Session = Depends(get_db)):
 @app.get("/progress/{session_id}", response_model=ProgressReport)
 def progress(session_id: str, db: Session = Depends(get_db)):
     return build_progress(db, session_id)
+
+
+# --- concepts (recommendation engine) --------------------------------
+@app.get("/concepts", response_model=list[ConceptSummary])
+def list_concepts():
+    return concepts.list_concepts()
+
+
+@app.get("/concept/{concept_id}", response_model=Concept)
+def get_concept(concept_id: str):
+    return concepts.get_concept(concept_id)
+
+
+@app.get("/concept/{concept_id}/micro-check", response_model=MicroCheck)
+def get_micro_check(concept_id: str):
+    return concepts.get_micro_check(concept_id)
+
+
+@app.post("/concept/{concept_id}/micro-check", response_model=MicroCheckResult)
+def submit_micro_check(concept_id: str, req: MicroCheckRequest):
+    return concepts.grade_micro_check(concept_id, req.answers)
+
+
+# --- tiers + promotion -------------------------------------------
+@app.get("/session/{session_id}", response_model=SessionInfo)
+def get_session(session_id: str, db: Session = Depends(get_db)):
+    return tiers.session_info(db, session_id)
+
+
+@app.get("/promotion-test/{session_id}", response_model=PromotionTest)
+def get_promotion_test(session_id: str, db: Session = Depends(get_db)):
+    return tiers.promotion_test(db, session_id)
+
+
+@app.post("/promotion-test/{session_id}/evaluate", response_model=PromotionResult)
+def evaluate_promotion_test(session_id: str, db: Session = Depends(get_db)):
+    return tiers.evaluate_promotion(db, session_id)

@@ -8,8 +8,21 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401  (register the Attempt table on Base)
+from app import ai_review as _ai_review_mod
+from app import gemini as _gemini_mod
+from app import grader as _grader_mod
 from app.db import Base, get_db
-from app.main import app
+from app.main import app  # NB: `app` here is the FastAPI instance, not the package
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_real_gemini():
+    """Force the grader/reviewer fallback path even if a real GEMINI_API_KEY is
+    present in the environment — tests must never hit the live API."""
+    _gemini_mod.client = None
+    _grader_mod._client = None
+    _ai_review_mod._client = None
+    yield
 
 
 @pytest.fixture

@@ -1,4 +1,5 @@
-"""Database models. One table: a graded submission ("attempt")."""
+"""Database models: a graded submission ("attempt"), a learner session with
+its tier, and per-exercise report counts."""
 import itertools
 import uuid
 from datetime import datetime, timezone
@@ -43,5 +44,28 @@ class Attempt(Base):
     explanation_score: Mapped[float] = mapped_column(Float, default=0.0)
     explanation_verdict: Mapped[str] = mapped_column(String(32), default="")
 
+    # Optional behavioural telemetry + derived integrity score (see app/integrity.py).
+    integrity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    integrity_verdict: Mapped[str] = mapped_column(String(16), default="")
+    telemetry: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     seq: Mapped[int] = mapped_column(Integer, default=_next_seq, index=True)
+
+
+class LearnerSession(Base):
+    __tablename__ = "sessions"
+
+    session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tier: Mapped[str] = mapped_column(String(16), default="beginner")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ExerciseReport(Base):
+    __tablename__ = "exercise_reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    exercise_id: Mapped[str] = mapped_column(String(64), index=True)
+    session_id: Mapped[str] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

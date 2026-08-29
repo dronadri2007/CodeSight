@@ -1,0 +1,300 @@
+[
+  {
+    "id": "injection",
+    "title": "Injection / Input Validation",
+    "summary": "Untrusted input flows into a query, command, path, or template without being separated from the instruction. A crafted value then changes what the code executes. The fix is almost always to pass the value as data (a bound parameter, an argv list, a safe join) rather than concatenating it into a string.",
+    "example_bad": "q = f\"SELECT * FROM users WHERE email = '{email}'\"\ndb.execute(q)",
+    "example_good": "db.execute(\"SELECT * FROM users WHERE email = ?\", (email,))",
+    "videos": [
+      { "title": "Running an SQL Injection Attack - Computerphile", "url": "https://www.youtube.com/watch?v=ciNHn38EyRc" },
+      { "title": "Command Injection - Complete Guide (Rana Khalil)", "url": "https://www.youtube.com/watch?v=UBWMLFbjPBc" }
+    ],
+    "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"],
+    "micro_check": [
+      {
+        "id": "q1",
+        "prompt": "Which change most reliably prevents SQL injection?",
+        "options": [
+          "Escaping quote characters in the input string",
+          "Using a parameterised query with bound values",
+          "Rejecting inputs longer than 100 characters",
+          "Running the query as a low-privilege database user"
+        ],
+        "answer_index": 1,
+        "explanation": "Bound parameters keep the value as data, so it can never be parsed as SQL. Escaping and length limits are bypassable; least privilege only limits the blast radius."
+      },
+      {
+        "id": "q2",
+        "prompt": "Code builds a shell command by concatenating a user-supplied hostname and runs it through the shell. The safest fix is to:",
+        "options": [
+          "Wrap the call in try/except",
+          "Strip semicolons and backticks from the hostname",
+          "Run the command via an argument list with the shell disabled",
+          "Log the command before running it"
+        ],
+        "answer_index": 2,
+        "explanation": "Passing an argv list with the shell disabled means the OS never interprets shell metacharacters. Blocklisting characters is a losing game."
+      },
+      {
+        "id": "q3",
+        "prompt": "During review, which pattern is the red flag for an injection defect?",
+        "options": [
+          "A value read from an environment variable",
+          "A hard-coded constant used in a query",
+          "A user-supplied value concatenated into a query/command/path string",
+          "A value checked against an allowlist before use"
+        ],
+        "answer_index": 2,
+        "explanation": "Injection is untrusted input reaching an interpreter without separation. Concatenating a user value into an instruction string is the classic shape."
+      }
+    ]
+  },
+  {
+    "id": "auth",
+    "title": "Auth & Access Control",
+    "summary": "The code authenticates a user but never checks that this user is allowed to touch this resource. Any logged-in caller can act on another user's data by changing an id (IDOR), or a role check is written so it always passes. The fix is an explicit ownership or permission check against the current user before the action.",
+    "example_bad": "return db.query(Invoice).filter(Invoice.id == invoice_id).first()",
+    "example_good": "return db.query(Invoice).filter(\n    Invoice.id == invoice_id, Invoice.user_id == user.id\n).first()",
+    "videos": [
+      { "title": "Broken Access Control - OWASP Top 10 (F5 DevCentral)", "url": "https://www.youtube.com/watch?v=P38at6Tp8Ms" },
+      { "title": "Insecure Direct Object Reference (IDOR) Explained - PwnFunction", "url": "https://www.youtube.com/watch?v=rloqMGcPMkI" }
+    ],
+    "practice_exercise_ids": ["ex-006", "ex-007", "ex-008"],
+    "micro_check": [
+      {
+        "id": "q1",
+        "prompt": "An endpoint loads a record by an id from the URL but never checks who owns it. This is:",
+        "options": [
+          "A SQL injection",
+          "An IDOR / broken access control bug",
+          "A race condition",
+          "A resource leak"
+        ],
+        "answer_index": 1,
+        "explanation": "Authenticated but not authorised: any logged-in user can read another user's data by changing the id. Add an ownership check."
+      },
+      {
+        "id": "q2",
+        "prompt": "The correct fix for the IDOR in get_invoice(invoice_id) is to:",
+        "options": [
+          "Hash the invoice_id in the URL so it can't be guessed",
+          "Add Invoice.user_id == current_user.id to the query",
+          "Rate-limit the endpoint",
+          "Return 404 instead of 403"
+        ],
+        "answer_index": 1,
+        "explanation": "Scope the query to the current user so a foreign id simply returns nothing. Obscuring the id is not access control."
+      },
+      {
+        "id": "q3",
+        "prompt": "Why is `if user.role != 'admin' or True:` inside a permission check a defect?",
+        "options": [
+          "It is slower than a direct comparison",
+          "role should be an enum, not a string",
+          "The `or True` makes the condition always pass, so the guard is dead",
+          "It should use `and` instead of `or`"
+        ],
+        "answer_index": 2,
+        "explanation": "The condition can never be false, so the check can never deny. A permission guard must actually be able to reject."
+      }
+    ]
+  },
+  {
+    "id": "error-handling",
+    "title": "Error & Exception Handling",
+    "summary": "A failure is swallowed instead of handled. A bare except that does nothing, a return value that is never checked, or an error path that leaves the object half-built. The caller then proceeds on bad data and fails later with a confusing message. The fix is to catch the specific error, act on it, and signal failure clearly.",
+    "example_bad": "try:\n    return requests.get(url)\nexcept Exception:\n    pass",
+    "example_good": "try:\n    return requests.get(url)\nexcept requests.RequestException as e:\n    last_error = e\n    time.sleep(1)\n...\nraise last_error",
+    "videos": [
+      { "title": "Using Try/Except Blocks for Error Handling - Corey Schafer", "url": "https://www.youtube.com/watch?v=NIWwJbo-9_8" }
+    ],
+    "practice_exercise_ids": ["ex-002", "ex-009", "ex-010"],
+    "micro_check": [
+      {
+        "id": "q1",
+        "prompt": "Why is `try: ... except Exception: pass` a problem?",
+        "options": [
+          "It is slower than letting the error propagate",
+          "It swallows the failure, so the caller proceeds on bad or missing data",
+          "`Exception` should be `BaseException`",
+          "`pass` is not valid inside an except block"
+        ],
+        "answer_index": 1,
+        "explanation": "Silently discarding the error hides the failure; downstream code then fails later with a confusing symptom. Catch a specific exception and act on it."
+      },
+      {
+        "id": "q2",
+        "prompt": "You catch an exception you cannot fully handle. Best practice is to:",
+        "options": [
+          "Catch the specific type, then re-raise or signal failure clearly",
+          "Catch bare Exception and return None",
+          "Catch bare Exception and print it",
+          "Avoid try/except entirely"
+        ],
+        "answer_index": 0,
+        "explanation": "Narrow the catch and keep the failure visible: re-raise, return an explicit error result, or wrap it in a domain exception."
+      },
+      {
+        "id": "q3",
+        "prompt": "A function returns None on failure and the caller never checks the return value. This is:",
+        "options": [
+          "Fine, since None is falsy",
+          "A concurrency bug",
+          "An unchecked-error defect: the caller acts on a missing value",
+          "Only a style issue"
+        ],
+        "answer_index": 2,
+        "explanation": "An error path that isn't checked is the same class of bug as a swallowed exception: the program continues on invalid state."
+      }
+    ]
+  },
+  {
+    "id": "concurrency",
+    "title": "Concurrency & State",
+    "summary": "Two things run at once and step on shared state. A check-then-act gap where another thread slips in between, a counter updated without a lock, or a default argument shared across calls. The bug is timing-dependent and hard to reproduce. The fix is to make the read-modify-write atomic, or to not share the state at all.",
+    "example_bad": "if key not in cache:\n    cache[key] = factory()",
+    "example_good": "with lock:\n    if key not in cache:\n        cache[key] = factory()",
+    "videos": [
+      { "title": "Multithreading Code - Computerphile", "url": "https://www.youtube.com/watch?v=7ENFeb-J75k" },
+      { "title": "Clarifying the Issues with Mutable Default Arguments - Corey Schafer", "url": "https://www.youtube.com/watch?v=_JGmemuINww" }
+    ],
+    "practice_exercise_ids": ["ex-011", "ex-012"],
+    "micro_check": [
+      {
+        "id": "q1",
+        "prompt": "`if key not in cache: cache[key] = compute()` run by multiple threads can:",
+        "options": [
+          "Leak memory",
+          "Compute the value twice or corrupt the dict, due to a check-then-act race",
+          "Raise SyntaxError",
+          "Deadlock immediately"
+        ],
+        "answer_index": 1,
+        "explanation": "Another thread can slip between the check and the assignment. Make the read-modify-write atomic with a lock, or use a thread-safe structure."
+      },
+      {
+        "id": "q2",
+        "prompt": "Why is `def add(x, items=[]):` that appends to items buggy?",
+        "options": [
+          "Lists cannot be default arguments",
+          "It should be written as items=list()",
+          "The default list is created once and shared across all calls",
+          "append is not thread-safe"
+        ],
+        "answer_index": 2,
+        "explanation": "The default is evaluated once at definition time; every call with no argument mutates the same list. Use items=None and create it inside."
+      },
+      {
+        "id": "q3",
+        "prompt": "Most reliable fix for a counter incremented by many threads without a lock:",
+        "options": [
+          "Make the counter a float",
+          "Add a short sleep before each update",
+          "Guard the update with a lock, or use an atomic primitive",
+          "Use a larger integer type"
+        ],
+        "answer_index": 2,
+        "explanation": "`n += 1` is read-modify-write and not atomic. A lock (or an atomic counter) makes the update safe."
+      }
+    ]
+  },
+  {
+    "id": "logic",
+    "title": "Logic & Boundary",
+    "summary": "The code runs but computes the wrong thing. An off-by-one in a loop bound, a comparison that should be >= not >, a condition that is inverted, or the wrong branch returned. No crash, just quietly wrong output. The fix is to trace the boundary and edge cases by hand.",
+    "example_bad": "for i in range(len(arr)):\n    if arr[i] == arr[i + 1]:  # IndexError on the last i",
+    "example_good": "for i in range(len(arr) - 1):\n    if arr[i] == arr[i + 1]:",
+    "videos": [
+      { "title": "Bounds Checking & Off-by-One Errors in Arrays", "url": "https://www.youtube.com/watch?v=e_kFg_Ep3EQ" }
+    ],
+    "practice_exercise_ids": ["ex-013", "ex-014", "ex-015"],
+    "micro_check": [
+      {
+        "id": "q1",
+        "prompt": "`for i in range(len(arr)): if arr[i] == arr[i + 1]:` fails because:",
+        "options": [
+          "range is exclusive of its end value",
+          "On the last i, arr[i + 1] is out of bounds",
+          "== should be `is`",
+          "The loop is O(n^2)"
+        ],
+        "answer_index": 1,
+        "explanation": "The loop should stop at len(arr) - 1. Classic off-by-one / boundary defect: no crash until the final iteration."
+      },
+      {
+        "id": "q2",
+        "prompt": "A boundary or logic bug typically shows up as:",
+        "options": [
+          "An immediate crash on any input",
+          "Correct-looking runs that return subtly wrong results at the edges",
+          "A memory leak",
+          "A CORS error"
+        ],
+        "answer_index": 1,
+        "explanation": "Logic and off-by-one bugs usually run fine and just compute the wrong thing. Trace the edge cases (0, 1, last element) by hand."
+      },
+      {
+        "id": "q3",
+        "prompt": "Using `if age > 18:` to allow adults is likely wrong because:",
+        "options": [
+          "age might be a string",
+          "18-year-olds are excluded; it should be >=",
+          "It should be elif",
+          "Integers cannot be compared with >"
+        ],
+        "answer_index": 1,
+        "explanation": "Off-by-one on the comparison operator. Decide whether the boundary value is included and choose > vs >= deliberately."
+      }
+    ]
+  },
+  {
+    "id": "resource",
+    "title": "Resource & Performance",
+    "summary": "The code holds a resource it never releases, or does work that grows faster than the input. A connection opened per loop and never closed, a cache that grows forever, or an O(n) membership test inside an O(n) loop. It works on small inputs and falls over on real ones. The fix is a context manager, a bound, or a better data structure.",
+    "example_bad": "for item in items:\n    if item not in out:   # O(n) inside O(n)\n        out.append(item)",
+    "example_good": "seen = set()\nfor item in items:\n    if item not in seen:\n        seen.add(item)\n        out.append(item)",
+    "videos": [
+      { "title": "Introduction to Big O Notation and Time Complexity - CS Dojo", "url": "https://www.youtube.com/watch?v=D6xkbGLQesk" },
+      { "title": "Context Managers - Efficiently Managing Resources - Corey Schafer", "url": "https://www.youtube.com/watch?v=-aKFBoZpiqA" }
+    ],
+    "practice_exercise_ids": ["ex-016", "ex-017"],
+    "micro_check": [
+      {
+        "id": "q1",
+        "prompt": "`if item not in out:` where out is a list, inside a loop over items, is slow because:",
+        "options": [
+          "List membership is O(n), making the loop O(n^2)",
+          "Lists cannot hold duplicates",
+          "`in` copies the list each time",
+          "It allocates a new list each iteration"
+        ],
+        "answer_index": 0,
+        "explanation": "Each `x in list` scans the whole list. Track seen values in a set for O(1) membership."
+      },
+      {
+        "id": "q2",
+        "prompt": "Opening a database connection inside a loop and never closing it is a:",
+        "options": [
+          "Logic bug",
+          "Resource leak: use a context manager or connection pool",
+          "Race condition",
+          "Injection risk"
+        ],
+        "answer_index": 1,
+        "explanation": "Unreleased handles accumulate until the process runs out. Use `with` or a pool so each connection is returned."
+      },
+      {
+        "id": "q3",
+        "prompt": "A cache backed by a plain dict that only ever grows will eventually:",
+        "options": [
+          "Raise KeyError",
+          "Exhaust memory; it needs a size bound or eviction policy",
+          "Become read-only",
+          "Slow `in` down to O(n)"
+        ],
+        "answer_index": 1,
+        "explanation": "An unbounded cache is a slow memory leak. Bound it with an LRU, a max size, or a TTL."
+      }
+    ]
+  }
+]
