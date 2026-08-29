@@ -12996,5 +12996,409 @@
       "Check how the comma-separated values in the X-Forwarded-For header are processed.",
       "Consider the security impact of this value since it is solely used for logging purposes."
     ]
+  },
+  {
+    "id": "ex-g0660",
+    "language": "python",
+    "title": "Unsafe Global Webhook Counter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "from flask import Flask, request, jsonify\n\napp = Flask(__name__)\nrequest_count = 0\n\n@app.route('/webhook', methods=['POST'])\ndef handle_webhook():\n    global request_count\n    request_count += 1\n    data = request.json\n    return jsonify({\"status\": \"received\", \"count\": request_count}), 200\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- webhook_receiver.py\n+++ webhook_receiver.py\n@@ -1,10 +1,11 @@\n from flask import Flask, request, jsonify\n import threading\n \n app = Flask(__name__)\n request_count = 0\n+count_lock = threading.Lock()\n \n @app.route('/webhook', methods=['POST'])\n def handle_webhook():\n     global request_count\n-    request_count += 1\n+    with count_lock:\n+        request_count += 1\n     data = request.json\n     return jsonify({\"status\": \"received\", \"count\": request_count}), 200",
+    "reference": "The code modifies a shared global variable across multiple threads without synchronization, which leads to a race condition and inaccurate request counts. Using a threading lock around the increment operation ensures that only one thread can modify the counter at a time, making the operation thread-safe. This is critical for web servers that handle incoming webhook requests concurrently.",
+    "hints": [
+      "Look at how shared state is modified inside the request handler.",
+      "Consider what happens when multiple concurrent webhooks arrive simultaneously.",
+      "Use a threading primitive to protect the shared counter from race conditions."
+    ]
+  },
+  {
+    "id": "ex-g0661",
+    "language": "python",
+    "title": "Insecure Admin Job Enqueue",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "def enqueue_admin_job(user, payload):\n    if not user.is_authenticated:\n        raise PermissionError(\"User must be authenticated\")\n    \n    job = {\n        \"task\": \"system_flush\",\n        \"payload\": payload,\n        \"user_id\": user.id\n    }\n    queue.push(job)\n",
+    "real_lines": [
+      1,
+      2,
+      3
+    ],
+    "fix_diff": "--- job_queue.py\n+++ job_queue.py\n@@ -1,3 +1,3 @@\n def enqueue_admin_job(user, payload):\n-    if not user.is_authenticated:\n+    if not user.is_authenticated or not user.is_admin:\n         raise PermissionError(\"User must be authenticated\")",
+    "reference": "This function attempts to restrict sensitive administrative jobs, but it only checks if the user is authenticated rather than verifying administrative privileges. Any standard logged-in user can therefore trigger high-privilege system tasks by calling this endpoint. The fix ensures that the user is both authenticated and explicitly authorized as an admin before the job is pushed to the queue.",
+    "hints": [
+      "Look closely at the authorization checks performed at the start of the function.",
+      "Authentication (being logged in) is not the same as authorization (having permissions).",
+      "Add a check for the user's administrative status alongside the authentication check."
+    ]
+  },
+  {
+    "id": "ex-g0662",
+    "language": "python",
+    "title": "Unthreadsafe CSV File Appender",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "csv_writer.py",
+    "code": "import csv\nimport threading\n\nclass CSVLogger:\n    def __init__(self, filename):\n        self.filename = filename\n        self.file = open(filename, 'w', newline='')\n        self.writer = csv.writer(self.file)\n\n    def log_row(self, row):\n        self.writer.writerow(row)\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "@@ -10,1 +10,2 @@\n+        with threading.Lock():\n             self.writer.writerow(row)",
+    "reference": "The log_row method writes to a shared csv.writer instance without any synchronization mechanism. When multiple threads call log_row concurrently, their writes can interleave, resulting in corrupted CSV output or overlapping rows. Adding a threading.Lock around the writer operation ensures that only one thread can write to the file at a time.",
+    "hints": [
+      "Consider what happens when multiple threads call log_row at the exact same time.",
+      "Look closely at the writer.writerow method call inside the log_row function.",
+      "You need to protect the shared file write operation using a threading.Lock."
+    ]
+  },
+  {
+    "id": "ex-g0663",
+    "language": "python",
+    "title": "Unclosed Database Connection in Search Endpoint",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(query):\n    db = connect_database()\n    cursor = db.cursor()\n    cursor.execute(\"SELECT * FROM users WHERE name LIKE ?\", (f\"%{query}%\",))\n    results = cursor.fetchall()\n    return results\n",
+    "real_lines": [
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "fix_diff": "@@ -5,1 +5,2 @@\n     results = cursor.fetchall()\n+    db.close()\n     return results",
+    "reference": "Opening database connections without properly closing them can lead to resource leaks, eventually exhausting the database connection pool and crashing the application. Using a context manager like a 'with' statement or explicitly closing the connection ensures that resources are released even if queries fail.",
+    "hints": [
+      "Look closely at how resources are acquired and managed throughout their lifecycle.",
+      "Consider what happens to external system connections after they are used in a function.",
+      "The database connection ('db') is never closed or released back to a pool."
+    ]
+  },
+  {
+    "id": "ex-g0664",
+    "language": "python",
+    "title": "Incorrect Exception Type for Email Connection",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_welcome_email(user_email):\n    try:\n        server = smtplib.SMTP('smtp.example.com', 587)\n        server.sendmail('from@example.com', user_email, 'Subject: Welcome')\n    except ConnectionError:\n        print('Failed to send email.')\n        server.quit()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    except ConnectionError:\n+    except (smtplib.SMTPException, OSError):",
+    "reference": "The code catches `ConnectionError`, but the `smtplib` library raises `SMTPException` for protocol-related errors or standard `OSError` subclasses like `socket.gaierror` for network failures. Catching the wrong exception class means network or protocol errors will bypass the handler and crash the program. Updating the except clause to catch the appropriate exception types ensures all expected failures are handled gracefully.",
+    "hints": [
+      "Look closely at the exception type being caught in the except block.",
+      "The smtplib library and networking operations can raise exceptions that do not inherit from the built-in ConnectionError.",
+      "Change the caught exception to handle both SMTP-specific errors and lower-level socket or OS errors."
+    ]
+  },
+  {
+    "id": "ex-g0665",
+    "language": "python",
+    "title": "Config Override Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_config(file_path, default_config=None):\n    if default_config is None:\n        default_config = {}\n    with open(file_path, 'r') as f:\n        user_config = json.load(f)\n    default_config.update(user_config)\n    return default_config\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "-    default_config.update(user_config)\n+    return {**default_config, **user_config}",
+    "reference": "The function mutates the default_config dictionary in-place using the update method, which can cause unintended side effects across multiple function calls if default_config is reused. Creating a new merged dictionary prevents this mutation and ensures thread-safe and stateless configuration loading. By returning a new dictionary combined via unpacking, we avoid modifying the original default object.",
+    "hints": [
+      "Look closely at how the default configuration object is modified.",
+      "Consider the side effects of in-place dictionary mutations on default arguments.",
+      "Instead of mutating default_config with .update(), return a new merged dictionary."
+    ]
+  },
+  {
+    "id": "ex-g0666",
+    "language": "python",
+    "title": "Unauthenticated Report Generation Access",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_monthly_report(user, report_id):\n    report = fetch_report_from_db(report_id)\n    if not report:\n        return \"Report not found\"\n    \n    return render_pdf(report)\n",
+    "real_lines": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "fix_diff": "- def generate_monthly_report(user, report_id):\n+ def generate_monthly_report(user, report_id):\n+     if not user or not user.is_authenticated:\n+         return \"Unauthorized\", 403\n      report = fetch_report_from_db(report_id)",
+    "reference": "This function suffers from an authorization defect because it attempts to generate and return a sensitive report without verifying whether the provided user has the proper permissions or is authenticated. An attacker could exploit this by calling the function with an anonymous or unprivileged user object to access confidential data. The fix involves adding a check at the beginning of the function to validate the user's authentication status before fetching or rendering the report.",
+    "hints": [
+      "Look closely at the function parameters and how they are used within the body.",
+      "Consider what happens if an unauthenticated user passes a fake or empty user object.",
+      "Add a conditional check to verify user authentication right at the start of the function."
+    ]
+  },
+  {
+    "id": "ex-g0667",
+    "language": "python",
+    "title": "CSV Total Calculation Error",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef calculate_total(file_path):\n    total = 0\n    with open(file_path, mode='r') as file:\n        reader = csv.reader(file)\n        next(reader)\n        for row in reader:\n            total += row[1]\n    return total\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-            total += row[1]\n+            total += float(row[1])",
+    "reference": "The function attempts to sum values from the second column of a CSV file, but csv.reader yields all values as strings. Adding a string directly to an integer accumulator raises a TypeError. Wrapping the cell value in float() or int() correctly casts the data before addition.",
+    "hints": [
+      "Check the data types of the values yielded by the CSV reader.",
+      "Look closely at how elements within the 'row' list are handled inside the loop.",
+      "Cast the string value from the CSV cell to a numeric type before adding it to the total."
+    ]
+  },
+  {
+    "id": "ex-g0668",
+    "language": "python",
+    "title": "Webhook Event File Leak",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import json\n\ndef handle_webhook(request_data):\n    event = json.loads(request_data)\n    log_file = open(\"webhook_events.log\", \"a\")\n    log_file.write(json.dumps(event) + \"\\n\")\n    if event.get(\"type\") == \"error\":\n        raise ValueError(\"Error event received\")\n    log_file.close()\n    return \"OK\"\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -9,1 +9,1 @@\n-    log_file.close()\n+    # Moved to try/finally or using 'with' statement",
+    "reference": "Opening files without a context manager or a try-finally block can lead to resource leaks if an exception occurs before the file is closed. In this function, if an error event is received, a ValueError is raised and log_file.close() is skipped. Using a 'with' statement ensures the file is properly closed even when exceptions are raised.",
+    "hints": [
+      "Look closely at how resources are managed in this function.",
+      "Consider what happens to the opened file if an exception is raised inside the function.",
+      "Use a 'with' statement to ensure the file is closed automatically."
+    ]
+  },
+  {
+    "id": "ex-g0669",
+    "language": "python",
+    "title": "Unused template string variable in report generator",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reporter.py",
+    "code": "def generate_footer(company_name):\n    footer_template = \"Copyright 2023 {company}\"\n    return \"Copyright 2023 \" + company_name\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The variable footer_template is defined but never used in the function, which might look like dead code or a missed string formatting operation at first glance. However, it causes no syntax or runtime errors and successfully returns the expected formatted string using concatenation. This is a false positive.",
+    "hints": [
+      "Check if the return statement actually produces the correct output despite the unused local variable.",
+      "Verify if the presence of the unused string variable causes any exceptions or broken functionality in Python."
+    ]
+  },
+  {
+    "id": "ex-g0670",
+    "language": "python",
+    "title": "Thread-Unsafe CSV Global Accumulator",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\n_import_cache = []\n\ndef process_csv_row(row):\n    global _import_cache\n    _import_cache.append(row)\n    if len(_import_cache) >= 100:\n        flush_cache()\n\ndef flush_cache():\n    global _import_cache\n    _import_cache.clear()\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,3 @@\n-    _import_cache.append(row)\n+    with _lock:\n+        _import_cache.append(row)",
+    "reference": "Modifying a shared global list across multiple threads without synchronization creates a race condition, leading to lost updates or corrupted internal list states. Wrapping the mutation inside a threading lock ensures that only one thread can modify the cache at any given moment. This guarantees thread safety during concurrent CSV imports.",
+    "hints": [
+      "Look at how state is shared across potential multiple workers.",
+      "Examine the list append operation in the row processing function.",
+      "A threading lock is required to protect the global list from simultaneous modifications."
+    ]
+  },
+  {
+    "id": "ex-g0671",
+    "language": "python",
+    "title": "Uncaught File Exception in CSV Importer",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_csv_data(filepath):\n    try:\n        with open(filepath, 'r') as f:\n            reader = csv.reader(f)\n            return [row for row in reader]\n    except IOError:\n        print(\"Failed to read file\")\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "@@ -8,1 +8,2 @@\n-        print(\"Failed to read file\")\n+        print(\"Failed to read file\")\n+        return []",
+    "reference": "The function catches the IOError when a file operation fails, but it fails to provide a fallback return value, causing the function to implicitly return None. When calling code expects a list of rows, receiving None instead of an empty list can trigger downstream TypeErrors. Adding a return statement ensures the function maintains a consistent return type.",
+    "hints": [
+      "Look closely at the control flow inside the exception handler.",
+      "What does a function in Python return by default if no return statement is executed?",
+      "Add a return statement with an appropriate empty collection in the except block."
+    ]
+  },
+  {
+    "id": "ex-g0672",
+    "language": "python",
+    "title": "Race Condition in Wallet Balance Deduction",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "wallet.py",
+    "code": "import threading\n\nclass Wallet:\n    def __init__(self, balance):\n        self.balance = balance\n        self.lock = threading.Lock()\n\n    def withdraw(self, amount):\n        if self.balance >= amount:\n            self.balance -= amount\n            return True\n        return False\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "--- wallet.py\n+++ wallet.py\n@@ -8,3 +8,4 @@\n     def withdraw(self, amount):\n-        if self.balance >= amount:\n-            self.balance -= amount\n-            return True\n+        with self.lock:\n+            if self.balance >= amount:\n+                self.balance -= amount\n+                return True",
+    "reference": "This code suffers from a classic race condition known as a Check-Then-Act vulnerability. Even though a threading.Lock is initialized in the constructor, it is never actually acquired during the withdraw method. Multiple threads can evaluate the balance condition simultaneously, leading to potential overdrawn balances and negative concurrency anomalies.",
+    "hints": [
+      "Look closely at the synchronization primitives initialized in the constructor.",
+      "Examine whether the critical section inside the withdraw method is properly protected.",
+      "Use a context manager with the lock instance to ensure exclusive access during the check-and-update step."
+    ]
+  },
+  {
+    "id": "ex-g0673",
+    "language": "python",
+    "title": "Unbounded Request Body Stream Reading",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "from http.server import HTTPServer, BaseHTTPRequestHandler\n\nclass WebhookHandler(BaseHTTPRequestHandler):\n    def do_POST(self):\n        content_length = int(self.headers.get('Content-Length', 0))\n        payload = self.rfile.read(content_length)\n        self.send_response(200)\n        self.end_headers()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code reads the request body using self.rfile.read(content_length), where content_length is strictly bounded by the parsed Content-Length header. While reading raw streams can sometimes trigger alerts regarding memory exhaustion (Denial of Service), this implementation correctly reads a finite number of bytes as specified by the header, making it completely safe and robust against unbounded reads.",
+    "hints": [
+      "Check how many bytes the rfile.read() method is instructed to consume.",
+      "Verify if the Content-Length header is properly converted and used as a strict limit for the read operation."
+    ]
+  },
+  {
+    "id": "ex-g0674",
+    "language": "python",
+    "title": "Uncaught Exception in User Login",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def authenticate(username, password):\n    user = database.get(username)\n    if user.password == password:\n        return True\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    user = database.get(username)\n+    user = database.get(username)\n+    if not user: return False",
+    "reference": "The function attempts to retrieve a user from the database and immediately accesses their password attribute. If the username does not exist, database.get(username) returns None, causing an AttributeError when checking user.password. We must handle the missing user case by checking if the result is valid before accessing its attributes.",
+    "hints": [
+      "Consider what happens if the username does not exist in the database.",
+      "Look at the return value of database.get(username) when a user is missing.",
+      "Add a check to ensure 'user' is not None before accessing 'user.password'."
+    ]
+  },
+  {
+    "id": "ex-g0675",
+    "language": "python",
+    "title": "Swallowing Specific Transport Exceptions",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(message: str) -> bool:\n    try:\n        with smtplib.SMTP('smtp.example.com', 587) as server:\n            server.sendmail('alert@example.com', 'admin@example.com', message)\n            return True\n    except Exception:\n        return False\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    except Exception:\n+    except (smtplib.SMTPException, OSError):",
+    "reference": "Catching the broad 'Exception' base class can inadvertently swallow unrelated runtime issues such as NameError, TypeError, or KeyboardInterrupt occurring within the try block. It is a best practice to catch specific expected exceptions like SMTPException and OSError to ensure unexpected bugs are not masked.",
+    "hints": [
+      "Examine the exception type being caught in the except clause.",
+      "Consider what happens if an unexpected bug like a NameError occurs inside the try block.",
+      "Replace the broad base exception with the specific transport and IO exceptions related to SMTP operations."
+    ]
+  },
+  {
+    "id": "ex-g0676",
+    "language": "python",
+    "title": "Unauthenticated Inventory Update",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def update_stock(item_id, quantity, user):\n    if user.role == \"admin\":\n        inventory_db[item_id] = quantity\n        return True\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- inventory.py\n+++ inventory.py\n@@ -2,2 +2,2 @@\n-    if user.role == \"admin\":\n+    if user and user.role == \"admin\":\n        inventory_db[item_id] = quantity",
+    "reference": "The function checks the user's role without first verifying if the user object actually exists or is authenticated. If an unauthenticated request passes a `None` value instead of a user object, this will trigger an AttributeError and potentially bypass intended security checks depending on the web framework. Fixing this requires adding a null check to ensure the user object exists before accessing its attributes.",
+    "hints": [
+      "Look closely at how the user's permissions are validated.",
+      "Consider what happens if the 'user' parameter is passed as None or is unauthenticated.",
+      "Add a check to verify that the user object is not null or empty before accessing its 'role' property."
+    ]
+  },
+  {
+    "id": "ex-g0677",
+    "language": "python",
+    "title": "Unclosed File Resource in CSV Import",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(filepath):\n    file_obj = open(filepath, mode='r', encoding='utf-8')\n    reader = csv.reader(file_obj)\n    header = next(reader)\n    data = [row for row in reader]\n    return data\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -4,1 +4,2 ----\n-    file_obj = open(filepath, mode='r', encoding='utf-8')\n+    with open(filepath, mode='r', encoding='utf-8') as file_obj:\n",
+    "reference": "The function opens a file using the built-in open() function without ensuring it gets closed if an exception occurs during reading. This leads to a file descriptor leak, which can exhaust system resources over time. Using a context manager via the 'with' statement guarantees that the file is safely closed as soon as the block exits.",
+    "hints": [
+      "Examine how external resources like files are acquired in the function.",
+      "Consider what happens to the file descriptor if an error occurs midway through reading the CSV.",
+      "Wrap the file opening statement in a context manager using the 'with' keyword."
+    ]
+  },
+  {
+    "id": "ex-g0678",
+    "language": "python",
+    "title": "False Positive Global Variable in Config Loader",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "DEFAULT_TIMEOUT = 30\n\ndef load_timeout(user_config):\n    timeout = user_config.get(\"timeout\", DEFAULT_TIMEOUT)\n    return timeout\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of the module-level constant DEFAULT_TIMEOUT might look like a mutable global variable to an untrained reviewer, but it is actually defined as an immutable integer constant. Because it is never reassigned and only read, this code is completely thread-safe and correct. Flagging this is a false positive.",
+    "hints": [
+      "Check if DEFAULT_TIMEOUT is ever reassigned anywhere in the module.",
+      "Consider the data type of DEFAULT_TIMEOUT and whether it is mutable or immutable."
+    ]
+  },
+  {
+    "id": "ex-g0679",
+    "language": "python",
+    "title": "Cache Key Command Injection",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\nclient = redis.Redis(host=\"localhost\", port=6379)\n\ndef get_cached_user(username: str):\n    command = f\"GET user:{username}\"\n    result = client.execute_command(command)\n    return result\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    command = f\"GET user:{username}\"\n-    result = client.execute_command(command)\n+    key = f\"user:{username}\"\n+    result = client.get(key)",
+    "reference": "This code is vulnerable to command injection because it formats raw user input directly into a Redis command string and executes it using raw execution methods. An attacker could supply a specially crafted username containing Redis protocol commands to manipulate or exfiltrate data. The fix is to use the native client method instead of raw command execution, which safely handles the parameters.",
+    "hints": [
+      "Examine how the command string is constructed before being passed to the Redis client.",
+      "Look closely at the use of client.execute_command with a formatted string.",
+      "Replace the raw command execution with the specific client method designed for retrieving keys."
+    ]
   }
 ]
