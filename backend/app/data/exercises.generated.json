@@ -18539,5 +18539,300 @@
       "Consider whether the pipeline relies on automatic garbage collection or explicit lifecycle management.",
       "Wrap the pipeline initialization in a context manager using the 'with' statement."
     ]
+  },
+  {
+    "id": "ex-g0940",
+    "language": "python",
+    "title": "Command Injection in Thumbnail Generator",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import subprocess\n\ndef create_thumbnail(input_path, output_path):\n    cmd = f\"convert {input_path} -resize 100x100 {output_path}\"\n    subprocess.run(cmd, shell=True, check=True)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    cmd = f\"convert {input_path} -resize 100x100 {output_path}\"\n-    subprocess.run(cmd, shell=True, check=True)\n+    cmd = [\"convert\", input_path, \"-resize\", \"100x100\", output_path]\n+    subprocess.run(cmd, check=True)",
+    "reference": "This code suffers from a command injection vulnerability because user-controlled file paths are interpolated directly into a shell command string with shell=True enabled. If an attacker provides a filename containing shell metacharacters like semicolons or backticks, arbitrary commands can be executed on the system. To fix this, pass the arguments as a list of strings to subprocess.run without shell=True, which prevents the shell from interpreting special characters.",
+    "hints": [
+      "Examine how the system command is constructed and executed.",
+      "Look closely at the use of f-strings combined with subprocess execution.",
+      "Avoid using shell=True and pass command arguments as a list instead of a single string."
+    ]
+  },
+  {
+    "id": "ex-g0941",
+    "language": "python",
+    "title": "Dynamic Keyword Argument Splitting in Report Config",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "reporter.py",
+    "code": "def generate_report(title: str, data: list, **kwargs) -> dict:\n    config = {\"format\": \"pdf\", \"include_summary\": True}\n    config.update(kwargs)\n    return {\"title\": title, \"data_count\": len(data), \"config\": config}\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of **kwargs and .update() might look like a potential security issue or unintended mutation to a novice, but here it is a standard and safe way to override default configuration dictionaries in Python. The original kwargs dictionary is not mutated, and config is a newly created local dictionary.",
+    "hints": [
+      "Check if the original kwargs dictionary is being mutated anywhere in the function scope.",
+      "Verify whether the dictionary being updated is a local copy or a shared global reference."
+    ]
+  },
+  {
+    "id": "ex-g0942",
+    "language": "python",
+    "title": "Unclosed Database Connection in Auth Verification",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef verify_user_session(session_token: str) -> bool:\n    conn = sqlite3.connect(\"users.db\")\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT active FROM sessions WHERE token = ?\", (session_token,))\n    result = cursor.fetchone()\n    return result is not None and result[0] == 1\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- auth.py\n+++ auth.py\n@@ -4,1 +4,2 @@\n-    conn = sqlite3.connect(\"users.db\")\n+    with sqlite3.connect(\"users.db\") as conn:\n",
+    "reference": "Opening a database connection without a context manager or explicit cleanup can lead to resource leaks if exceptions occur or when connections accumulate under load. Using a context manager ensures that the connection is properly closed and resources are released as soon as the block exits. This is critical in high-throughput authentication flows to prevent exhausting available database connections.",
+    "hints": [
+      "Examine how external resources like files or database connections are initialized.",
+      "Look at the lifecycle of the database connection object created in the function.",
+      "Use a context manager (the `with` statement) to ensure the connection is automatically closed."
+    ]
+  },
+  {
+    "id": "ex-g0943",
+    "language": "python",
+    "title": "Race Condition in File Upload Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\nupload_count = 0\n\ndef save_file(file_data, filename):\n    global upload_count\n    path = os.path.join(\"/uploads\", filename)\n    with open(path, \"wb\") as f:\n        f.write(file_data)\n    upload_count += 1\n    return path\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "@@ -10,1 +10,2 @@\n-    upload_count += 1\n+    with lock:\n+        upload_count += 1",
+    "reference": "The function increments a global counter without synchronization, leading to a race condition when multiple threads upload files simultaneously. The read-modify-write operation on 'upload_count' is not atomic, which can cause updates to be lost. Wrapping the increment in a thread lock ensures that only one thread modifies the counter at a time.",
+    "hints": [
+      "Look closely at how shared state is modified across multiple function calls.",
+      "Consider what happens if two threads execute this function at the exact same time.",
+      "The global variable 'upload_count' is updated using a non-atomic operation and needs synchronization."
+    ]
+  },
+  {
+    "id": "ex-g0944",
+    "language": "python",
+    "title": "Unclosed Webhook Response",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "from http.server import HTTPServer, BaseHTTPRequestHandler\n\nclass WebhookHandler(BaseHTTPRequestHandler):\n    def do_POST(self):\n        content_length = int(self.headers['Content-Length'])\n        post_data = self.rfile.read(content_length)\n        self.send_response(200)\n        self.wfile.write(b\"OK\")\n\nserver = HTTPServer(('localhost', 8080), WebhookHandler)\nserver.handle_request()\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,2 @@\n+        self.end_headers()\n         self.wfile.write(b\"OK\")",
+    "reference": "HTTP protocol specifications require headers to be explicitly ended with a blank line before the response body can be transmitted. In Python's BaseHTTPRequestHandler, this is accomplished by calling end_headers() after send_response() and any custom headers. Omitting this method can cause webhook senders to hang indefinitely waiting for properly formatted HTTP headers.",
+    "hints": [
+      "Look closely at the HTTP response lifecycle in BaseHTTPRequestHandler.",
+      "Are all necessary steps taken between sending the status code and writing the body?",
+      "Check if the HTTP headers have been formally terminated before sending the response bytes."
+    ]
+  },
+  {
+    "id": "ex-g0945",
+    "language": "python",
+    "title": "Unclosed File Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def save_upload(file_storage, dest_path):\n    data = file_storage.read()\n    out_file = open(dest_path, \"wb\")\n    out_file.write(data)\n    return True\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- upload.py\n+++ upload.py\n@@ -3,1 +3,2 @@\n-    out_file = open(dest_path, \"wb\")\n+    with open(dest_path, \"wb\") as out_file:\n",
+    "reference": "Opening files without using a context manager or explicitly closing them can lead to resource leaks. Operating systems limit the number of simultaneous file descriptors a process can have open. Using a 'with' statement ensures the file resource is properly closed as soon as the block exits, even if errors occur.",
+    "hints": [
+      "Look closely at how system resources like files are acquired and released.",
+      "Think about what happens to the file descriptor if the write operation fails or after the function finishes.",
+      "Use a context manager like the 'with' statement to automatically handle closing the file."
+    ]
+  },
+  {
+    "id": "ex-g0946",
+    "language": "python",
+    "title": "Uncaught Payment Gateway Exception",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import requests\n\ndef process_payment(amount, token):\n    try:\n        response = requests.post(\"https://api.pay-gateway.com/v1/charge\", json={\"amount\": amount, \"token\": token}, timeout=10)\n        response.raise_for_status()\n        return response.json()\n    except requests.exceptions.RequestException as e:\n        log_error(e)\n        return False\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -9,1 +9,1 @@\n-        return False\n+        raise PaymentGatewayError(\"Payment processing failed\") from e",
+    "reference": "Swallowing exceptions by returning a boolean failure flag hides critical infrastructure failures from calling functions, leading to silent bugs or incorrect state assumptions. In payment workflows, network or gateway exceptions should be explicitly caught and re-raised as domain-specific exceptions to ensure proper transaction rollbacks and alerting. The correct approach preserves the original stack trace using 'from e' while signaling the failure upstream.",
+    "hints": [
+      "Look at how the exception is handled in the except block.",
+      "Consider what happens to the caller of this function when False is returned instead of an exception.",
+      "Instead of returning a boolean on failure, consider raising a custom domain exception while preserving the original traceback."
+    ]
+  },
+  {
+    "id": "ex-g0947",
+    "language": "python",
+    "title": "Fix Race Condition in Token Bucket Rate Limiter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass SimpleRateLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.tokens = capacity\n        self.refill_rate = refill_rate\n        self.last_refill = time.time()\n\n    def acquire(self) -> bool:\n        now = time.time()\n        elapsed = now - self.last_refill\n        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n        self.last_refill = now\n        if self.tokens >= 1:\n            self.tokens -= 1\n            return True\n        return False\n",
+    "real_lines": [
+      13
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -10,3 +10,3 @@\n         now = time.time()\n         elapsed = now - self.last_refill\n-        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n+        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n         self.last_refill = now",
+    "reference": "This code suffers from a classic read-modify-write race condition because non-atomic updates to shared state occur across threads. When multiple threads call acquire() simultaneously, they can calculate overlapping token replenishments and overwrite each other's increments, leading to rate limit bypasses. Wrapping the critical section in a threading lock ensures that state updates are executed atomically.",
+    "hints": [
+      "Look closely at how shared instance variables are read and updated in the acquire method.",
+      "Consider what happens if two threads execute the arithmetic operations on tokens at the exact same time.",
+      "You need to use a threading.Lock() to synchronize access to the token bucket state."
+    ]
+  },
+  {
+    "id": "ex-g0948",
+    "language": "python",
+    "title": "Thread-unsafe cache increment with check-then-act race",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class MetricsCache:\n    def __init__(self):\n        self._store = {}\n\n    def get_or_set(self, key: str, factory) -> int:\n        if key not in self._store:\n            self._store[key] = factory()\n        return self._store[key]\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -6,2 +6,2 @@\n-        if key not in self._store:\n-            self._store[key] = factory()\n+        with self._lock:\n+            return self._store.setdefault(key, factory())",
+    "reference": "This code suffers from a classic check-then-act race condition in a multi-threaded context. Two threads could simultaneously evaluate 'key not in self._store' as True and both execute the factory function, leading to redundant work and a lost update. Using a threading.Lock around the check-and-insert operation or utilizing atomic methods resolves this concurrency defect.",
+    "hints": [
+      "Consider what happens if two threads execute this method concurrently.",
+      "Look closely at the check 'key not in self._store' followed by the assignment.",
+      "A thread context switch between line 6 and line 7 could cause another thread to overwrite the cache entry."
+    ]
+  },
+  {
+    "id": "ex-g0949",
+    "language": "python",
+    "title": "Clean CSV Data Reader",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "csv_reader.py",
+    "code": "import csv\n\ndef read_usernames(filepath):\n    usernames = []\n    with open(filepath, mode='r', encoding='utf-8') as file:\n        reader = csv.reader(file)\n        for row in reader:\n            if row:\n                usernames.append(row[0])\n    return usernames\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This function is completely correct and safe. Although accessing row[0] directly might look suspicious to a reviewer who suspects an IndexError, the preceding 'if row:' check guarantees that the list is not empty before indexing. This is a false positive.",
+    "hints": [
+      "Look closely at the condition evaluated inside the loop before row[0] is accessed.",
+      "Consider what happens to empty lines or blank rows in a standard CSV reader."
+    ]
+  },
+  {
+    "id": "ex-g0950",
+    "language": "python",
+    "title": "Unfiltered Webhook Query Parsing",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "from urllib.parse import parse_qsl\n\ndef parse_webhook_payload(raw_body: bytes) -> dict:\n    return dict(parse_qsl(raw_body.decode('utf-8'), keep_blank_values=True))\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of parse_qsl here is safe because it merely parses the URL-encoded byte string into a dictionary of key-value pairs without executing any arbitrary code, evaluating expressions, or performing SQL queries. While raw parsing without schema validation should be handled downstream, the function itself has no security defect.",
+    "hints": [
+      "Check if parse_qsl executes any code or evaluates expressions dynamically.",
+      "Consider whether the dictionary output is directly passed to a dangerous sink within this scope."
+    ]
+  },
+  {
+    "id": "ex-g0951",
+    "language": "python",
+    "title": "Hardcoded API Token",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_config(filepath):\n    with open(filepath, 'r') as f:\n        config = json.load(f)\n    \n    config['api_token'] = 'secret_token_12345'\n    return config\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    config['api_token'] = 'secret_token_12345'\n+    # Remove hardcoded credentials and load them securely from environment variables",
+    "reference": "Hardcoding sensitive credentials directly in source code or configuration defaults creates severe security risks, as secrets can be easily leaked through version control systems. Sensitive data such as API tokens, passwords, and private keys should always be retrieved dynamically from secure environment variables or a dedicated secret management service. In this fix, the hardcoded assignment is removed in favor of a secure retrieval method.",
+    "hints": [
+      "Examine how sensitive values are handled in the function.",
+      "Look closely at the line where the 'api_token' key is populated.",
+      "Avoid assigning literal secret strings directly inside application code."
+    ]
+  },
+  {
+    "id": "ex-g0952",
+    "language": "python",
+    "title": "SMTP Connection Reuse in Concurrent Thread Pool",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\nfrom concurrent.futures import ThreadPoolExecutor\n\nclass EmailSender:\n    def __init__(self, host):\n        self.client = smtplib.SMTP(host)\n\n    def send(self, recipient, message):\n        self.client.sendmail(\"admin@example.com\", recipient, message)\n\n\ndef broadcast(recipients, msg):\n    sender = EmailSender(\"smtp.example.com\")\n    with ThreadPoolExecutor(max_workers=4) as executor:\n        for r in recipients:\n            executor.submit(sender.send, r, msg)\n",
+    "real_lines": [
+      6,
+      10
+    ],
+    "fix_diff": "--- email_sender.py\n+++ email_sender.py\n@@ -6,2 +6,1 @@\n-        self.client = smtplib.SMTP(host)\n \n     def send(self, recipient, message):\n+        client = smtplib.SMTP(self.host)\n-        self.client.sendmail(\"admin@example.com\", recipient, message)\n+        client.sendmail(\"admin@example.com\", recipient, message)\n+        client.quit()",
+    "reference": "The EmailSender class stores a single smtplib.SMTP instance on the self.client attribute, which is then shared across multiple threads via ThreadPoolExecutor. Because standard SMTP clients are not thread-safe and maintain state like socket connections and authentication sequences, concurrent calls to sendmail will corrupt the socket stream. Fixing this requires instantiating a new SMTP connection per thread or utilizing a thread-local storage mechanism.",
+    "hints": [
+      "Examine how resources are shared across multiple threads in the ThreadPoolExecutor.",
+      "Look closely at the self.client attribute inside the EmailSender class.",
+      "Consider whether smtplib.SMTP instances are safe to use concurrently from multiple threads without locking or isolation."
+    ]
+  },
+  {
+    "id": "ex-g0953",
+    "language": "python",
+    "title": "Missing Permission Verification in Inventory Deletion",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def delete_item(user, item_id):\n    item = get_inventory_item(item_id)\n    if user:\n        db.delete(item)\n        return True\n    return False\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "@@ -3,1 +3,1 @@\n-    if user:\n+    if user and user.get(\"is_admin\"):\n",
+    "reference": "The original implementation only checks if a user object exists, allowing any authenticated user to delete inventory items. This creates an authorization flaw because it lacks role-based access control. The fix ensures that the user possesses the necessary administrative privileges before allowing the deletion to proceed.",
+    "hints": [
+      "Look closely at the condition used to authorize the user.",
+      "Does checking if the user object exists guarantee they have the right permissions?",
+      "Check if the user has a specific role or permission attribute like 'is_admin'."
+    ]
+  },
+  {
+    "id": "ex-g0954",
+    "language": "python",
+    "title": "Race Condition in File Upload Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload_service.py",
+    "code": "UPLOAD_COUNT = 0\n\ndef handle_upload(file_data):\n    global UPLOAD_COUNT\n    current_count = UPLOAD_COUNT\n    save_to_disk(file_data)\n    UPLOAD_COUNT = current_count + 1\n",
+    "real_lines": [
+      3,
+      4,
+      6
+    ],
+    "fix_diff": "@@ -1,6 +1,8 @@\n UPLOAD_COUNT = 0\n+import threading\n+lock = threading.Lock()\n \n def handle_upload(file_data):\n     global UPLOAD_COUNT\n-    current_count = UPLOAD_COUNT\n     save_to_disk(file_data)\n-    UPLOAD_COUNT = current_count + 1\n+    with lock:\n+        UPLOAD_COUNT += 1",
+    "reference": "This function suffers from a classic read-modify-write race condition because multiple threads can read the same UPLOAD_COUNT value concurrently before updating it. As a result, simultaneous file uploads can overwrite each other's increments, causing the total count to be lower than expected. Using a threading lock ensures that the increment operation becomes atomic and thread-safe.",
+    "hints": [
+      "Think about what happens if two users upload files at the exact same time.",
+      "Look closely at how the global variable is read, modified, and written back across multiple steps.",
+      "Introduce a threading Lock to ensure the counter update happens atomically."
+    ]
   }
 ]
