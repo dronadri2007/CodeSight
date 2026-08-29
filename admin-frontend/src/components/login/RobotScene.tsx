@@ -11,157 +11,120 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// 12-Bit / Retro LED Matrix Bitmap Definitions (24 columns x 16 rows)
-// 1 = Active glowing LED, 0 = Inactive LED
-type MatrixGrid = number[][];
+// 12x12 Pixel Art Matrix Bitmaps (12 Columns x 12 Rows)
+type Matrix12 = number[][];
 
-const createEmptyGrid = (cols = 24, rows = 16): MatrixGrid =>
-  Array.from({ length: rows }, () => Array(cols).fill(0));
-
-// Helper to set pixel blocks easily
-function buildMatrix(pattern: string[]): MatrixGrid {
-  const grid = createEmptyGrid(24, 16);
-  pattern.forEach((rowStr, r) => {
-    if (r < 16) {
-      for (let c = 0; c < Math.min(24, rowStr.length); c++) {
-        grid[r][c] = rowStr[c] === '#' ? 1 : 0;
-      }
-    }
-  });
-  return grid;
+function parse12x12(pattern: string[]): Matrix12 {
+  return pattern.map((row) =>
+    Array.from(row).map((char) => (char === '#' ? 1 : 0))
+  );
 }
 
-// 12-Bit Pixel Matrix Expressions (Left Eye: Cols 14-20, Right Eye: Cols 3-9, Mouth: Cols 8-15)
-const PIXEL_EXPRESSIONS: Record<ExpressionType, MatrixGrid> = {
-  // Neutral: Clean round pixel pupils + gentle smile
-  neutral: buildMatrix([
-    "........................",
-    "........................",
-    "....####........####....",
-    "...######......######...",
-    "...######......######...",
-    "....####........####....",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-    ".......##########.......",
-    "........########........",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
+const PIXEL_EXPRESSIONS_12X12: Record<ExpressionType, Matrix12> = {
+  // f) Neutral (Resting): Two 3x3 open eyes + subtle small smile
+  neutral: parse12x12([
+    "............",
+    "............",
+    ".###....###.",
+    ".###....###.",
+    "............",
+    "............",
+    "............",
+    "............",
+    "....####....",
+    ".....##.....",
+    "............",
+    "............",
   ]),
 
-  // 1. >.< (Playful Squint)
-  squint: buildMatrix([
-    "........................",
-    "........................",
-    "...##..............##...",
-    "....##............##....",
-    ".....##..........##.....",
-    "....##............##....",
-    "...##..............##...",
-    "........................",
-    "........................",
-    "........................",
-    "........########........",
-    ".........######.........",
-    "..........####..........",
-    "........................",
-    "........................",
-    "........................",
+  // a) >.< (Playful Squint): Chevrons / squint shapes + small smile
+  squint: parse12x12([
+    "............",
+    "............",
+    ".#.#....#.#.",
+    "..#......#..",
+    ".#.#....#.#.",
+    "............",
+    "............",
+    "............",
+    "....####....",
+    "............",
+    "............",
+    "............",
   ]),
 
-  // 2. :O (Surprised)
-  surprised: buildMatrix([
-    "........................",
-    "....######....######....",
-    "...##....##..##....##...",
-    "...##....##..##....##...",
-    "...##....##..##....##...",
-    "....######....######....",
-    "........................",
-    "........................",
-    ".........######.........",
-    "........##....##........",
-    "........##....##........",
-    ".........######.........",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
+  // b) :O (Surprised): Two large circles (4x4) + large oval 'O' mouth (4x4)
+  surprised: parse12x12([
+    "............",
+    ".##......##.",
+    "#..#....#..#",
+    "#..#....#..#",
+    ".##......##.",
+    "............",
+    "............",
+    "....####....",
+    "...#....#...",
+    "...#....#...",
+    "....####....",
+    "............",
   ]),
 
-  // 3. ^_^ (Happy)
-  happy: buildMatrix([
-    "........................",
-    ".....####......####.....",
-    "....######....######....",
-    "...##....##..##....##...",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-    "......############......",
-    ".......##########.......",
-    "........########........",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
+  // c) ^_^ (Happy): Two curved upward arcs (chevrons) + wide smile (6-8px)
+  happy: parse12x12([
+    "............",
+    "..#......#..",
+    ".#.#....#.#.",
+    "#...#..#...#",
+    "............",
+    "............",
+    "............",
+    "............",
+    "#..........#",
+    ".##########.",
+    "..########..",
+    "............",
   ]),
 
-  // 4. ;) (Wink)
-  wink: buildMatrix([
-    "........................",
-    "........................",
-    "................####....",
-    "...########....######...",
-    "...............######...",
-    "................####....",
-    "........................",
-    "........................",
-    "........................",
-    "........########........",
-    "..........########......",
-    "............####........",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
+  // d) ;) (Wink): Left horizontal line (closed 4-5px) + Right open circle + Smirk
+  wink: parse12x12([
+    "............",
+    "............",
+    "####....###.",
+    "........###.",
+    "........###.",
+    "............",
+    "............",
+    "............",
+    ".....###....",
+    "......##....",
+    "............",
+    "............",
   ]),
 
-  // 5. -_- (Suspicious)
-  suspicious: buildMatrix([
-    "........................",
-    "........................",
-    "........................",
-    "...########..########...",
-    "...########..########...",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-    "........########........",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
-    "........................",
+  // e) -_- (Suspicious): Two flat horizontal lines (4-5px) + straight neutral line (3-4px)
+  suspicious: parse12x12([
+    "............",
+    "............",
+    "####....####",
+    "............",
+    "............",
+    "............",
+    "............",
+    "............",
+    "....####....",
+    "............",
+    "............",
+    "............",
   ]),
 };
 
-// 12-Bit Dynamic Canvas LED Matrix Texture Manager
-class PixelMatrixFaceManager {
+// 12x12 Pixel Art Texture Manager with crisp block rendering
+class Pixel12Manager {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
 
-  readonly COLS = 24;
-  readonly ROWS = 16;
+  readonly GRID_SIZE = 12;
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -179,59 +142,61 @@ class PixelMatrixFaceManager {
   }
 
   draw(fromExpr: ExpressionType, toExpr: ExpressionType, t: number) {
-    const { ctx, canvas, COLS, ROWS } = this;
+    const { ctx, canvas, GRID_SIZE } = this;
     const w = canvas.width;
     const h = canvas.height;
 
-    // Clear background to deep obsidian visor screen
-    ctx.fillStyle = '#0B0D12';
+    // Deep Dark Visor Background (#0A0A0F)
+    ctx.fillStyle = '#0A0A0F';
     ctx.fillRect(0, 0, w, h);
 
-    // Active Face UV Mapping Box on 512x512 Canvas:
-    // U in [192, 320] (Width = 128 px)
-    // V in [128, 384] (Height = 256 px)
+    // Active Face UV Mapping Coordinates on 512x512 Canvas:
     const startX = 188;
     const startY = 175;
     const boxW = 136;
     const boxH = 170;
 
-    const pixelW = boxW / COLS;
-    const pixelH = boxH / ROWS;
-    const gap = 1.2;
+    const cellW = boxW / GRID_SIZE;
+    const cellH = boxH / GRID_SIZE;
+    const gap = 1.0;
 
-    const fromGrid = PIXEL_EXPRESSIONS[fromExpr];
-    const toGrid = PIXEL_EXPRESSIONS[toExpr];
+    const fromGrid = PIXEL_EXPRESSIONS_12X12[fromExpr];
+    const toGrid = PIXEL_EXPRESSIONS_12X12[toExpr];
 
-    // Render 12-bit LED Matrix Grid
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const x = startX + c * pixelW;
-        const y = startY + r * pixelH;
-        const pw = pixelW - gap;
-        const ph = pixelH - gap;
+    // Render 12x12 Pixel Grid
+    for (let r = 0; r < GRID_SIZE; r++) {
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const x = Math.round(startX + c * cellW);
+        const y = Math.round(startY + r * cellH);
+        const pw = Math.round(cellW - gap);
+        const ph = Math.round(cellH - gap);
 
         const valFrom = fromGrid[r][c];
         const valTo = toGrid[r][c];
 
-        // Interpolated LED brightness (0.0 to 1.0)
+        // Linear interpolation for smooth pixel crossfade
         const intensity = valFrom * (1 - t) + valTo * t;
 
         if (intensity > 0.05) {
-          // Lit LED pixel with cyan phosphor glow
+          // Soft Neon Glow Layer (#00F0FF with opacity)
           ctx.shadowColor = '#00F0FF';
-          ctx.shadowBlur = 8 * intensity;
+          ctx.shadowBlur = 10 * intensity;
 
-          // Outer LED
-          ctx.fillStyle = `rgba(0, 240, 255, ${0.85 * intensity})`;
+          // Outer Glow
+          ctx.fillStyle = `rgba(0, 240, 255, ${0.25 * intensity})`;
+          ctx.fillRect(x - 1, y - 1, pw + 2, ph + 2);
+
+          // Bright Cyan Pixel (#00F0FF)
+          ctx.fillStyle = `rgba(0, 240, 255, ${0.95 * intensity})`;
           ctx.fillRect(x, y, pw, ph);
 
-          // Bright Core Pixel
-          ctx.fillStyle = `rgba(220, 255, 255, ${0.95 * intensity})`;
-          ctx.fillRect(x + pw * 0.2, y + ph * 0.2, pw * 0.6, ph * 0.6);
+          // Bright Pixel Highlight
+          ctx.fillStyle = `rgba(230, 255, 255, ${0.9 * intensity})`;
+          ctx.fillRect(x + 2, y + 2, Math.max(1, pw - 4), Math.max(1, ph - 4));
         } else {
-          // Unlit LED pixel grid dot (subtle dark matrix texture)
+          // Inactive pixel unlit matrix dot
           ctx.shadowBlur = 0;
-          ctx.fillStyle = 'rgba(0, 240, 255, 0.04)';
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.03)';
           ctx.fillRect(x, y, pw, ph);
         }
       }
@@ -245,13 +210,13 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF('/assets/greeting_robot.glb');
 
-  const matrixFaceMgr = useMemo(() => new PixelMatrixFaceManager(), []);
+  const pixelMgr = useMemo(() => new Pixel12Manager(), []);
 
   // Expression State Tracking
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
 
-  // Apply colors & 12-bit pixel matrix texture map
+  // Apply colors & 12x12 pixel art texture map
   const styledScene = useMemo(() => {
     const cloned = scene.clone(true);
 
@@ -316,14 +281,14 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       metalness: 0.8,
     });
 
-    // 6. 12-Bit Retro LED Matrix Face Material
+    // 6. 12x12 Pixel Art Visor Material
     const faceVisorMat = new THREE.MeshBasicMaterial({
-      map: matrixFaceMgr.texture,
+      map: pixelMgr.texture,
       transparent: true,
       opacity: 0.99,
     });
 
-    // Hide original 3D mouth, eyes, eyebrows meshes so ONLY the pixel matrix appears
+    // Hide original 3D mouth, eyes, eyebrows meshes so ONLY the pixel art appears
     cloned.traverse((child) => {
       const name = (child.name || '').toLowerCase();
       const parentName = (child.parent?.name || '').toLowerCase();
@@ -345,7 +310,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         mesh.receiveShadow = true;
 
         if (name.includes('head_2')) {
-          // Apply 12-Bit LED Matrix texture directly to front face visor
+          // Apply 12x12 pixel art texture directly to the front face visor plate
           mesh.material = faceVisorMat;
           mesh.visible = true;
         } else if (fullName.includes('circle') || fullName.includes('core')) {
@@ -381,7 +346,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
     cloned.position.z -= centerVec.z;
 
     return cloned;
-  }, [scene, matrixFaceMgr]);
+  }, [scene, pixelMgr]);
 
   // Rotated 180 degrees horizontally to face front
   const BASE_ROTATION_Y = -Math.PI * 0.5;
@@ -406,11 +371,11 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       );
     }
 
-    // 2. 7-Second 12-Bit Expression Loop:
-    // - 0.0s - 0.5s: Smooth pixel transition to random expression
-    // - 0.5s - 2.0s: Hold pixel expression (1.5s)
-    // - 2.0s - 2.5s: Smooth pixel transition back to neutral
-    // - 2.5s - 7.0s: Neutral pixel face (4.5s)
+    // 2. 7-Second 12x12 Pixel Art Animation Loop:
+    // - 0.0s - 0.5s: Smooth transition to random expression
+    // - 0.5s - 2.0s: Hold expression (1.5s)
+    // - 2.0s - 2.5s: Smooth transition back to neutral
+    // - 2.5s - 7.0s: Neutral face (4.5s)
     const cycleDuration = 7.0;
     const totalElapsed = clock.getElapsedTime();
     const cycleIndex = Math.floor(totalElapsed / cycleDuration);
@@ -426,18 +391,18 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       // Transition from Neutral to Expression (0.5s)
       const p = cycleTime / 0.5;
       const t = easeInOutCubic(p);
-      matrixFaceMgr.draw('neutral', currentExprRef.current, t);
+      pixelMgr.draw('neutral', currentExprRef.current, t);
     } else if (cycleTime < 2.0) {
       // Hold Expression (1.5s)
-      matrixFaceMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
+      pixelMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
     } else if (cycleTime < 2.5) {
       // Transition back to Neutral (0.5s)
       const p = (cycleTime - 2.0) / 0.5;
       const t = easeInOutCubic(p);
-      matrixFaceMgr.draw(currentExprRef.current, 'neutral', t);
+      pixelMgr.draw(currentExprRef.current, 'neutral', t);
     } else {
       // Neutral Face (4.5s)
-      matrixFaceMgr.draw('neutral', 'neutral', 1.0);
+      pixelMgr.draw('neutral', 'neutral', 1.0);
     }
   });
 
@@ -450,10 +415,10 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   );
 }
 
-// Procedural 3D Robot Fallback with 12-Bit Pixel Matrix Face
+// Procedural 3D Robot Fallback with 12x12 Pixel Art Face
 function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const headRef = useRef<THREE.Group>(null);
-  const matrixFaceMgr = useMemo(() => new PixelMatrixFaceManager(), []);
+  const pixelMgr = useMemo(() => new Pixel12Manager(), []);
 
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
@@ -480,15 +445,15 @@ function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
     if (cycleTime < 0.5) {
       const p = cycleTime / 0.5;
       const t = easeInOutCubic(p);
-      matrixFaceMgr.draw('neutral', currentExprRef.current, t);
+      pixelMgr.draw('neutral', currentExprRef.current, t);
     } else if (cycleTime < 2.0) {
-      matrixFaceMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
+      pixelMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
     } else if (cycleTime < 2.5) {
       const p = (cycleTime - 2.0) / 0.5;
       const t = easeInOutCubic(p);
-      matrixFaceMgr.draw(currentExprRef.current, 'neutral', t);
+      pixelMgr.draw(currentExprRef.current, 'neutral', t);
     } else {
-      matrixFaceMgr.draw('neutral', 'neutral', 1.0);
+      pixelMgr.draw('neutral', 'neutral', 1.0);
     }
   });
 
@@ -500,10 +465,10 @@ function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         <meshStandardMaterial color="#F5F0E8" roughness={0.18} metalness={0.25} />
       </mesh>
 
-      {/* Face Visor Plate with 12-Bit LED Matrix */}
+      {/* Face Visor Plate with 12x12 Pixel Art */}
       <mesh position={[0, 0.42, 0.46]}>
         <planeGeometry args={[0.9, 0.48]} />
-        <meshBasicMaterial map={matrixFaceMgr.texture} transparent opacity={0.98} />
+        <meshBasicMaterial map={pixelMgr.texture} transparent opacity={0.98} />
       </mesh>
 
       {/* Earcups: Deep Red */}
