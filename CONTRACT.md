@@ -307,7 +307,58 @@ Response 200:
       "example_bad": "q = f\"... {email} ...\"",
       "example_good": "db.execute(sql, (email,))",
       "videos": [ { "title": "SQL Injection - Computerphile", "url": "https://youtube.com/watch?v=..." } ],
-      "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"]
+      "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"],
+      "micro_check_count": 3
+    }
+
+Response 404 if the concept id is unknown.
+
+---
+
+## GET /concept/{id}/micro-check
+
+The concept's short comprehension quiz, **without** the answer key. Show it
+after the learner has read the concept; grade with the POST below.
+
+Response 200:
+
+    {
+      "concept_id": "injection",
+      "questions": [
+        { "id": "q1", "prompt": "Which change most reliably prevents SQL injection?",
+          "options": ["Escaping quotes", "Parameterised query", "Length limit", "Low-privilege user"] }
+      ]
+    }
+
+Response 404 if the concept id is unknown.
+
+---
+
+## POST /concept/{id}/micro-check
+
+Grade submitted answers. Unknown `question_id`s are ignored; missing or
+out-of-range answers count as wrong. Every question comes back with its
+correct index and an explanation, so the result doubles as teaching.
+
+Request:
+
+    { "answers": [ { "question_id": "q1", "choice_index": 1 }, { "question_id": "q2", "choice_index": 2 } ] }
+
+Response 200:
+
+    {
+      "concept_id": "injection",
+      "total": 3,
+      "correct": 2,
+      "score": 0.67,
+      "passed": true,                       // score >= 2/3
+      "results": [
+        { "question_id": "q1", "correct": true,  "your_index": 1, "correct_index": 1,
+          "explanation": "Bound parameters keep the value as data ..." },
+        { "question_id": "q2", "correct": false, "your_index": 0, "correct_index": 2,
+          "explanation": "..." }
+      ],
+      "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"]   // show these when not passed
     }
 
 Response 404 if the concept id is unknown.

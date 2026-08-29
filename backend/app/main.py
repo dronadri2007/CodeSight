@@ -7,6 +7,7 @@ Endpoints (see CONTRACT.md):
   GET  /profile/{session_id} · GET /progress/{session_id}
   GET  /session/{session_id}
   GET  /concepts · GET /concept/{id}
+  GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
   GET  /promotion-test/{session_id} · POST /promotion-test/{session_id}/evaluate
 """
 import logging
@@ -41,6 +42,9 @@ from app.schemas import (
     GradeRequest,
     GradeResponse,
     HintResponse,
+    MicroCheck,
+    MicroCheckRequest,
+    MicroCheckResult,
     ProgressReport,
     PromotionResult,
     PromotionTest,
@@ -226,6 +230,16 @@ def list_concepts():
 @app.get("/concept/{concept_id}", response_model=Concept)
 def get_concept(concept_id: str):
     return concepts.get_concept(concept_id)
+
+
+@app.get("/concept/{concept_id}/micro-check", response_model=MicroCheck)
+def get_micro_check(concept_id: str):
+    return concepts.get_micro_check(concept_id)
+
+
+@app.post("/concept/{concept_id}/micro-check", response_model=MicroCheckResult)
+def submit_micro_check(concept_id: str, req: MicroCheckRequest):
+    return concepts.grade_micro_check(concept_id, req.answers)
 
 
 # --- tiers + promotion -------------------------------------------

@@ -184,6 +184,46 @@ class Concept(BaseModel):
     example_good: str
     videos: list[ConceptVideo]
     practice_exercise_ids: list[str]
+    micro_check_count: int  # number of questions in this concept's check
+
+
+# --- concept micro-check -------------------------------------------
+class MicroCheckQuestion(BaseModel):
+    id: str
+    prompt: str
+    options: list[str]          # answer key NOT included
+
+
+class MicroCheck(BaseModel):
+    concept_id: str
+    questions: list[MicroCheckQuestion]
+
+
+class MicroCheckAnswer(BaseModel):
+    question_id: str
+    choice_index: int = Field(ge=0)
+
+
+class MicroCheckRequest(BaseModel):
+    answers: list[MicroCheckAnswer] = Field(default_factory=list)
+
+
+class MicroCheckQuestionResult(BaseModel):
+    question_id: str
+    correct: bool
+    your_index: int | None     # None if unanswered / out of range
+    correct_index: int
+    explanation: str
+
+
+class MicroCheckResult(BaseModel):
+    concept_id: str
+    total: int
+    correct: int
+    score: float               # correct / total, 0.0-1.0
+    passed: bool               # score >= 2/3
+    results: list[MicroCheckQuestionResult]
+    practice_exercise_ids: list[str]   # useful when the learner should practise
 
 
 # --- GET /session/{id} ----------------------------------------------

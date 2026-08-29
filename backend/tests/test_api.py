@@ -302,14 +302,67 @@ def test_concept_detail_shape(client):
     c = client.get("/concept/injection").json()
     assert set(c) == {
         "id", "title", "summary", "example_bad", "example_good",
-        "videos", "practice_exercise_ids",
+        "videos", "practice_exercise_ids", "micro_check_count",
     }
     assert c["videos"] and all(set(v) == {"title", "url"} for v in c["videos"])
     assert c["practice_exercise_ids"]
+    assert c["micro_check_count"] == 3
 
 
 def test_concept_unknown_is_404(client):
     assert client.get("/concept/telepathy").status_code == 404
+
+
+# --- concept micro-check --------------------------------------------
+def test_micro_check_questions_hide_the_answer_key(client):
+    d = client.get("/concept/injection/micro-check").json()
+    assert d["concept_id"] == "injection"
+    assert len(d["questions"]) == 3
+    for q in d["questions"]:
+        assert set(q) == {"id", "prompt", "options"}
+        assert len(q["options"]) >= 2
+
+
+def test_micro_check_unknown_concept_is_404(client):
+    assert client.get("/concept/nope/micro-check").status_code == 404
+    assert client.post("/concept/nope/micro-check", json={"answers": []}).status_code == 404
+
+
+def test_micro_check_all_correct_passes(client):
+    # answer key lives server-side; pull it via the module for the test
+    from app.concepts import _CONCEPTS
+
+    key = _CONCEPTS["auth"]["micro_check"]
+    body = {"answers": [{"question_id": q["id"], "choice_index": q["answer_index"]} for q in key]}
+    d = client.post("/concept/auth/micro-check", json=body).json()
+    assert d["total"] == 3
+    assert d["correct"] == 3
+    assert d["score"] == 1.0
+    assert d["passed"] is True
+    assert all(r["correct"] for r in d["results"])
+    assert all("explanation" in r and "correct_index" in r for r in d["results"])
+
+
+def test_micro_check_one_wrong_still_passes_two_of_three(client):
+    from app.concepts import _CONCEPTS
+
+    key = _CONCEPTS["logic"]["micro_check"]
+    answers = [{"question_id": q["id"], "choice_index": q["answer_index"]} for q in key]
+    answers[0]["choice_index"] = (key[0]["answer_index"] + 1) % len(key[0]["options"])
+    d = client.post("/concept/logic/micro-check", json={"answers": answers}).json()
+    assert d["correct"] == 2
+    assert d["passed"] is True
+    assert d["results"][0]["correct"] is False
+    assert d["results"][0]["your_index"] == answers[0]["choice_index"]
+
+
+def test_micro_check_missing_answers_count_wrong_and_fail(client):
+    d = client.post("/concept/resource/micro-check", json={"answers": []}).json()
+    assert d["correct"] == 0
+    assert d["score"] == 0.0
+    assert d["passed"] is False
+    assert all(r["your_index"] is None for r in d["results"])
+    assert d["practice_exercise_ids"] == ["ex-016", "ex-017"]
 
 
 # --- session tier -------------------------------------------------
