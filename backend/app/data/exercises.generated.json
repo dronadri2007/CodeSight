@@ -15374,5 +15374,397 @@
       "Consider what happens if two threads execute the method concurrently with the same missing key.",
       "The method lacks a threading lock to make the check and assignment atomic."
     ]
+  },
+  {
+    "id": "ex-g0780",
+    "language": "python",
+    "title": "Unrestricted Report Download",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "import os\n\ndef download_report(user, filename):\n    reports_dir = \"/var/app/reports\"\n    file_path = os.path.join(reports_dir, filename)\n    with open(file_path, \"r\") as f:\n        return f.read()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    file_path = os.path.join(reports_dir, filename)\n+    safe_name = os.path.basename(filename)\n+    file_path = os.path.join(reports_dir, safe_name)",
+    "reference": "The function directly concatenates the user-supplied filename to the base directory path without validation. This allows attackers to use directory traversal sequences like '../../etc/passwd' to access arbitrary files on the system. The fix is to use os.path.basename to strip any directory components, ensuring the file is strictly read from the intended directory.",
+    "hints": [
+      "Consider what happens if the filename parameter contains path traversal characters like dot-dot-slash.",
+      "The vulnerability lies in how the file path is constructed from user input.",
+      "Use os.path.basename() on the filename to strip directory traversal paths before joining."
+    ]
+  },
+  {
+    "id": "ex-g0781",
+    "language": "python",
+    "title": "Unclosed Configuration File",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\ndef load_config(filepath):\n    f = open(filepath, 'r')\n    data = json.load(f)\n    return data\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -4,2 +4,3 @@\n-    f = open(filepath, 'r')\n-    data = json.load(f)\n+    with open(filepath, 'r') as f:\n+        data = json.load(f)\n     return data",
+    "reference": "The function opens a file stream using open() but fails to ensure it gets closed properly if an exception occurs during JSON parsing. This can lead to file descriptor leaks over time, particularly in long-running applications. Using a context manager with the 'with' statement guarantees that the file is safely closed as soon as the block is exited.",
+    "hints": [
+      "Look closely at how system resources like files are managed in this function.",
+      "Consider what happens to the file descriptor if json.load(f) raises an exception.",
+      "Refactor the file opening logic to use a context manager."
+    ]
+  },
+  {
+    "id": "ex-g0782",
+    "language": "python",
+    "title": "Hardcoded SMTP Credentials",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.login('admin@example.com', 'SuperSecret123!')\n    server.sendmail('admin@example.com', 'user@example.com', message)\n    server.quit()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    server.login('admin@example.com', 'SuperSecret123!')\n+    server.login(os.getenv('SMTP_USER'), os.getenv('SMTP_PASSWORD'))",
+    "reference": "Hardcoding sensitive credentials directly in source code is a major security risk because it exposes secrets to anyone with access to the repository. Authentication details should instead be retrieved dynamically from secure environment variables or a dedicated secrets manager. This prevents accidental exposure and allows credentials to be rotated without modifying the codebase.",
+    "hints": [
+      "Examine how sensitive information is being handled inside the function.",
+      "Look closely at the arguments passed to the server.login method.",
+      "Consider replacing hardcoded strings with environment variable lookups."
+    ]
+  },
+  {
+    "id": "ex-g0783",
+    "language": "python",
+    "title": "Background Job Status Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "jobs.py",
+    "code": "def check_job_status(job_id, active_jobs=[]):\n    if active_jobs is None:\n        active_jobs = []\n    active_jobs.append(job_id)\n    return active_jobs\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although the default argument uses a mutable list (active_jobs=[]), the function body immediately checks 'if active_jobs is None:' which is a bit redundant given the default value, but crucially the function then correctly handles potential re-assignments or external calls safely. Wait, actually, the classic mutable default trap is avoided here because a new list is not bound inside the signature, BUT check the guard clause: it checks if active_jobs is None, which technically never happens if the default [] is used. However, this pattern is completely safe from state-pollution bugs because it explicitly guards and resets/appends properly. This is a false positive.",
+    "hints": [
+      "Look closely at the default argument value in the function signature.",
+      "Check if the guard clause inside the function handles the default value safely."
+    ]
+  },
+  {
+    "id": "ex-g0784",
+    "language": "python",
+    "title": "Uncached Data Aggregation in Report Generator",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reporter.py",
+    "code": "def generate_summary_report(data_source, threshold=100):\n    filtered_records = [item for item in data_source if item.get(\"value\", 0) > threshold]\n    sorted_records = sorted(filtered_records, key=lambda x: x[\"value\"], reverse=True)\n    return {\"total_items\": len(sorted_records), \"top_records\": sorted_records[:10]}\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although the code performs filtering, sorting, and slicing on the fly without apparent caching, this is fully correct and intended for lightweight, in-memory report generation where data_source is already a pre-loaded, filtered list of dictionaries. Flagging this for performance or caching is a false positive.",
+    "hints": [
+      "Check if data_source is expected to be a massive database iterator or an in-memory collection.",
+      "Verify whether the slicing and sorting operations correctly handle the expected input types and structures."
+    ]
+  },
+  {
+    "id": "ex-g0785",
+    "language": "python",
+    "title": "Uncaught Exception in Config Loader",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_config(file_path):\n    try:\n        with open(file_path, \"r\") as f:\n            return json.load(f)\n    except FileNotFoundError:\n        print(\"Config file not found. Using defaults.\")\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- config_loader.py\n+++ config_loader.py\n@@ -5,4 +5,4 @@\n         with open(file_path, \"r\") as f:\n             return json.load(f)\n-    except FileNotFoundError:\n+    except (FileNotFoundError, json.JSONDecodeError):\n         print(\"Config file not found. Using defaults.\")",
+    "reference": "The function attempts to load a JSON configuration file but only handles the FileNotFoundError exception. If the file exists but contains malformed JSON, json.load raises a JSONDecodeError that goes uncaught and crashes the application. Expanding the except clause to catch both exceptions ensures robust fallback behavior.",
+    "hints": [
+      "Consider what happens if the file exists and can be opened, but its contents are not valid JSON.",
+      "Look at the specific exception that json.load raises when parsing invalid syntax.",
+      "Catch both FileNotFoundError and json.JSONDecodeError in the except statement."
+    ]
+  },
+  {
+    "id": "ex-g0786",
+    "language": "python",
+    "title": "CSV Header Stripping Bug",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_active_users(filepath):\n    active_users = []\n    with file(filepath, 'r') as f:\n        reader = csv.reader(f)\n        next(reader)\n        for row in reader:\n            if row[2] == 'active':\n                active_users.append(row[0])\n    return active_users\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-     with file(filepath, 'r') as f:\n+     with open(filepath, 'r') as f:",
+    "reference": "In Python 3, the built-in file() function does not exist and was completely removed in favor of the built-in open() function. Using file() will raise a NameError at runtime whenever this function is called. Replacing it with open() correctly utilizes the standard file I/O interface.",
+    "hints": [
+      "Look closely at the built-in functions being used for I/O operations.",
+      "Check for compatibility differences between Python 2 and Python 3 regarding file opening.",
+      "The function used to open the file handle on line 5 was deprecated and removed in Python 3."
+    ]
+  },
+  {
+    "id": "ex-g0787",
+    "language": "python",
+    "title": "Uncaught JSON Decode Error in Webhook Receiver",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import json\nfrom http.server import HTTPServer, BaseHTTPRequestHandler\n\nclass WebhookHandler(BaseHTTPRequestHandler):\n    def do_POST(self):\n        content_length = int(self.headers['Content-Length'])\n        post_data = self.rfile.read(content_length)\n        payload = json.loads(post_data.decode('utf-8'))\n        self.send_response(200)\n        self.end_headers()\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -8,1 +8,4 ----\n-        payload = json.loads(post_data.decode('utf-8'))\n+        try:\n+            payload = json.loads(post_data.decode('utf-8'))\n+        except (json.JSONDecodeError, UnicodeDecodeError):\n+            self.send_error(400, \"Invalid JSON payload\")\n+            return",
+    "reference": "When parsing incoming webhook data, the payload may not always be valid JSON or properly encoded UTF-8. The json.loads() and decode() methods will raise exceptions if the data is malformed, causing the server to return a 500 Internal Server Error instead of handling the client error gracefully. Wrapping this parsing logic in a try-except block allows the server to catch these decoding errors and respond with an appropriate 400 Bad Request status.",
+    "hints": [
+      "Consider what happens if the incoming HTTP request body contains malformed data.",
+      "Look closely at the line where the raw byte data is converted into a Python dictionary.",
+      "Catch specific decoding exceptions around json.loads() to return a client error status instead of crashing."
+    ]
+  },
+  {
+    "id": "ex-g0788",
+    "language": "python",
+    "title": "Missing Authorization Check in Report Generation",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_user_report(current_user, target_user_id):\n    report = fetch_sensitive_report_data(target_user_id)\n    formatted_report = format_as_pdf(report)\n    return formatted_report\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- reports.py\n+++ reports.py\n@@ -1,3 +1,3 @@\n def generate_user_report(current_user, target_user_id):\n-    report = fetch_sensitive_report_data(target_user_id)\n+    verify_access(current_user, target_user_id)\n+    report = fetch_sensitive_report_data(target_user_id)",
+    "reference": "This code suffers from a Broken Access Control (Insecure Direct Object Reference) vulnerability. Although the function accepts the currently authenticated user as a parameter, it fails to verify whether this user has permission to access the target user's report data. Adding an explicit authorization check ensures that users can only generate reports for resources they are legally allowed to view.",
+    "hints": [
+      "Examine the parameters passed into the function and how they are utilized.",
+      "Consider what happens if a regular user passes someone else's ID as the target.",
+      "Add a permission verification step using the current_user before fetching data."
+    ]
+  },
+  {
+    "id": "ex-g0789",
+    "language": "python",
+    "title": "Unthreadsafe Request Counter in Middleware",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "middleware.py",
+    "code": "import time\nfrom threading import local\n\n_request_count = 0\n\ndef log_request(path):\n    global _request_count\n    _request_count += 1\n    time.sleep(0.001)\n    print(f\"[{_request_count}] Request received: {path}\")\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- middleware.py\n+++ middleware.py\n@@ -4,3 +4,4 @@\n \n _request_count = 0\n+_lock = threading.Lock()\n \n def log_request(path):\n     global _request_count\n-    _request_count += 1\n+    with _lock:\n+        _request_count += 1",
+    "reference": "The function modifies a shared global counter without synchronization, which introduces a race condition in multithreaded web servers. Because the increment operation (+=) is not atomic, concurrent requests can read the same value, leading to lost updates and duplicate log indices. Using a threading.Lock ensures that the read-modify-write sequence is executed atomically.",
+    "hints": [
+      "Consider what happens when multiple threads execute this logging function simultaneously.",
+      "Look closely at how the global variable `_request_count` is updated.",
+      "The `+=` operator is not an atomic operation in Python; introduce a `threading.Lock` to protect the critical section."
+    ]
+  },
+  {
+    "id": "ex-g0790",
+    "language": "python",
+    "title": "Unrounded Currency Addition",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_total_payout(ledger_entries):\n    total = 0.0\n    for entry in ledger_entries:\n        if entry['status'] == 'completed':\n            total += entry['amount']\n    return total\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -5,1 +5,1px\n-            total += entry['amount']\n+            total = round(total + entry['amount'], 2)",
+    "reference": "Floating-point arithmetic in Python can introduce precision errors when accumulating decimal values like currency. Directly adding floats can result in accumulated rounding discrepancies, such as 0.1 + 0.2 equaling 0.30000000000000004. Using round() on each step or utilizing the decimal module ensures financial calculations remain accurate.",
+    "hints": [
+      "Look closely at how floating-point numbers are added together in loops.",
+      "Consider what happens when you repeatedly add floats representing currency in Python.",
+      "Use the round function or the Decimal type to prevent floating-point drift during accumulation."
+    ]
+  },
+  {
+    "id": "ex-g0791",
+    "language": "python",
+    "title": "Unclosed Database Connection in Authentication",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef verify_user(username, password):\n    conn = sqlite3.connect('users.db')\n    cursor = conn.cursor()\n    cursor.execute('SELECT password FROM users WHERE username = ?', (username,))\n    row = cursor.fetchone()\n    if row and row[0] == password:\n        return True\n    return False\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,1 @@\n-    conn = sqlite3.connect('users.db')\n+    with sqlite3.connect('users.db') as conn:",
+    "reference": "Opening database connections without properly closing them can lead to resource leaks, eventually exhausting the database connection pool or reaching operating system file descriptor limits. Using a context manager such as a 'with' statement ensures that connections are reliably closed even if exceptions occur during execution. In this authentication function, wrapping the connection initialization prevents lingering open handles under heavy traffic.",
+    "hints": [
+      "Examine how external resources are acquired at the beginning of the function.",
+      "Consider what happens to the database connection if the function returns early or raises an exception.",
+      "Use a context manager ('with' statement) to guarantee the connection is closed automatically."
+    ]
+  },
+  {
+    "id": "ex-g0792",
+    "language": "python",
+    "title": "Unused Import or Redefinition Lookalike",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "from typing import Dict, Any, List\n\ndef aggregate_metrics(raw_data: List[Dict[str, Any]]) -> Dict[str, int]:\n    totals: Dict[str, int] = {}\n    for row in raw_data:\n        category = row.get(\"category\", \"Unassigned\")\n        totals[category] = totals.get(category, 0) + int(row.get(\"value\", 0))\n    return totals\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The imported typing module elements (Dict, Any, List) appear unused in runtime code, but they are fully utilized for type annotations in the function signature and body. This is a false positive commonly flagged by novices who confuse type hint annotations with runtime variable usage.",
+    "hints": [
+      "Check the type annotations in the function signature and local variable declarations.",
+      "Verify whether the imported typing modules are actually required for static analysis and IDE support."
+    ]
+  },
+  {
+    "id": "ex-g0793",
+    "language": "python",
+    "title": "Missing Organization Authorization",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def process_refund(request, transaction_id):\n    transaction = Transaction.objects.get(id=transaction_id)\n    if not request.user.is_authenticated:\n        raise PermissionDenied(\"Authentication required\")\n    if transaction.amount <= 0:\n        raise ValueError(\"Invalid refund amount\")\n    transaction.refund()\n    return {\"status\": \"success\"}\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    transaction = Transaction.objects.get(id=transaction_id)\n+    transaction = Transaction.objects.get(id=transaction_id, organization=request.user.organization)",
+    "reference": "The function correctly checks if the user is authenticated, but it fails to verify whether the authenticated user has permission to access the specific transaction. An attacker could exploit this Insecure Direct Object Reference (IDOR) vulnerability by supplying a transaction ID belonging to another organization. The fix ensures that the fetched transaction is scoped to the current user's organization.",
+    "hints": [
+      "Examine how the transaction is retrieved from the database.",
+      "Consider what happens if a user passes a valid transaction ID that belongs to a different tenant or organization.",
+      "Add a scope check using attributes from the request user to restrict the database query."
+    ]
+  },
+  {
+    "id": "ex-g0794",
+    "language": "python",
+    "title": "Race Condition in Shared SMTP Session",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom threading import Thread\n\n_shared_smtp = smtplib.SMTP('smtp.example.com', 587)\n\ndef send_email(to_addr, message):\n    _shared_smtp.sendmail('sender@example.com', to_addr, message)\n\ndef queue_emails(recipients):\n    threads = [Thread(target=send_email, args=(r, \"Hello\")) for r in recipients]\n    for t in threads: t.start()\n    for t in threads: t.join()\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,2 @@\n-    _shared_smtp.sendmail('sender@example.com', to_addr, message)\n+    with smtplib.SMTP('smtp.example.com', 587) as session:\n+        session.sendmail('sender@example.com', to_addr, message)",
+    "reference": "The code reuses a single global SMTP session across multiple concurrent threads without synchronization. The smtplib.SMTP methods are not thread-safe, leading to interleaved commands and corrupted protocol states on the socket. Fixing this requires instantiating a new session per thread or using a thread-safe connection pool.",
+    "hints": [
+      "Look closely at how resources are shared across multiple threads.",
+      "Examine the global variable being accessed inside the worker function.",
+      "Consider whether network client libraries are generally thread-safe when sharing a single instance."
+    ]
+  },
+  {
+    "id": "ex-g0795",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_storage, destination_path):\n    dest_file = open(destination_path, 'wb')\n    chunk = file_storage.read(8192)\n    while chunk:\n        dest_file.write(chunk)\n        chunk = file_storage.read(8192)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-   dest_file = open(destination_path, 'wb')\n+   with open(destination_path, 'wb') as dest_file:",
+    "reference": "The function opens a file to write upload chunks but never explicitly closes it or uses a context manager. This can lead to file descriptor leaks, exhausted system resources, and delayed flushing of data to disk. Wrapping the file operation in a 'with' statement ensures the file is reliably closed as soon as the block exits, even if an exception occurs.",
+    "hints": [
+      "Examine how system resources like file handles are acquired and released.",
+      "Look closely at the lifecycle of the file opened on the second line.",
+      "Use a context manager (the 'with' statement) to ensure proper resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0796",
+    "language": "python",
+    "title": "Uncached exchange rate API lookup in payment intent",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import requests\n\ndef calculate_final_amount(base_amount_usd: float, target_currency: str) -> float:\n    response = requests.get(f\"https://api.exchangerate-api.com/v4/latest/USD\")\n    rates = response.json().get(\"rates\", {})\n    rate = rates.get(target_currency, 1.0)\n    return round(base_amount_usd * rate, 2)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although the code makes an external network call on every function execution without caching, this is fully correct and intended for this micro-service where live, exact spot rates are legally required at the exact millisecond of the payment intent creation. The lack of caching is a design choice, not a defect.",
+    "hints": [
+      "Check if the function relies on any global mutable state.",
+      "Consider whether live rates are required for compliance rather than performance optimization."
+    ]
+  },
+  {
+    "id": "ex-g0797",
+    "language": "python",
+    "title": "Unclosed CSV File Resource",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_users(filepath):\n    f = open(filepath, mode='r', encoding='utf-8')\n    reader = csv.reader(f)\n    header = next(reader)\n    rows = list(reader)\n    return rows\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -4,4 +4,5 @@\n-    f = open(filepath, mode='r', encoding='utf-8')\n-    reader = csv.reader(f)\n-    header = next(reader)\n-    rows = list(reader)\n-    return rows\n+    with open(filepath, mode='r', encoding='utf-8') as f:\n+        reader = csv.reader(f)\n+        header = next(reader)\n+        rows = list(reader)\n+        return rows",
+    "reference": "The function opens a file to read CSV data but never explicitly closes it or uses a context manager. This can lead to file descriptor leaks, which tie up operating system resources and may prevent other processes from accessing the file. Wrapping the file opening operation in a 'with' statement ensures the file is properly closed as soon as the block is exited, even if an exception occurs.",
+    "hints": [
+      "Look at how the file handle is acquired.",
+      "Consider what happens to the underlying file descriptor after the function finishes executing.",
+      "Use a context manager ('with' statement) to manage the file's lifecycle automatically."
+    ]
+  },
+  {
+    "id": "ex-g0798",
+    "language": "python",
+    "title": "Missing Authentication Check on Search Endpoint",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(query, current_user=None):\n    results = db.query(\"SELECT * FROM users WHERE username LIKE %s\", (query,))\n    return results\n",
+    "real_lines": [
+      1,
+      2,
+      3
+    ],
+    "fix_diff": "@@ -1,3 +1,5 @@\n def search_users(query, current_user=None):\n+    if not current_user:\n+        raise AuthenticationError(\"User must be authenticated\")\n     results = db.query(\"SELECT * FROM users WHERE username LIKE %s\", (query,))\n     return results",
+    "reference": "The function performs a database search without verifying if the user making the request is authenticated. This allows anonymous users to query sensitive user data. The fix involves adding a guard clause to check for the presence of a valid current_user before executing the query.",
+    "hints": [
+      "Look closely at the parameters accepted by the function.",
+      "Consider who is allowed to access the search results.",
+      "Verify whether the current_user parameter is actually validated before proceeding."
+    ]
+  },
+  {
+    "id": "ex-g0799",
+    "language": "python",
+    "title": "Exception Swallowing in Token Bucket Rate Limiter",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass RateLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.tokens = capacity\n        self.refill_rate = refill_rate\n        self.last_refill = time.monotonic()\n\n    def consume(self, tokens: int = 1) -> bool:\n        try:\n            now = time.monotonic()\n            elapsed = now - self.last_refill\n            self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n            self.last_refill = now\n            if self.tokens >= tokens:\n                self.tokens -= tokens\n                return True\n            return False\n        except Exception:\n            return True\n",
+    "real_lines": [
+      19
+    ],
+    "fix_diff": "@@ -19,1 +19,1 @@\n-            return True\n+            raise",
+    "reference": "The consume method implements a standard token bucket rate-limiting algorithm with time delta calculations. However, the except block blindly catches all exceptions and returns True, effectively disabling the rate limiter whenever an unexpected error occurs. In production systems, silently swallowing unexpected exceptions bypasses security controls and masks underlying bugs; it should either re-raise the exception or fail securely by returning False.",
+    "hints": [
+      "Examine how exceptions are handled when something goes wrong inside the consume method.",
+      "Look closely at the return value of the except block compared to the normal execution flow.",
+      "Returning True on an exception grants access even when errors occur, which violates fail-safe principles."
+    ]
   }
 ]
