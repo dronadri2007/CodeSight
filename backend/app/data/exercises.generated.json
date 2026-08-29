@@ -7633,5 +7633,392 @@
       "Consider how string comparison operations behave when a mismatch is found early.",
       "Use a cryptographic helper function designed to prevent timing attacks."
     ]
+  },
+  {
+    "id": "ex-g0387",
+    "language": "python",
+    "title": "Unsynchronized Token Bucket Rate Limiter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass RateLimiter:\n    def __init__(self, capacity: int, fill_rate: float):\n        self.capacity = capacity\n        self.tokens = float(capacity)\n        self.fill_rate = fill_rate\n        self.last_refill = time.time()\n\n    def consume(self, tokens: int = 1) -> bool:\n        now = time.time()\n        delta = now - self.last_refill\n        self.tokens = min(self.capacity, self.tokens + delta * self.fill_rate)\n        self.last_refill = now\n        if self.tokens >= tokens:\n            self.tokens -= tokens\n            return True\n        return False\n",
+    "real_lines": [
+      12,
+      13
+    ],
+    "fix_diff": "@@ -12,2 +12,2 @@\n-        self.tokens = min(self.capacity, self.tokens + delta * self.fill_rate)\n-        self.last_refill = now\n+        with self.lock:\n+            self.tokens = min(self.capacity, self.tokens + delta * self.fill_rate)",
+    "reference": "In a multithreaded environment, the consume method updates shared state across non-atomic read-modify-write operations on self.tokens and self.last_refill. Without synchronization like a threading.Lock, race conditions can cause tokens to be incorrectly calculated or overdrawn. The fix introduces a lock to ensure that the refill and consumption logic executes atomically.",
+    "hints": [
+      "Consider how multiple threads might execute this method simultaneously.",
+      "Look closely at shared instance variables being read and updated.",
+      "Introduce a threading.Lock and wrap the state update in a context manager."
+    ]
+  },
+  {
+    "id": "ex-g0388",
+    "language": "python",
+    "title": "Timing-safe Signature Verification",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_signature(secret: bytes, payload: bytes, signature: str) -> bool:\n    computed = hmac.new(secret, payload, hashlib.sha256).hexdigest()\n    return hmac.compare_digest(computed.encode('utf-8'), signature.encode('utf-8'))\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of hmac.compare_digest is a best practice for preventing timing attacks when comparing cryptographic signatures. Even though computing the hexdigest first and then encoding it back to bytes might look slightly redundant compared to digest(), it is completely safe and functionally correct.",
+    "hints": [
+      "Check how the string comparison is performed between the computed signature and the expected signature.",
+      "Verify if the comparison method used is vulnerable to timing attacks."
+    ]
+  },
+  {
+    "id": "ex-g0389",
+    "language": "python",
+    "title": "Uncaught Exception in Webhook Signature Verification",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(payload: bytes, signature: str, secret: str) -> bool:\n    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()\n    return hmac.compare_digest(expected, signature)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -6,1 +6,4 @@\n-    return hmac.compare_digest(expected, signature)\n+    try:\n+        return hmac.compare_digest(expected, signature)\n+    except (TypeError, AttributeError):\n+        return False",
+    "reference": "The function uses hmac.compare_digest to securely compare the expected signature with the provided signature. However, if the provided signature is not a string or bytes-like object (e.g., None), compare_digest raises a TypeError instead of returning False. Wrapping the comparison in a try-except block prevents unexpected type errors from crashing the webhook receiver.",
+    "hints": [
+      "Consider what happens if unexpected types are passed into the signature parameter.",
+      "Look closely at the types expected by hmac.compare_digest.",
+      "Catch potential exceptions raised by type mismatches during the digest comparison."
+    ]
+  },
+  {
+    "id": "ex-g0390",
+    "language": "python",
+    "title": "CSV File Handling Resource Leak",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_csv_data(filepath):\n    f = open(filepath, mode='r', encoding='utf-8')\n    reader = csv.reader(f)\n    header = next(reader)\n    return {row[0]: row[1] for row in reader}\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -4,1 +4,2 @@\n-    f = open(filepath, mode='r', encoding='utf-8')\n+    with open(filepath, mode='r', encoding='utf-8') as f:\n",
+    "reference": "Opening files without a context manager or explicit try-finally block can lead to resource leaks if an exception occurs during processing or if the file handle is not garbage collected immediately. By using the 'with' statement, Python guarantees that the file resource is properly closed and cleaned up as soon as the execution leaves the context block. This is a best practice for all I/O operations in Python to prevent descriptor exhaustion.",
+    "hints": [
+      "Examine how the file is opened and whether its lifecycle is properly managed.",
+      "Consider what happens to the file handle if an exception occurs mid-function or after reading.",
+      "Use a context manager to ensure the file is automatically closed upon exiting the block."
+    ]
+  },
+  {
+    "id": "ex-g0391",
+    "language": "python",
+    "title": "Handling Missing Query Parameter",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_items(request):\n    query = request.GET[\"q\"]\n    results = Database.query(query)\n    return {\"results\": results}\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    query = request.GET[\"q\"]\n+    query = request.GET.get(\"q\")",
+    "reference": "Accessing dictionary keys directly using bracket notation causes a KeyError if the key is missing from the dictionary. In web development, query parameters are often optional or omitted by the client. Using the dictionary's .get() method safely returns None instead of crashing the request handling.",
+    "hints": [
+      "Consider what happens if the client sends a request without the expected query parameter.",
+      "Look closely at how dictionary values are accessed in Python.",
+      "Replace the bracket notation with a safer dictionary method that returns None on missing keys."
+    ]
+  },
+  {
+    "id": "ex-g0392",
+    "language": "python",
+    "title": "Safe File Extension Validation",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload_utils.py",
+    "code": "def is_allowed_file(filename, allowed_extensions):\n    if '.' in filename:\n        ext = filename.rsplit('.', 1)[1].lower()\n        return ext in allowed_extensions\n    return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code correctly splits the filename to check the extension against a whitelist and converts it to lowercase to prevent case-sensitivity bypasses. While string manipulation on filenames can sometimes be risky (e.g., path traversal), this specific logic only inspects the extension and does not handle file saving or execution paths, making it a false positive.",
+    "hints": [
+      "Check how the file extension is extracted and if it is normalized before comparison.",
+      "Consider whether this function performs any dangerous filesystem operations or just returns a boolean."
+    ]
+  },
+  {
+    "id": "ex-g0393",
+    "language": "python",
+    "title": "Unmasked API Token in Request Logs",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_incoming_request(request):\n    headers = request.get(\"headers\", {})\n    auth_token = headers.get(\"Authorization\")\n    path = request.get(\"path\")\n    logging.info(\"Request received for %s with token %s\", path, auth_token)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -6,1 +6,1 @@\n-    logging.info(\"Request received for %s with token %s\", path, auth_token)\n+    logging.info(\"Request received for %s with token [REDACTED]\", path)",
+    "reference": "Writing sensitive credentials like authorization tokens directly to application logs creates a major security risk. If log files are accessed by unauthorized users, leaked to third-party services, or exposed in monitoring dashboards, attackers can hijack user sessions. The fix is to redact or omit sensitive headers before writing log entries.",
+    "hints": [
+      "Examine what data is being written to the log output.",
+      "Look closely at the variables being passed into the logging statement.",
+      "The authorization token should not be logged in plain text."
+    ]
+  },
+  {
+    "id": "ex-g0394",
+    "language": "python",
+    "title": "Unsafe YAML Config Loading",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import yaml\n\ndef load_config(file_path):\n    with open(file_path, 'r') as f:\n        config_data = yaml.load(f.read())\n    return config_data\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-        config_data = yaml.load(f.read())\n+        config_data = yaml.safe_load(f.read())",
+    "reference": "The function uses PyYAML's unsafe yaml.load() method, which can instantiate arbitrary Python objects and lead to remote code execution vulnerabilities if parsing untrusted files. Replacing it with yaml.safe_load() restricts parsing to simple Python types, effectively preventing object deserialization attacks.",
+    "hints": [
+      "Examine how the third-party library parses the file content.",
+      "Consider the difference between various parsing functions provided by the PyYAML module.",
+      "Change the loader function to its safer alternative which prevents arbitrary object instantiation."
+    ]
+  },
+  {
+    "id": "ex-g0395",
+    "language": "python",
+    "title": "Mutable Default Argument in Cache Key Generation",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_data(query, params=[]):\n    cache_key = f\"{query}:{str(params)}\"\n    if cache_key in _cache:\n        return _cache[cache_key]\n    result = execute_query(query, params)\n    _cache[cache_key] = result\n    return result\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def get_cached_data(query, params=[]):\n+ def get_cached_data(query, params=None):\n+     if params is None:\n+         params = []",
+    "reference": "Python evaluates default argument values at function definition time, not at call time, which causes mutable objects like lists to persist and accumulate state across multiple function calls. In this caching layer, if callers omit the params argument, they inadvertently share a single mutable list instance across requests. This leads to unintended cross-contamination of cache keys when previous arguments are mutated.",
+    "hints": [
+      "Examine how default arguments are handled in Python's function signatures.",
+      "Pay attention to the mutability of the default value used for the query parameters.",
+      "Replace the mutable default argument with None and initialize it inside the function body."
+    ]
+  },
+  {
+    "id": "ex-g0396",
+    "language": "python",
+    "title": "Unclosed File Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_obj, destination_path):\n    dest = open(destination_path, 'wb')\n    content = file_obj.read()\n    dest.write(content)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -1,5 +1,5 @@\n def save_upload(file_obj, destination_path):\n-    dest = open(destination_path, 'wb')\n-    content = file_obj.read()\n-    dest.write(content)\n-    return True\n+    with open(destination_path, 'wb') as dest:\n+        content = file_obj.read()\n+        dest.write(content)\n+        return True",
+    "reference": "Opening a file manually without a context manager or explicit close statement can lead to resource leaks if an exception occurs before the file is closed. In long-running applications, accumulated open file descriptors can exhaust system resources and cause failures. Using a context manager ensures the file is safely and automatically closed after the block finishes execution.",
+    "hints": [
+      "Look closely at how system resources like files are acquired and released.",
+      "What happens to the file handle if an error occurs during the read or write operations?",
+      "Use a context manager such as the 'with' statement to automatically manage the file lifecycle."
+    ]
+  },
+  {
+    "id": "ex-g0397",
+    "language": "python",
+    "title": "SQL Injection in Report Filter",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "import sqlite3\n\ndef get_user_report(username):\n    conn = sqlite3.connect('company.db')\n    cursor = conn.cursor()\n    query = \"SELECT * FROM reports WHERE author = '\" + username + \"'\"\n    cursor.execute(query)\n    return cursor.fetchall()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM reports WHERE author = '\" + username + \"'\"\n+    query = \"SELECT * FROM reports WHERE author = ?\"\n+    cursor.execute(query, (username,))",
+    "reference": "This code is vulnerable to SQL injection because user input is directly concatenated into the SQL query string. An attacker could supply a crafted username like \"admin' OR '1'='1\" to bypass authentication or extract unauthorized data. The fix uses parameterized queries, which safely separate the SQL code from user-supplied data.",
+    "hints": [
+      "Look closely at how the SQL query string is constructed.",
+      "Examine how the username variable is incorporated into the query.",
+      "Replace string concatenation with parameterized query placeholders (?)."
+    ]
+  },
+  {
+    "id": "ex-g0398",
+    "language": "python",
+    "title": "Token Bucket Rate Limiter State Check",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\nclass TokenBucket:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.refill_rate = refill_rate\n        self.tokens = float(capacity)\n        self.last_refill = time.monotonic()\n\n    def consume(self, tokens: int) -> bool:\n        now = time.monotonic()\n        elapsed = now - self.last_refill\n        self.last_refill = now\n        \n        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n        \n        if self.tokens >= tokens:\n            self.tokens -= tokens\n            return True\n        return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although updating self.last_refill on every consume call regardless of whether tokens are actually available might look like a bug to a novice, it is mathematically sound. The elapsed time since the last check is multiplied by the refill rate to accurately calculate how many new tokens were generated in that interval. Because the tokens are capped at self.capacity using min(), updating the timestamp on every request simply calculates the exact accumulation over the time delta.",
+    "hints": [
+      "Examine how the elapsed time is used to calculate the token accumulation.",
+      "Consider what happens to the maximum capacity when tokens are continually refilled and capped."
+    ]
+  },
+  {
+    "id": "ex-g0399",
+    "language": "python",
+    "title": "Unsafe YAML Config Loading",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import yaml\n\ndef load_config(file_path):\n    with open(file_path, 'r') as f:\n        config_data = yaml.load(f, Loader=yaml.Loader)\n    return config_data\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- config_loader.py\n+++ config_loader.py\n@@ -5,1 +5,1 %%\n-    config_data = yaml.load(f, Loader=yaml.Loader)\n+    config_data = yaml.load(f, Loader=yaml.SafeLoader)",
+    "reference": "Using the standard yaml.load function with yaml.Loader allows the instantiation of arbitrary Python objects, leading to remote code execution vulnerabilities if untrusted configuration files are parsed. Switching to yaml.SafeLoader restricts loading to standard YAML data types like scalars, lists, and dictionaries, neutralizing this injection vector.",
+    "hints": [
+      "Examine how the YAML parser is initialized.",
+      "Look closely at the Loader argument passed to the yaml.load function.",
+      "Replace the standard Loader with its safer counterpart designed for untrusted input."
+    ]
+  },
+  {
+    "id": "ex-g0400",
+    "language": "python",
+    "title": "False Positive Session Regeneration",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "session_auth.py",
+    "code": "import secrets\n\ndef refresh_user_session(session, user):\n    session.clear()\n    new_token = secrets.token_hex(32)\n    session[\"csrf_token\"] = new_token\n    session[\"user_id\"] = user.id\n    return session\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct. Although clearing the session and issuing a new token might look suspicious if done out of order, here the session is properly cleared first to prevent session fixation, followed by the secure generation of a new CSRF token and assignment of the user ID.",
+    "hints": [
+      "Check the order of operations regarding session clearing and token assignment.",
+      "Verify whether the session state is properly isolated from previous user data before setting new keys."
+    ]
+  },
+  {
+    "id": "ex-g0401",
+    "language": "python",
+    "title": "Webhook Event File Leak",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request_data):\n    log_file = open(\"webhook_events.log\", \"a\")\n    event = request_data.get(\"event\")\n    if not event:\n        return \"Invalid\"\n    log_file.write(str(event) + \"\\n\")\n    return \"Success\"\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    log_file = open(\"webhook_events.log\", \"a\")\n+    with open(\"webhook_events.log\", \"a\") as log_file:",
+    "reference": "The function opens a file to log incoming webhook events but never closes it, leading to a potential file descriptor leak. In Python, file handles should be managed using a context manager (the 'with' statement) to ensure they are properly closed after use, even if exceptions occur.",
+    "hints": [
+      "Look closely at how external resources are acquired inside the function.",
+      "Consider what happens to the opened file handle after the function finishes executing.",
+      "Use a context manager like 'with open(...)' to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0402",
+    "language": "python",
+    "title": "Hardcoded SMTP Credentials",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(recipient, message):\n    smtp_server = \"smtp.example.com\"\n    smtp_port = 587\n    sender_email = \"alerts@example.com\"\n    sender_password = \"P@ssw0rd123!\"\n\n    with smtplib.SMTP(smtp_server, smtp_port) as server:\n        server.starttls()\n        server.login(sender_email, sender_password)\n        server.sendmail(sender_email, recipient, message)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    sender_password = \"P@ssw0rd123!\"\n+    sender_password = os.environ.get(\"SMTP_PASSWORD\")",
+    "reference": "Hardcoding sensitive credentials directly in the source code poses a severe security risk if the repository is compromised. Authentication secrets should always be injected via secure channels such as environment variables, secrets managers, or configuration files excluded from version control. Using os.environ.get ensures that credentials remain out of the codebase and can be rotated without modifying the application logic.",
+    "hints": [
+      "Examine how sensitive information is being handled inside the function body.",
+      "Look at where the sender_password variable gets its value assigned.",
+      "Replace the hardcoded string with a call to retrieve an environment variable."
+    ]
+  },
+  {
+    "id": "ex-g0403",
+    "language": "python",
+    "title": "Uncaught Connection Error in Rate Limiter",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\nimport redis\n\ndef check_rate_limit(client_id: str, redis_client: redis.Redis) -> bool:\n    key = f\"rate_limit:{client_id}\"\n    try:\n        current = redis_client.incr(key)\n        if current == 1:\n            redis_client.expire(key, 60)\n    except redis.ConnectionError:\n        return False\n    return current <= 5\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -9,2 +9,2 @@\n-    except redis.ConnectionError:\n-        return False\n+    except redis.RedisError:\n+        return True",
+    "reference": "When dealing with rate limiters backed by external stores like Redis, network failures or timeouts can raise various exceptions beyond just ConnectionError, such as TimeoutError. Catching only redis.ConnectionError leaves the application vulnerable to unhandled exceptions during other Redis failures. Furthermore, failing closed (returning False) on a Redis error would block all user requests during an infrastructure outage, whereas failing open (returning True) preserves availability.",
+    "hints": [
+      "Consider what happens if Redis throws a timeout or response error instead of a connection error.",
+      "Look closely at the specific exception class being caught in the except block.",
+      "Catch the base redis.RedisError to handle all Redis-related failures gracefully and decide whether failing open or closed is safer."
+    ]
+  },
+  {
+    "id": "ex-g0404",
+    "language": "python",
+    "title": "Unusual Lambda Default Argument in Inventory Lookup",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def get_item_price(item_id, price_lookup_func=lambda i: default_prices.get(i, 0.0)):\n    return price_lookup_func(item_id)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of a lambda function as a default argument might look suspicious because default arguments are evaluated once at function definition time. However, since the lambda references the global (or module-level) variable 'default_prices' by name rather than binding to a mutable default value or snapshot, it dynamically evaluates the dictionary at runtime whenever the lambda is called. Thus, this pattern is completely safe and correct.",
+    "hints": [
+      "Check when the default lambda function is evaluated versus when its inner dictionary lookup happens.",
+      "Verify if 'default_prices' is a local mutable object prone to state issues or a reference resolved at call time."
+    ]
+  },
+  {
+    "id": "ex-g0405",
+    "language": "python",
+    "title": "Uncaught Exception in Request Logging",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_request_details(request):\n    try:\n        headers = dict(request.headers)\n        user_agent = headers.get(\"User-Agent\")\n        logging.info(f\"Request from {request.remote_addr} - UA: {user_agent}\")\n    except KeyError:\n        logging.error(\"Missing required request headers\")\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    except KeyError:\n+    except Exception:",
+    "reference": "The try block attempts to convert request headers to a dictionary and access specific keys, which can raise various exceptions like AttributeError if the request object is malformed or lacks headers. Catching only KeyError leaves other unexpected exceptions unhandled, potentially crashing the logging middleware. Broadening the exception handler ensures logging failures do not disrupt the main application flow.",
+    "hints": [
+      "Look closely at the exceptions that might be raised when interacting with a web request object.",
+      "Consider what happens if the request object is missing attributes or methods entirely, rather than just a dictionary key.",
+      "Catching a more general exception class instead of KeyError will prevent unhandled crashes during logging."
+    ]
+  },
+  {
+    "id": "ex-g0406",
+    "language": "python",
+    "title": "Unauthenticated CSV Import Endpoint",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "views.py",
+    "code": "from flask import Blueprint, request, abort\nimport csv\n\nimport_bp = Blueprint('import', __name__)\n\n@import_bp.route('/api/import/users', methods=['POST'])\ndef import_users():\n    file = request.files.get('file')\n    if not file:\n        abort(400, \"No file provided\")\n    \n    reader = csv.reader(file.stream.read().decode('utf-8').splitlines())\n    for row in reader:\n        process_user_row(row)\n    return {\"status\": \"success\"}\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- views.py\n+++ views.py\n@@ -7,1 +7,2 @@\n @import_bp.route('/api/import/users', methods=['POST'])\n+@login_required\n def import_users():",
+    "reference": "This endpoint accepts bulk user data via CSV upload, but it completely lacks authentication and authorization checks. Any unauthenticated attacker can send a POST request to this route and potentially inject arbitrary or malicious user records into the system. To fix this, add proper access control decorators such as @login_required or verify the user's role before processing the file stream.",
+    "hints": [
+      "Look closely at the route decorator and how access is restricted.",
+      "Check if the function verifies who is making the HTTP POST request.",
+      "Add a missing decorator like @login_required to secure the endpoint."
+    ]
   }
 ]
