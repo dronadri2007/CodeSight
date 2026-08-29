@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bot, CheckCircle2, Circle, Search, ArrowRight,
@@ -15,8 +15,14 @@ import { defectClasses } from '../../tokens'
 
 export default function ProProblems() {
   const navigate = useNavigate()
-  const { user, proLevel } = useAuthStore()
+  const { user, proLevel, hasPassedPromotionalTest } = useAuthStore()
   const { filters, setFilters } = useProblemStore()
+
+  useEffect(() => {
+    if (!hasPassedPromotionalTest) {
+      navigate('/pro/promotional-test')
+    }
+  }, [hasPassedPromotionalTest, navigate])
 
   // Filter problems for Professional Track (AI Code Fix exercises)
   const proProblems = mockProblems.filter((p) => {

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
 import {
@@ -16,8 +16,14 @@ import { mockProblems } from '../../mock/problems'
 export default function ProDebugWorkspace() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { recordSubmission, updateWeaknessCatchRate } = useAuthStore()
+  const { recordSubmission, updateWeaknessCatchRate, hasPassedPromotionalTest } = useAuthStore()
   const { theme } = useThemeStore()
+
+  useEffect(() => {
+    if (!hasPassedPromotionalTest) {
+      navigate('/pro/promotional-test')
+    }
+  }, [hasPassedPromotionalTest, navigate])
 
   const problem = mockProblems.find((p) => p.id === id) || mockProblems[1]
   const [code, setCode] = useState(problem.starterCode || problem.solutionCode)

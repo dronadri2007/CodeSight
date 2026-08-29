@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion'
 import {
   Award, CheckCircle2, XCircle, ArrowRight, RotateCcw,
-  Bot, GraduationCap, Shield, Sparkles, HelpCircle
+  Bot, GraduationCap, Shield, Sparkles, HelpCircle, Lock
 } from 'lucide-react'
 import { Navbar } from '../../components/navigation/Navbar'
 import { Button } from '../../components/ui/Button'
@@ -43,12 +43,12 @@ export default function ProPromotionalResult() {
               </div>
 
               <div className="space-y-2">
-                <Badge variant="gold" size="sm">ASSESSMENT PASSED — SCORE: {score}/100</Badge>
+                <Badge variant="gold" size="sm">ASSESSMENT PASSED · SCORE: {score}/100</Badge>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-[#E5DFC9] tracking-tight">
-                  WELCOME TO AI-ASSISTED PROFESSIONAL
+                  Professional Track Unlocked
                 </h1>
                 <p className="text-xs sm:text-sm text-[#E5DFC9]/80 leading-relaxed max-w-md mx-auto">
-                  You demonstrated the ability to identify and explain problems in unfamiliar code.
+                  You demonstrated the code-review skills required to enter the AI-Assisted Professional track.
                 </p>
               </div>
 
@@ -73,7 +73,7 @@ export default function ProPromotionalResult() {
                   iconRight={<ArrowRight size={16} />}
                   className="font-bold text-xs shadow-xl"
                 >
-                  Choose Your Review Level
+                  CONTINUE TO PROFESSIONAL TRACK →
                 </Button>
 
                 <button
@@ -98,9 +98,9 @@ export default function ProPromotionalResult() {
               </div>
 
               <div className="space-y-2">
-                <Badge variant="danger" size="sm">SCORE: {score}/100</Badge>
+                <Badge variant="danger" size="sm">SCORE: {score}/100 · PASS REQUIREMENT: 60/100</Badge>
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-[#E5DFC9] tracking-tight">
-                  NOT QUITE YET
+                  Professional Track Not Yet Unlocked
                 </h1>
                 <p className="text-xs sm:text-sm text-[#E5DFC9]/80 leading-relaxed max-w-md mx-auto">
                   Your review skills need a little more practice before entering the professional track.
@@ -108,32 +108,32 @@ export default function ProPromotionalResult() {
               </div>
 
               <div className="p-4 rounded-xl bg-[#000000] border border-[#3A2F1D] text-2xs text-[#E5DFC9]/70 text-left font-mono space-y-2">
-                <span className="font-bold text-[#E5DFC9] block">Areas to strengthen:</span>
-                <p>• Focus on identifying SQL injection queries and parameterized statement patterns.</p>
-                <p>• Avoid flagging standard library imports or valid status handlers as flaws.</p>
+                <span className="font-bold text-[#E5DFC9] block">Review Diagnosis:</span>
+                <p>• Identify SQL query formatting vulnerability and flag exact lines.</p>
+                <p>• Avoid flagging standard imports or clean utility methods to prevent false-positive penalties.</p>
               </div>
 
               <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
                   size="md"
-                  variant="secondary"
+                  variant="gold"
                   onClick={() => navigate('/pro/promotional-test')}
                   icon={<RotateCcw size={14} />}
-                  className="text-xs"
+                  className="font-bold text-xs"
                 >
-                  Retake Promotional Test
+                  RETAKE PROMOTIONAL TEST
                 </Button>
                 <Button
                   size="md"
-                  variant="primary"
+                  variant="secondary"
                   onClick={() => {
                     setSelectedTrack('student')
                     navigate('/student/problems')
                   }}
                   iconRight={<ArrowRight size={14} />}
-                  className="font-bold text-xs"
+                  className="text-xs"
                 >
-                  Continue Student Track
+                  CONTINUE WITH STUDENT TRACK
                 </Button>
               </div>
             </Card>

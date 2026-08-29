@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Bot, ArrowRight, HelpCircle, Check, Shield } from 'lucide-react'
@@ -34,8 +35,14 @@ const PRO_LEVELS: { id: LevelTier; label: string; subtitle: string; description:
 
 export default function ProLevelSelect() {
   const navigate = useNavigate()
-  const { setProLevel, setSelectedTrack } = useAuthStore()
+  const { setProLevel, setSelectedTrack, hasPassedPromotionalTest } = useAuthStore()
   const { setFilters } = useProblemStore()
+
+  useEffect(() => {
+    if (!hasPassedPromotionalTest) {
+      navigate('/pro/promotional-test')
+    }
+  }, [hasPassedPromotionalTest, navigate])
 
   const handleSelectLevel = (level: LevelTier) => {
     setProLevel(level)
@@ -124,10 +131,11 @@ export default function ProLevelSelect() {
         <div className="pt-4 text-center">
           <button
             onClick={() => navigate('/pro/level-test')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1A130D] border border-[#3A2F1D] text-xs font-semibold text-[#E5DFC9] hover:border-[#E5DFC9]/60 hover:bg-[#3A2F1D]/40 transition-all shadow-md"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1A130D] border border-[#3A2F1D] text-xs font-semibold text-[#E5DFC9] hover:border-[#E5DFC9]/60 hover:bg-[#3A2F1D]/40 transition-all shadow-md"
           >
-            <HelpCircle size={14} className="text-[#E5DFC9]" />
-            <span>Don't know your review level? <strong className="underline ml-1">KNOW YOUR LEVEL</strong></span>
+            <HelpCircle size={15} className="text-[#E5DFC9]" />
+            <span className="uppercase tracking-wider font-bold">DON'T KNOW YOUR LEVEL?</span>
+            <span className="text-[#E5DFC9]/70 ml-1">· Launch Review Diagnostic →</span>
           </button>
         </div>
       </main>

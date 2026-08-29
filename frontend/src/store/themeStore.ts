@@ -12,7 +12,7 @@ const getInitialTheme = (): ThemeMode => {
   if (typeof window !== 'undefined') {
     const saved = localStorage.getItem('codesight-theme') as ThemeMode
     if (saved === 'dark' || saved === 'light') return saved
-    if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light'
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light'
   }
   return 'dark'
 }
@@ -35,7 +35,6 @@ const applyThemeToDOM = (theme: ThemeMode) => {
   }
 }
 
-// Initial application
 const initial = getInitialTheme()
 applyThemeToDOM(initial)
 
@@ -43,7 +42,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   theme: initial,
 
   toggleTheme: () => {
-    const next = get().theme === 'dark' ? 'light' : 'dark'
+    const next: ThemeMode = get().theme === 'dark' ? 'light' : 'dark'
     applyThemeToDOM(next)
     set({ theme: next })
   },

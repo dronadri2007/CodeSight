@@ -1,6 +1,6 @@
 ﻿import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { GraduationCap, Bot, ArrowRight, Check, Code2, Sparkles, Shield, Lock } from 'lucide-react'
+import { GraduationCap, Bot, ArrowRight, Check, Code2, Sparkles, Shield, Lock, CheckCircle2 } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -27,7 +27,7 @@ export default function RoleSelect() {
     if (hasPassedPromotionalTest) {
       navigate('/pro/level-select')
     } else {
-      navigate('/pro/promotional-entry')
+      navigate('/pro/promotional-test')
     }
   }
 
@@ -66,7 +66,10 @@ export default function RoleSelect() {
               <div className="w-14 h-14 rounded-2xl bg-[#000000] border border-[#3A2F1D] text-[#E5DFC9] flex items-center justify-center mb-6 shadow-sm group-hover:scale-105 transition-transform">
                 <GraduationCap size={28} />
               </div>
-              <Badge variant="navy" size="sm" className="mb-2">TRACK 01</Badge>
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="navy" size="sm">TRACK 01</Badge>
+                <span className="text-2xs font-mono text-emerald-400 font-bold">OPEN ACCESS</span>
+              </div>
               <h2 className="text-2xl font-bold text-[#E5DFC9] mb-2">
                 STUDENT
               </h2>
@@ -74,7 +77,7 @@ export default function RoleSelect() {
                 Build stronger coding fundamentals by solving programming problems.
               </p>
               <p className="text-xs text-[#E5DFC9]/60 leading-relaxed mb-6">
-                Write algorithms from scratch. Run code against assertion test cases, submit for relative complexity scoring, and let CodeSight detect your edge-case and boundary weaknesses.
+                Write algorithms from scratch. Master data structures, recursion, dynamic programming, and edge-case validation with real-time complexity grading.
               </p>
 
               <div className="space-y-2 mb-8 bg-[#000000] p-3.5 rounded-xl border border-[#3A2F1D] text-2xs text-[#E5DFC9]/80 font-mono">
@@ -84,11 +87,11 @@ export default function RoleSelect() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Check size={12} className="text-[#E5DFC9]" />
-                  <span>Real working compiler &amp; test runner</span>
+                  <span>50% Time Complexity + 50% Space Complexity Matrix</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check size={12} className="text-[#E5DFC9]" />
-                  <span>50% Time + 50% Space complexity feedback</span>
+                  <span>Comprehensive TestCase Suite &amp; Benchmarks</span>
                 </div>
               </div>
             </div>
@@ -101,7 +104,7 @@ export default function RoleSelect() {
               iconRight={<ArrowRight size={16} className="text-[#000000]" />}
               className="font-bold text-xs shadow-lg"
             >
-              Enter Student Track
+              Start Student Track →
             </Button>
           </Card>
         </motion.div>
@@ -121,16 +124,56 @@ export default function RoleSelect() {
               <div className="w-14 h-14 rounded-2xl bg-[#000000] border border-[#3A2F1D] text-[#E5DFC9] flex items-center justify-center mb-6 shadow-sm group-hover:scale-105 transition-transform">
                 <Bot size={28} />
               </div>
-              <Badge variant="gold" size="sm" className="mb-2">TRACK 02</Badge>
+              
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="gold" size="sm">TRACK 02</Badge>
+                {hasPassedPromotionalTest ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-950/70 border border-emerald-700/60 text-2xs font-mono font-bold text-emerald-300">
+                    <CheckCircle2 size={11} className="text-emerald-400" />
+                    PROFESSIONAL TRACK UNLOCKED
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-amber-950/70 border border-amber-700/60 text-2xs font-mono font-bold text-amber-300">
+                    <Lock size={11} className="text-amber-400" />
+                    PROFESSIONAL TRACK LOCKED
+                  </span>
+                )}
+              </div>
+
               <h2 className="text-2xl font-bold text-[#E5DFC9] mb-2">
                 AI-ASSISTED PROFESSIONAL
               </h2>
+              
               <p className="text-sm font-semibold text-[#E5DFC9]/90 mb-3">
                 Train your ability to review and debug AI-assisted code.
               </p>
-              <p className="text-xs text-[#E5DFC9]/60 leading-relaxed mb-6">
-                Inspect AI-generated pull requests. Spot race conditions, security vulnerabilities, and logic flaws. Highlight lines, explain findings, and avoid false-positive traps.
+              
+              <p className="text-xs text-[#E5DFC9]/60 leading-relaxed mb-4">
+                Inspect AI-generated code. Spot race conditions, security vulnerabilities, logic flaws, and other defects. Highlight lines, explain findings, and avoid false positives.
               </p>
+
+              {/* Locked/Unlocked Status Box */}
+              {!hasPassedPromotionalTest ? (
+                <div className="p-4 mb-6 rounded-xl bg-[#000000] border border-amber-800/40 space-y-1 text-left font-mono">
+                  <div className="flex items-center gap-1.5 text-amber-300 text-xs font-bold">
+                    <Lock size={13} className="text-amber-400" />
+                    <span>PROFESSIONAL TRACK LOCKED</span>
+                  </div>
+                  <p className="text-2xs text-[#E5DFC9]/70 leading-relaxed">
+                    Complete the promotional assessment to prove your code-review skills and unlock this track.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 mb-6 rounded-xl bg-[#000000] border border-emerald-800/40 space-y-1 text-left font-mono">
+                  <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-bold">
+                    <CheckCircle2 size={13} className="text-emerald-400" />
+                    <span>PROFESSIONAL TRACK UNLOCKED</span>
+                  </div>
+                  <p className="text-2xs text-[#E5DFC9]/70 leading-relaxed">
+                    Congratulations. You've demonstrated the code-review skills required to enter the professional track.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2 mb-8 bg-[#000000] p-3.5 rounded-xl border border-[#3A2F1D] text-2xs text-[#E5DFC9]/80 font-mono">
                 <div className="flex items-center gap-2">
@@ -154,9 +197,9 @@ export default function RoleSelect() {
               variant="primary"
               onClick={handleSelectPro}
               iconRight={<ArrowRight size={16} className="text-[#000000]" />}
-              className="font-bold text-xs shadow-lg"
+              className="font-bold text-xs shadow-lg uppercase tracking-wider"
             >
-              {hasPassedPromotionalTest ? 'Enter Professional Track' : 'Start Promotional Assessment'}
+              {hasPassedPromotionalTest ? 'Continue to Professional Track →' : 'Take Promotional Test →'}
             </Button>
           </Card>
         </motion.div>

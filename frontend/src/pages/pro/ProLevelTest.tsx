@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -53,8 +53,14 @@ const PRO_SNIPPETS = [
 
 export default function ProLevelTest() {
   const navigate = useNavigate()
-  const { setProLevel, setSelectedTrack } = useAuthStore()
+  const { setProLevel, setSelectedTrack, hasPassedPromotionalTest } = useAuthStore()
   const { setFilters } = useProblemStore()
+
+  useEffect(() => {
+    if (!hasPassedPromotionalTest) {
+      navigate('/pro/promotional-test')
+    }
+  }, [hasPassedPromotionalTest, navigate])
 
   const [currentIdx, setCurrentIdx] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([])

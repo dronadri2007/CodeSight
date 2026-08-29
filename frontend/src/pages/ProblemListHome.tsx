@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -25,7 +25,7 @@ const DEFECT_CHIPS = [
 export default function ProblemListHome() {
   const navigate = useNavigate()
   const { problems, filters, setFilters } = useProblemStore()
-  const { user } = useAuthStore()
+  const { user, hasPassedPromotionalTest, selectedTrack } = useAuthStore()
 
   const solvedIds = new Set((user?.recentSubmissions || []).filter((s) => s.pass).map((s) => s.problemId))
 
@@ -75,7 +75,13 @@ export default function ProblemListHome() {
               <span>Student Scratch</span>
             </button>
             <button
-              onClick={() => setFilters({ mode: 'ai_engineer' })}
+              onClick={() => {
+                if (!hasPassedPromotionalTest) {
+                  navigate('/pro/promotional-test')
+                } else {
+                  setFilters({ mode: 'ai_engineer' })
+                }
+              }}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 filters.mode === 'ai_engineer'
                   ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm'
@@ -84,6 +90,9 @@ export default function ProblemListHome() {
             >
               <Bot size={13} />
               <span>AI Code Fix</span>
+              {!hasPassedPromotionalTest && (
+                <span className="text-3xs px-1.5 py-0.2 bg-amber-400/20 text-amber-300 rounded font-mono">Test Required</span>
+              )}
             </button>
           </div>
 
@@ -143,7 +152,17 @@ export default function ProblemListHome() {
               return (
                 <div
                   key={problem.id}
-                  onClick={() => navigate(`/practice/${problem.id}`)}
+                  onClick={() => {
+                    if (problem.mode === 'ai_engineer') {
+                      if (hasPassedPromotionalTest) {
+                        navigate(`/pro/debug/${problem.id}`)
+                      } else {
+                        navigate('/pro/promotional-test')
+                      }
+                    } else {
+                      navigate(`/student/practice/${problem.id}`)
+                    }
+                  }}
                   className="grid grid-cols-12 gap-3 px-6 py-4 items-center text-xs hover:bg-[#000000]/60 transition-colors cursor-pointer group"
                 >
                   {/* Status */}
@@ -197,14 +216,22 @@ export default function ProblemListHome() {
                   <div className="col-span-1 text-right">
                     <Button
                       size="sm"
-                      variant={isSolved ? 'secondary' : 'primary'}
+                      variant={problem.mode === 'ai_engineer' ? 'gold' : 'primary'}
                       onClick={(e) => {
                         e.stopPropagation()
-                        navigate(`/practice/${problem.id}`)
+                        if (problem.mode === 'ai_engineer') {
+                          if (hasPassedPromotionalTest) {
+                            navigate(`/pro/debug/${problem.id}`)
+                          } else {
+                            navigate('/pro/promotional-test')
+                          }
+                        } else {
+                          navigate(`/student/practice/${problem.id}`)
+                        }
                       }}
                       className="text-2xs py-1 px-2.5 font-bold"
                     >
-                      {isSolved ? 'Review' : 'Solve'}
+                      {problem.mode === 'ai_engineer' ? 'DEBUG' : 'SOLVE'}
                     </Button>
                   </div>
                 </div>

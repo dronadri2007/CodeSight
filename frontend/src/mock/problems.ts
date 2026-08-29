@@ -1,4 +1,4 @@
-﻿import type { Problem } from '../types'
+import type { Problem } from '../types'
 
 export const mockProblems: Problem[] = [
   // 1. STUDENT MODE: Two Sum Optimization (Logic & Boundary)

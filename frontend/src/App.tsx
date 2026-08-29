@@ -1,4 +1,4 @@
-﻿import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 
 // Core Navigation & Onboarding
@@ -37,8 +37,9 @@ export default function App() {
   return (
     <Routes>
       {/* Landing & Intro Pages */}
-      <Route path="/" element={<IntroHero />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/about" element={<Landing />} />
+      <Route path="/intro" element={<IntroHero />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/role-select" element={<RoleSelect />} />
 

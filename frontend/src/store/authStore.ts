@@ -1,4 +1,4 @@
-﻿import { create } from 'zustand'
+import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { UserLevel, UserProfile, ComplexitySubmissionResult } from '../types'
 
@@ -29,6 +29,7 @@ interface AuthState {
   setStudentLevel: (level: LevelTier) => void
   setProLevel: (level: LevelTier) => void
   setPassedPromotionalTest: (passed: boolean) => void
+  resetPromotionalQualification: () => void
   promoteToNextLevel: () => { success: boolean; newLevel: UserLevel }
   recordSubmission: (result: ComplexitySubmissionResult) => void
   updateWeaknessCatchRate: (defectClassId: string, success: boolean) => void
@@ -59,7 +60,7 @@ const defaultProfile: UserProfile = {
       problemId: 'prob-01',
       problemTitle: 'Two Sum Sub-Quadratic Target',
       mode: 'student',
-      userCode: 'def two_sum(nums, target): ...',
+      userCode: 'def twoSum(nums, target): ...',
       userTC: 'O(n)',
       userSC: 'O(n)',
       optimalTC: 'O(n)',
@@ -69,13 +70,35 @@ const defaultProfile: UserProfile = {
       totalScore: 100,
       pass: true,
       aiFeedback: {
-        summary: 'Optimal algorithmic efficiency achieved using single-pass hash lookup.',
-        timeAnalysis: 'Time complexity is O(n) which matches optimal time bound.',
-        spaceAnalysis: 'Space complexity is O(n) for the complement lookup dictionary.',
-        optimizationGuidance: ['Keep utilizing hash maps for sub-quadratic pair matching.'],
-        recommendedPattern: 'Single-pass hash table compliment caching.',
+        summary: 'Optimal linear hash map solution.',
+        timeAnalysis: 'O(n) single pass',
+        spaceAnalysis: 'O(n) auxiliary hash map',
+        optimizationGuidance: [],
+        recommendedPattern: 'Hash map complement lookup',
       },
-      timestamp: '2 hours ago',
+      timestamp: new Date(Date.now() - 86400000 * 2).toISOString(),
+    },
+    {
+      problemId: 'prob-02',
+      problemTitle: 'Validate Binary Search Tree Invariants',
+      mode: 'student',
+      userCode: 'def isValidBST(root): ...',
+      userTC: 'O(n)',
+      userSC: 'O(n)',
+      optimalTC: 'O(n)',
+      optimalSC: 'O(h)',
+      tcScore: 50,
+      scScore: 35,
+      totalScore: 85,
+      pass: true,
+      aiFeedback: {
+        summary: 'Valid traversal with recursive stack space.',
+        timeAnalysis: 'O(n) node visitation',
+        spaceAnalysis: 'O(n) recursion stack in skewed tree',
+        optimizationGuidance: [],
+        recommendedPattern: 'Bounded range recursion',
+      },
+      timestamp: new Date(Date.now() - 86400000 * 3).toISOString(),
     },
   ],
 }
@@ -113,6 +136,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           isAuthenticated: false,
           user: null,
+          hasPassedPromotionalTest: false,
         })
       },
 
@@ -138,44 +162,51 @@ export const useAuthStore = create<AuthState>()(
         set({ hasPassedPromotionalTest: passed })
       },
 
+      resetPromotionalQualification: () => {
+        set({ hasPassedPromotionalTest: false })
+      },
+
       promoteToNextLevel: () => {
-        const user = get().user
-        if (!user) return { success: false, newLevel: 'Student Beginner' }
-        const nextIndex = Math.min(user.levelIndex + 1, 6)
-        const nextLevelName = LEVELS[nextIndex - 1]
+        const { user } = get()
+        if (!user) return { success: false, newLevel: LEVELS[0] }
+
+        const nextIndex = Math.min(user.levelIndex + 1, LEVELS.length - 1)
+        const newLevel = LEVELS[nextIndex]
 
         set({
           user: {
             ...user,
             levelIndex: nextIndex,
-            level: nextLevelName,
-            totalXP: user.totalXP + 300,
+            level: newLevel,
           },
         })
-        return { success: true, newLevel: nextLevelName }
+
+        return { success: true, newLevel }
       },
 
       recordSubmission: (result: ComplexitySubmissionResult) => {
-        const user = get().user
+        const { user } = get()
         if (!user) return
 
-        const updatedXP = user.totalXP + result.totalScore
-        const updatedSolved = result.pass ? user.problemsSolved + 1 : user.problemsSolved
-        const updatedSubmissions = [result, ...(user.recentSubmissions || [])].slice(0, 10)
+        const updatedSubmissions = [result, ...(user.recentSubmissions || [])].slice(0, 20)
+        const problemsSolved = result.pass ? user.problemsSolved + 1 : user.problemsSolved
+        const xpGain = result.totalScore * 5
+        const eloGain = result.pass ? Math.round(result.totalScore / 10) : -5
 
         set({
           user: {
             ...user,
-            totalXP: updatedXP,
-            problemsSolved: updatedSolved,
             recentSubmissions: updatedSubmissions,
+            problemsSolved,
+            totalXP: user.totalXP + xpGain,
+            eloRating: Math.max(800, user.eloRating + eloGain),
           },
         })
       },
 
       updateWeaknessCatchRate: (defectClassId: string, success: boolean) => {
-        const user = get().user
-        if (!user) return
+        const { user } = get()
+        if (!user || !user.weaknessCatchRates) return
 
         const currentRate = user.weaknessCatchRates[defectClassId] || 50
         const newRate = success
@@ -194,7 +225,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'codesight-auth-v2',
+      name: 'codesight-auth-v4',
     }
   )
 )

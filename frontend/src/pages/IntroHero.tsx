@@ -1,20 +1,21 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Code2, Bot, Shield, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, Code2, Bot, Shield, ChevronRight, Sun, Moon, Sparkles, BookOpen } from 'lucide-react'
 import { FullscreenPixelHero } from '../components/landing/FullscreenPixelHero'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { BrandLogo } from '../components/ui/BrandLogo'
+import { useThemeStore } from '../store/themeStore'
 
 const SLIDES = [
   {
     step: '01',
     badge: 'STUDENT MODE',
     title: 'Students write code. We grade on algorithmic efficiency.',
-    description: 'Write code from scratch. We evaluate Time Complexity (TC) and Space Complexity (SC) against optimal achievable bounds — not just pass/fail.',
+    description: 'Write solutions from scratch. We evaluate Time Complexity (TC) and Space Complexity (SC) against optimal achievable bounds — not just basic pass/fail assertions.',
     icon: Code2,
-    highlight: 'TC / SC Relative Grading',
+    highlight: 'TC / SC Relative Complexity Grading',
   },
   {
     step: '02',
@@ -30,13 +31,14 @@ const SLIDES = [
     title: 'Level up through 6 tiers. Track your weakness profile.',
     description: 'Advance from Student Beginner to AI Engineer Pro by clearing proctored Promotion Exams. Master 6 universal defect classes with live catch rates.',
     icon: Shield,
-    highlight: '6 Strict Tiers & 30-Min Promotion Exams',
+    highlight: '6 Strict Tiers & Promotion Exams',
   },
 ]
 
 export default function IntroHero() {
   const navigate = useNavigate()
   const [currentSlide, setCurrentSlide] = useState(0)
+  const { theme, toggleTheme } = useThemeStore()
 
   const slide = SLIDES[currentSlide]
   const Icon = slide.icon
@@ -46,21 +48,44 @@ export default function IntroHero() {
       {/* Background Pixel Canvas */}
       <FullscreenPixelHero />
 
-      {/* Top Header */}
+      {/* Top Header - Single Clean Placement for CTAs and Theme */}
       <header className="relative z-20 w-full max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <BrandLogo size="md" variant="dark" />
+        <Link to="/" className="flex items-center gap-2">
+          <BrandLogo size="md" variant={theme === 'light' ? 'light' : 'dark'} />
+        </Link>
+
         <div className="flex items-center gap-3">
+          <Link
+            to="/about"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50 transition-colors"
+          >
+            <BookOpen size={13} />
+            <span>About CodeSight</span>
+          </Link>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle Theme"
+            className="w-8 h-8 rounded-xl bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9]/80 hover:text-[#E5DFC9] flex items-center justify-center transition-colors"
+            title={`Current: ${theme === 'dark' ? 'Dark Mode' : 'Light Mode'} (Click to toggle)`}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
+
           <Link
             to="/auth"
             className="px-4 py-1.5 rounded-xl border border-[#3A2F1D] bg-[#1A130D] text-xs font-semibold text-[#E5DFC9] hover:border-[#E5DFC9]/40 transition-colors"
           >
             Sign In
           </Link>
+
           <Button
             size="sm"
             variant="primary"
             onClick={() => navigate('/auth')}
-            className="font-bold text-xs"
+            className="font-bold text-xs shadow-md"
+            iconRight={<ArrowRight size={13} />}
           >
             Get Started
           </Button>
@@ -96,8 +121,8 @@ export default function IntroHero() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Stepper Dots & Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pt-4 border-t border-[#3A2F1D]/60">
+          {/* Stepper Dots & Navigation */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pt-6 border-t border-[#3A2F1D]/60">
             {/* Slide Navigation Dots */}
             <div className="flex items-center gap-2">
               {SLIDES.map((_, idx) => (
@@ -114,37 +139,29 @@ export default function IntroHero() {
               ))}
             </div>
 
-            {/* CTAs */}
+            {/* Stepper Next / Enter Button */}
             <div className="flex items-center gap-3">
               {currentSlide < SLIDES.length - 1 ? (
                 <Button
                   size="md"
                   variant="secondary"
                   onClick={() => setCurrentSlide((prev) => prev + 1)}
-                  icon={<ChevronRight size={16} />}
+                  iconRight={<ChevronRight size={16} />}
                   className="text-xs"
                 >
-                  Next Step
+                  Next Step ({currentSlide + 2}/3)
                 </Button>
               ) : (
                 <Button
                   size="md"
                   variant="primary"
                   onClick={() => navigate('/auth')}
-                  icon={<ArrowRight size={16} className="text-[#000000]" />}
+                  iconRight={<ArrowRight size={16} className="text-[#000000]" />}
                   className="font-bold text-xs shadow-lg"
                 >
-                  Enter Platform
+                  Start Learning Now
                 </Button>
               )}
-              <Button
-                size="md"
-                variant="primary"
-                onClick={() => navigate('/auth')}
-                className="font-bold text-xs"
-              >
-                Get Started
-              </Button>
             </div>
           </div>
         </div>
@@ -152,8 +169,12 @@ export default function IntroHero() {
 
       {/* Bottom Footer */}
       <footer className="relative z-20 w-full max-w-7xl mx-auto px-6 py-6 border-t border-[#3A2F1D]/40 flex flex-col sm:flex-row items-center justify-between text-2xs text-[#E5DFC9]/50 gap-2">
-        <span>CodeSight 2.0 · Algorithmic Complexity & AI Code Review Platform</span>
-        <span className="font-mono">Time & Space Complexity Grading Engine</span>
+        <span>CodeSight 2.0 · Algorithmic Complexity &amp; AI Code Review Platform</span>
+        <div className="flex items-center gap-4">
+          <Link to="/about" className="hover:text-[#E5DFC9] underline font-mono">
+            Read Comprehensive Overview →
+          </Link>
+        </div>
       </footer>
     </div>
   )

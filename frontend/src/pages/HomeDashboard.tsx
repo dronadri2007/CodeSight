@@ -1,4 +1,4 @@
-﻿import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   GraduationCap, Bot, ArrowRight, Shield, Award, Flame,
@@ -219,11 +219,11 @@ export default function HomeDashboard() {
                   fullWidth
                   size="md"
                   variant="gold"
-                  onClick={() => navigate('/pro/promotional-entry')}
+                  onClick={() => navigate('/pro/promotional-test')}
                   iconRight={<ArrowRight size={14} />}
-                  className="font-bold text-xs shadow-md"
+                  className="font-bold text-xs shadow-md uppercase tracking-wider"
                 >
-                  Take Promotional Assessment
+                  Take Promotional Test →
                 </Button>
               )}
             </Card>

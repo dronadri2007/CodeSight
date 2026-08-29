@@ -23,12 +23,12 @@
     line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   html.light body {
-    background-color: #F8F5EC;
-    color: #1A130D;
+    background-color: #F8F5EC !important;
+    color: #1A130D !important;
   }
 
   /* Custom scrollbar - Dark */
@@ -42,7 +42,7 @@
   }
 
   html.light ::-webkit-scrollbar-track {
-    background: #F8F5EC;
+    background: #F8F5EC !important;
   }
 
   ::-webkit-scrollbar-thumb {
@@ -51,7 +51,7 @@
   }
 
   html.light ::-webkit-scrollbar-thumb {
-    background: #D0C5AE;
+    background: #D0C5AE !important;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -59,7 +59,7 @@
   }
 
   html.light ::-webkit-scrollbar-thumb:hover {
-    background: #3A2F1D;
+    background: #3A2F1D !important;
   }
 
   ::selection {
@@ -68,9 +68,113 @@
   }
 
   html.light ::selection {
-    background: rgba(58, 47, 29, 0.25);
-    color: #1A130D;
+    background: rgba(58, 47, 29, 0.25) !important;
+    color: #1A130D !important;
   }
+}
+
+/* =========================================================================
+   UNIVERSAL LIGHT THEME PALETTE OVERRIDES
+   Maps dark warm brown/black/ivory to warm ivory, cream, coffee border & dark text
+   ========================================================================= */
+html.light .bg-\[\#000000\],
+html.light .bg-\[\#000000\]\/90,
+html.light .bg-\[\#000000\]\/80,
+html.light .bg-\[\#000000\]\/70,
+html.light .bg-\[\#000000\]\/60 {
+  background-color: #F8F5EC !important;
+}
+
+html.light .bg-\[\#1A130D\],
+html.light .bg-\[\#1A130D\]\/90,
+html.light .bg-\[\#1A130D\]\/80,
+html.light .bg-\[\#1A130D\]\/70,
+html.light .bg-\[\#1A130D\]\/50 {
+  background-color: #EDE7D7 !important;
+}
+
+html.light .bg-\[\#3A2F1D\],
+html.light .bg-\[\#3A2F1D\]\/80,
+html.light .bg-\[\#3A2F1D\]\/40,
+html.light .bg-\[\#3A2F1D\]\/30,
+html.light .bg-\[\#3A2F1D\]\/20 {
+  background-color: #DFD6C2 !important;
+}
+
+html.light .bg-\[\#E5DFC9\] {
+  background-color: #1A130D !important;
+  color: #F8F5EC !important;
+}
+
+html.light .border-\[\#3A2F1D\],
+html.light .border-\[\#3A2F1D\]\/80,
+html.light .border-\[\#3A2F1D\]\/50,
+html.light .border-\[\#3A2F1D\]\/40,
+html.light .border-\[\#3A2F1D\]\/30 {
+  border-color: #D0C5AE !important;
+}
+
+html.light .border-\[\#E5DFC9\],
+html.light .border-\[\#E5DFC9\]\/60,
+html.light .border-\[\#E5DFC9\]\/50,
+html.light .border-\[\#E5DFC9\]\/40 {
+  border-color: #8C7B68 !important;
+}
+
+html.light .text-\[\#E5DFC9\] {
+  color: #1A130D !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/90 {
+  color: rgba(26, 19, 13, 0.92) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/80 {
+  color: rgba(26, 19, 13, 0.82) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/70 {
+  color: rgba(26, 19, 13, 0.72) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/60 {
+  color: rgba(26, 19, 13, 0.62) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/50 {
+  color: rgba(26, 19, 13, 0.52) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/40 {
+  color: rgba(26, 19, 13, 0.42) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/35 {
+  color: rgba(26, 19, 13, 0.35) !important;
+}
+
+html.light .text-\[\#E5DFC9\]\/25 {
+  color: rgba(26, 19, 13, 0.25) !important;
+}
+
+html.light .text-\[\#000000\] {
+  color: #F8F5EC !important;
+}
+
+html.light .divide-\[\#3A2F1D\]\/50 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-\[\#3A2F1D\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #D0C5AE !important;
+}
+
+/* Light mode Monaco editor adjustments */
+html.light .monaco-editor,
+html.light .monaco-editor-background,
+html.light .monaco-editor .inputarea.ime-input {
+  background-color: #F8F5EC !important;
+}
+
+html.light .monaco-editor .margin {
+  background-color: #EDE7D7 !important;
 }
 
 @layer utilities {
@@ -79,6 +183,15 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  html.light .text-gradient-teal,
+  html.light .text-gradient-gold,
+  html.light .text-gradient-ivory {
+    background: linear-gradient(135deg, #1A130D 0%, #3A2F1D 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
   }
 
   .text-gradient-gold {
@@ -101,68 +214,23 @@
   }
 
   html.light .bg-grid-dark {
-    background-image: radial-gradient(rgba(58, 47, 29, 0.08) 1px, transparent 1px);
-    background-size: 20px 20px;
+    background-image: radial-gradient(rgba(26, 19, 13, 0.06) 1px, transparent 1px) !important;
   }
 
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  .bg-dots-pattern {
+    background-image: radial-gradient(rgba(229, 223, 201, 0.12) 1px, transparent 1px);
+    background-size: 16px 16px;
   }
 
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
+  html.light .bg-dots-pattern {
+    background-image: radial-gradient(rgba(26, 19, 13, 0.12) 1px, transparent 1px) !important;
   }
-}
 
-/* Monaco Dark Workspace Overrides */
-.dark .monaco-editor,
-.dark .monaco-editor-background,
-.dark .monaco-editor .margin {
-  background-color: #000000 !important;
-}
+  .bg-warm-glow {
+    background: radial-gradient(circle at 50% 0%, rgba(58, 47, 29, 0.35) 0%, transparent 70%);
+  }
 
-.dark .monaco-editor .line-numbers {
-  color: rgba(229, 223, 201, 0.45) !important;
-}
-
-.dark .monaco-editor .current-line {
-  background-color: rgba(58, 47, 29, 0.35) !important;
-  border: none !important;
-}
-
-/* Monaco Light Workspace Overrides */
-.light .monaco-editor,
-.light .monaco-editor-background,
-.light .monaco-editor .margin {
-  background-color: #EDE7D7 !important;
-}
-
-.light .monaco-editor .line-numbers {
-  color: rgba(26, 19, 13, 0.45) !important;
-}
-
-.light .monaco-editor .current-line {
-  background-color: rgba(208, 197, 174, 0.45) !important;
-  border: none !important;
-}
-
-.selected-line-decoration {
-  background: rgba(58, 47, 29, 0.60) !important;
-  border-left: 3px solid #E5DFC9 !important;
-}
-
-html.light .selected-line-decoration {
-  background: rgba(208, 197, 174, 0.60) !important;
-  border-left: 3px solid #1A130D !important;
-}
-
-.flagged-line-decoration {
-  background: rgba(58, 47, 29, 0.60) !important;
-  border-left: 3px solid #E5DFC9 !important;
-}
-
-html.light .flagged-line-decoration {
-  background: rgba(208, 197, 174, 0.60) !important;
-  border-left: 3px solid #1A130D !important;
+  html.light .bg-warm-glow {
+    background: radial-gradient(circle at 50% 0%, rgba(208, 197, 174, 0.4) 0%, transparent 70%) !important;
+  }
 }

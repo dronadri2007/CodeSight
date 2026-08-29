@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Bot, Shield, CheckCircle2, ArrowRight, Lock, Sparkles,
@@ -76,13 +76,6 @@ export default function ProPromotionalEntry() {
               >
                 TAKE PROMOTIONAL TEST
               </Button>
-
-              <button
-                onClick={handleAlreadyCompleted}
-                className="text-2xs text-[#E5DFC9]/60 hover:text-[#E5DFC9] font-mono underline"
-              >
-                Already qualified? Continue to Professional Track →
-              </button>
             </div>
           </Card>
         </motion.div>

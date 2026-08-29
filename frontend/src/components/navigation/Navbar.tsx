@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   Search, Bell, Moon, Sun, User, LogOut, Home,
@@ -61,7 +61,24 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
     if (hasPassedPromotionalTest) {
       navigate('/pro/problems')
     } else {
-      navigate('/pro/promotional-entry')
+      navigate('/pro/promotional-test')
+    }
+  }
+
+  const handleProblemsClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (!selectedTrack) {
+      navigate('/role-select')
+    } else if (selectedTrack === 'student') {
+      navigate('/student/problems')
+    } else if (selectedTrack === 'pro') {
+      if (hasPassedPromotionalTest) {
+        navigate('/pro/problems')
+      } else {
+        navigate('/pro/promotional-test')
+      }
+    } else {
+      navigate('/problems')
     }
   }
 
@@ -88,9 +105,9 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
               <span>Home</span>
             </Link>
 
-            {/* 2. Problems Link */}
-            <Link
-              to="/problems"
+            {/* 2. Problems Link - Checks Stream & Test */}
+            <button
+              onClick={handleProblemsClick}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 isProblemsActive && !isStudentActive && !isProActive
                   ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] font-bold shadow-inner'
@@ -99,7 +116,7 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
             >
               <Code2 size={13} />
               <span>Problems</span>
-            </Link>
+            </button>
 
             {/* 3. Contest Link */}
             <Link
