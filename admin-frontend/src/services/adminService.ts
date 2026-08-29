@@ -1,8 +1,50 @@
-import { Problem, AdminUser } from '../types';
+import { Problem, AdminUser, DefectClass } from '../types';
 import { INITIAL_PROBLEMS } from './mockData';
 import { apiConfig, getAuthHeaders } from './api';
 
 const STORAGE_KEY = 'codesight_admin_problems_v1';
+
+// --- CodeSight backend (read-only corpus view) --------------------------
+// The real backend has no admin auth and no exercise CRUD — exercises are
+// committed JSON and review happens via scripts/review_exercises.py. When
+// VITE_USE_MOCK_API=false we show the live corpus + review progress from
+// GET /admin/exercises; create/update/delete/approve are not available.
+
+interface AdminExerciseRow {
+  id: string
+  title: string
+  defect_class: string
+  difficulty: string
+  difficulty_label: string
+  source: string
+  review_status: string
+  status_label: string
+  reports: number
+  line_count: number
+  hint_count: number
+}
+
+function rowToProblem(r: AdminExerciseRow): Problem {
+  return {
+    id: r.id,
+    title: r.title,
+    slug: r.id,
+    difficulty: (r.difficulty_label as Problem['difficulty']) || 'Medium',
+    defectClass: r.defect_class as DefectClass,
+    tags: [r.defect_class, r.source, ...(r.reports ? [`${r.reports} report${r.reports > 1 ? 's' : ''}`] : [])],
+    status: (r.status_label as Problem['status']) || 'Pending',
+    statement: `Review exercise · ${r.line_count} lines · ${r.hint_count} hints · source: ${r.source}`,
+    starterCode: {},
+    optimalTimeComplexity: '-',
+    optimalSpaceComplexity: '-',
+    testCases: [],
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  }
+}
+
+const NO_MUTATION =
+  'Exercises are managed in the repo (app/data/*.json + scripts/review_exercises.py). This dashboard is read-only against the live backend.'
 
 function getStoredProblems(): Problem[] {
   try {
@@ -22,44 +64,18 @@ function saveProblems(problems: Problem[]) {
 }
 
 export const adminService = {
-  // Admin Login
-  async login(email: string, password: string): Promise<{ token: string; user: AdminUser }> {
-    if (apiConfig.useMock) {
-      await new Promise((res) => setTimeout(res, 600)); // Simulate network latency
-      if (email.toLowerCase().includes('admin') || password === 'admin123' || email.endsWith('@codesight.dev')) {
-        const user: AdminUser = {
-          id: 'usr_admin_001',
-          name: email.split('@')[0].toUpperCase() || 'Admin Lead',
-          email,
-          role: 'admin',
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        };
-        const token = `jwt_mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-        return { token, user };
-      } else {
-        // Still allow for demo flexibility
-        const user: AdminUser = {
-          id: 'usr_admin_002',
-          name: email.split('@')[0] || 'Demo Admin',
-          email,
-          role: 'admin',
-        };
-        const token = `jwt_mock_${Date.now()}`;
-        return { token, user };
-      }
-    }
-
-    const res = await fetch(`${apiConfig.baseUrl}/api/admin/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Invalid admin credentials');
-    }
-    return res.json();
+  // Admin login. The CodeSight backend has no auth, so this is a client-side
+  // gate in every mode — any credentials mint a local token.
+  async login(email: string, _password: string): Promise<{ token: string; user: AdminUser }> {
+    await new Promise((res) => setTimeout(res, 400));
+    const user: AdminUser = {
+      id: 'usr_admin_001',
+      name: (email.split('@')[0] || 'Admin').toUpperCase(),
+      email,
+      role: 'admin',
+    };
+    const token = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    return { token, user };
   },
 
   // Get all problems
@@ -85,16 +101,19 @@ export const adminService = {
       return list;
     }
 
-    const queryParams = new URLSearchParams();
-    if (filters?.search) queryParams.set('search', filters.search);
-    if (filters?.difficulty) queryParams.set('difficulty', filters.difficulty);
-    if (filters?.status) queryParams.set('status', filters.status);
-
-    const res = await fetch(`${apiConfig.baseUrl}/api/admin/problems?${queryParams.toString()}`, {
+    const res = await fetch(`${apiConfig.baseUrl}/admin/exercises?limit=2000`, {
       headers: getAuthHeaders(),
     });
-    if (!res.ok) throw new Error('Failed to fetch problems');
-    return res.json();
+    if (!res.ok) throw new Error(`Failed to fetch exercises (${res.status})`);
+    const body = (await res.json()) as { exercises: AdminExerciseRow[] };
+    return body.exercises.map(rowToProblem);
+  },
+
+  // Corpus + review-progress totals (GET /admin/stats).
+  async getStats(): Promise<Record<string, unknown> | null> {
+    if (apiConfig.useMock) return null;
+    const res = await fetch(`${apiConfig.baseUrl}/admin/stats`, { headers: getAuthHeaders() });
+    return res.ok ? res.json() : null;
   },
 
   // Create problem
@@ -112,13 +131,7 @@ export const adminService = {
       return newProblem;
     }
 
-    const res = await fetch(`${apiConfig.baseUrl}/api/admin/problems`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(problemData),
-    });
-    if (!res.ok) throw new Error('Failed to create problem');
-    return res.json();
+    throw new Error(NO_MUTATION);
   },
 
   // Update problem
@@ -138,13 +151,7 @@ export const adminService = {
       return updated;
     }
 
-    const res = await fetch(`${apiConfig.baseUrl}/api/admin/problems/${id}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error('Failed to update problem');
-    return res.json();
+    throw new Error(NO_MUTATION);
   },
 
   // Delete problem
@@ -156,12 +163,7 @@ export const adminService = {
       return true;
     }
 
-    const res = await fetch(`${apiConfig.baseUrl}/api/admin/problems/${id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to delete problem');
-    return true;
+    throw new Error(NO_MUTATION);
   },
 
   // Approve problem
@@ -170,11 +172,6 @@ export const adminService = {
       return this.updateProblem(id, { status: 'Approved' });
     }
 
-    const res = await fetch(`${apiConfig.baseUrl}/api/admin/problems/${id}/approve`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error('Failed to approve problem');
-    return res.json();
+    throw new Error(NO_MUTATION);
   },
 };
