@@ -11,10 +11,10 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// 40x32 Pixel Art Grid for 100% Euclidean Square Pixels on the Robot Visor
-type Matrix40x32 = number[][];
+// 24x32 UV-Calibrated Grid: 100% Square Pixels in UV Space (Width = Height = 6px)
+type Matrix24x32 = number[][];
 
-function parse40x32(pattern: string[]): Matrix40x32 {
+function parse24x32(pattern: string[]): Matrix24x32 {
   return pattern.map((row) =>
     Array.from(row).map((char) => {
       if (char === '*') return 2;
@@ -24,130 +24,128 @@ function parse40x32(pattern: string[]): Matrix40x32 {
   );
 }
 
-function create40x32Pattern(builder: (g: string[][]) => void): Matrix40x32 {
-  const g: string[][] = Array.from({ length: 32 }, () => Array(40).fill('.'));
+function create24x32Pattern(builder: (g: string[][]) => void): Matrix24x32 {
+  const g: string[][] = Array.from({ length: 32 }, () => Array(24).fill('.'));
   builder(g);
-  return parse40x32(g.map((r) => r.join('')));
+  return parse24x32(g.map((r) => r.join('')));
 }
 
-function drawRect40x32(g: string[][], r: number, c: number, h: number, w: number, char = '#') {
+function drawRect24x32(g: string[][], r: number, c: number, h: number, w: number, char = '#') {
   for (let i = r; i < r + h; i++) {
     for (let j = c; j < c + w; j++) {
-      if (i >= 0 && i < 32 && j >= 0 && j < 40) {
+      if (i >= 0 && i < 32 && j >= 0 && j < 24) {
         g[i][j] = char;
       }
     }
   }
 }
 
-function drawCircle40x32(g: string[][], cr: number, cc: number, radius: number, char = '#', fill = true, highlight = false) {
+function drawCircle24x32(g: string[][], cr: number, cc: number, radius: number, char = '#', fill = true, highlight = false) {
   for (let r = 0; r < 32; r++) {
-    for (let c = 0; c < 40; c++) {
+    for (let c = 0; c < 24; c++) {
       const d = Math.sqrt((r - cr) ** 2 + (c - cc) ** 2);
       if (fill) {
         if (d <= radius) g[r][c] = char;
       } else {
-        if (radius - 1.4 <= d && d <= radius + 0.4) g[r][c] = char;
+        if (radius - 1.3 <= d && d <= radius + 0.3) g[r][c] = char;
       }
     }
   }
   if (highlight && fill && cr - 1 >= 0 && cc - 1 >= 0) {
     g[cr - 1][cc - 1] = '*';
     g[cr - 1][cc] = '*';
-    g[cr][cc - 1] = '*';
   }
 }
 
-// 40x32 Pixel Art Expressions with Exact Proportions
-const PIXEL_EXPRESSIONS_40X32: Record<ExpressionType, Matrix40x32> = {
-  // f) Neutral (Resting): Two 10x10 rounded eyes with catchlights + 14px wide smile with dimples
-  neutral: create40x32Pattern((g) => {
-    drawCircle40x32(g, 10, 10, 4.5, '#', true, true);
-    drawCircle40x32(g, 10, 30, 4.5, '#', true, true);
-    drawRect40x32(g, 22, 13, 2, 14, '#');
-    drawRect40x32(g, 21, 12, 2, 2, '*');
-    drawRect40x32(g, 21, 26, 2, 2, '*');
+// 24x32 Pixel Art Expressions with 100% Square Pixel Aspect Ratio
+const PIXEL_EXPRESSIONS_24X32: Record<ExpressionType, Matrix24x32> = {
+  // f) Neutral (Resting): Two 7x7 round eyes with catchlights + 8px small smile with dimples
+  neutral: create24x32Pattern((g) => {
+    drawCircle24x32(g, 10, 6, 3.5, '#', true, true);
+    drawCircle24x32(g, 10, 17, 3.5, '#', true, true);
+    drawRect24x32(g, 22, 8, 2, 8, '#');
+    drawRect24x32(g, 21, 7, 2, 1, '*');
+    drawRect24x32(g, 21, 16, 2, 1, '*');
   }),
 
-  // a) >.< (Playful Squint): Angled downward chevrons + cute open smile
-  squint: create40x32Pattern((g) => {
-    for (let i = 0; i < 6; i++) {
-      g[7 + i][5 + i] = '#';
-      g[7 + i][5 + i + 1] = '*';
-      g[12 + i][10 - i] = '#';
-      g[12 + i][10 - i + 1] = '*';
+  // a) >.< (Playful Squint): Angled downward chevrons + small smile
+  squint: create24x32Pattern((g) => {
+    for (let i = 0; i < 5; i++) {
+      g[8 + i][4 + i] = '#';
+      g[8 + i][4 + i + 1] = '*';
+      g[12 + i][8 - i] = '#';
+      g[12 + i][8 - i + 1] = '*';
 
-      g[7 + i][35 - i] = '#';
-      g[7 + i][35 - i - 1] = '*';
-      g[12 + i][30 + i] = '#';
-      g[12 + i][30 + i - 1] = '*';
+      g[8 + i][19 - i] = '#';
+      g[8 + i][19 - i - 1] = '*';
+      g[12 + i][15 + i] = '#';
+      g[12 + i][15 + i - 1] = '*';
     }
-    drawRect40x32(g, 23, 15, 2, 10, '#');
-    drawRect40x32(g, 22, 14, 2, 2, '*');
-    drawRect40x32(g, 22, 24, 2, 2, '*');
+    drawRect24x32(g, 23, 9, 2, 6, '#');
+    drawRect24x32(g, 22, 8, 2, 1, '*');
+    drawRect24x32(g, 22, 15, 2, 1, '*');
   }),
 
-  // b) :O (Surprised): Large 12x12 dual-layer circles + large 14x12 open O mouth
-  surprised: create40x32Pattern((g) => {
-    drawCircle40x32(g, 10, 10, 5.5, '#', false);
-    drawCircle40x32(g, 10, 10, 4.0, '*', false);
-    drawCircle40x32(g, 10, 30, 5.5, '#', false);
-    drawCircle40x32(g, 10, 30, 4.0, '*', false);
+  // b) :O (Surprised): Large 8x8 dual-layer open circles + large 8x8 open O mouth
+  surprised: create24x32Pattern((g) => {
+    drawCircle24x32(g, 10, 6, 4.2, '#', false);
+    drawCircle24x32(g, 10, 6, 2.8, '*', false);
+    drawCircle24x32(g, 10, 17, 4.2, '#', false);
+    drawCircle24x32(g, 10, 17, 2.8, '*', false);
 
-    drawCircle40x32(g, 22, 20, 5.0, '#', false);
-    drawCircle40x32(g, 22, 20, 3.5, '*', false);
+    drawCircle24x32(g, 22, 11, 3.8, '#', false);
+    drawCircle24x32(g, 22, 11, 2.5, '*', false);
   }),
 
-  // c) ^_^ (Happy): Large 12px chevron arches + full 22px wide smile with dimples
-  happy: create40x32Pattern((g) => {
-    for (let i = 0; i < 7; i++) {
-      g[13 - i][4 + i] = '#';
-      g[12 - i][4 + i] = '*';
-      g[7 + i][10 + i] = '#';
-      g[6 + i][10 + i] = '*';
+  // c) ^_^ (Happy): Large chevron arches + wide 14px smile with dimples
+  happy: create24x32Pattern((g) => {
+    for (let i = 0; i < 5; i++) {
+      g[12 - i][4 + i] = '#';
+      g[11 - i][4 + i] = '*';
+      g[8 + i][8 + i] = '#';
+      g[7 + i][8 + i] = '*';
 
-      g[13 - i][24 + i] = '#';
-      g[12 - i][24 + i] = '*';
-      g[7 + i][30 + i] = '#';
-      g[6 + i][30 + i] = '*';
+      g[12 - i][15 + i] = '#';
+      g[11 - i][15 + i] = '*';
+      g[8 + i][19 + i] = '#';
+      g[7 + i][19 + i] = '*';
     }
-    drawRect40x32(g, 23, 9, 2, 22, '#');
-    drawRect40x32(g, 22, 8, 2, 2, '*');
-    drawRect40x32(g, 22, 30, 2, 2, '*');
+    drawRect24x32(g, 23, 5, 2, 14, '#');
+    drawRect24x32(g, 22, 4, 2, 1, '*');
+    drawRect24x32(g, 22, 19, 2, 1, '*');
   }),
 
-  // d) ;) (Wink): Closed horizontal bar (14px) + Large open 10x10 eye with catchlight + Smirk
-  wink: create40x32Pattern((g) => {
-    drawRect40x32(g, 10, 4, 2, 14, '#');
-    drawRect40x32(g, 9, 4, 1, 14, '*');
-    drawCircle40x32(g, 10, 30, 4.5, '#', true, true);
-    drawRect40x32(g, 23, 14, 2, 12, '#');
-    drawRect40x32(g, 21, 25, 2, 2, '*');
+  // d) ;) (Wink): Closed horizontal bar (8px) + Large open 7x7 eye with catchlight + Smirk
+  wink: create24x32Pattern((g) => {
+    drawRect24x32(g, 10, 3, 2, 8, '#');
+    drawRect24x32(g, 9, 3, 1, 8, '*');
+    drawCircle24x32(g, 10, 17, 3.5, '#', true, true);
+    drawRect24x32(g, 23, 8, 2, 8, '#');
+    drawRect24x32(g, 21, 16, 2, 2, '*');
   }),
 
-  // e) -_- (Suspicious): Twin 14px flat horizontal lines with top highlight + straight 14px mouth
-  suspicious: create40x32Pattern((g) => {
-    drawRect40x32(g, 10, 4, 2, 14, '#');
-    drawRect40x32(g, 9, 4, 1, 14, '*');
-    drawRect40x32(g, 10, 23, 2, 14, '#');
-    drawRect40x32(g, 9, 23, 1, 14, '*');
-    drawRect40x32(g, 23, 13, 2, 14, '#');
+  // e) -_- (Suspicious): Twin 8px flat horizontal lines + straight 10px mouth
+  suspicious: create24x32Pattern((g) => {
+    drawRect24x32(g, 10, 3, 2, 8, '#');
+    drawRect24x32(g, 9, 3, 1, 8, '*');
+    drawRect24x32(g, 10, 13, 2, 8, '#');
+    drawRect24x32(g, 9, 13, 1, 8, '*');
+    drawRect24x32(g, 23, 7, 2, 10, '#');
   }),
 };
 
-// UV-Calibrated Visor Texture Manager
+// UV-Calibrated Square Pixel Visor Texture Manager
 class UVCalibratedVisorManager {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
 
-  readonly COLS = 40;
+  readonly COLS = 24;
   readonly ROWS = 32;
 
   constructor() {
     this.canvas = document.createElement('canvas');
-    // 640x512 canvas matches the 5:4 aspect ratio of the 3D visor exactly (640/40 = 16px, 512/32 = 16px)
-    this.canvas.width = 640;
+    this.canvas.width = 512;
     this.canvas.height = 512;
     this.ctx = this.canvas.getContext('2d')!;
 
@@ -156,11 +154,11 @@ class UVCalibratedVisorManager {
     this.texture.minFilter = THREE.NearestFilter;
     this.texture.magFilter = THREE.NearestFilter;
 
-    // UV bounds mapping: U in [0.25, 0.78125], V in [0.0, 1.0]
+    // Strict UV mapping parameters requested:
     this.texture.wrapS = THREE.ClampToEdgeWrapping;
     this.texture.wrapT = THREE.ClampToEdgeWrapping;
-    this.texture.repeat.set(0.53125, 1.0);
-    this.texture.offset.set(0.250, 0.0);
+    this.texture.repeat.set(1, 1);
+    this.texture.offset.set(0, 0);
     this.texture.flipY = false;
 
     this.draw('neutral', 'neutral', 1);
@@ -175,20 +173,22 @@ class UVCalibratedVisorManager {
     ctx.fillStyle = '#0A0A0F';
     ctx.fillRect(0, 0, w, h);
 
-    const cellW = w / COLS; // 16px
-    const cellH = h / ROWS; // 16px
+    // Active Face Visor UV Coordinates on 512x512 Canvas:
+    // Centered at X=256, Y=252 with uniform 6.0px x 6.0px cell size
+    const cellSize = 6.0; // 100% Square in UV space
+    const startX = Math.round(256 - (COLS * cellSize) / 2); // 184
+    const startY = Math.round(252 - (ROWS * cellSize) / 2); // 156
     const gap = 1.0;
+    const pixelSize = cellSize - gap; // 5.0px x 5.0px
 
-    const fromGrid = PIXEL_EXPRESSIONS_40X32[fromExpr];
-    const toGrid = PIXEL_EXPRESSIONS_40X32[toExpr];
+    const fromGrid = PIXEL_EXPRESSIONS_24X32[fromExpr];
+    const toGrid = PIXEL_EXPRESSIONS_24X32[toExpr];
 
-    // Render 40x32 Pixel Grid (100% Euclidean Square Pixels in 3D space)
+    // Render 24x32 Pixel Grid (100% Euclidean Square Pixels in UV space)
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        const x = Math.round(c * cellW);
-        const y = Math.round(r * cellH);
-        const pw = Math.round(cellW - gap);
-        const ph = Math.round(cellH - gap);
+        const x = Math.round(startX + c * cellSize);
+        const y = Math.round(startY + r * cellSize);
 
         const valFrom = fromGrid[r][c];
         const valTo = toGrid[r][c];
@@ -203,7 +203,7 @@ class UVCalibratedVisorManager {
 
           // Outer Glow
           ctx.fillStyle = `rgba(0, 240, 255, ${0.20 * intensity})`;
-          ctx.fillRect(x - 2, y - 2, pw + 4, ph + 4);
+          ctx.fillRect(x - 2, y - 2, pixelSize + 4, pixelSize + 4);
 
           if (isHighlight) {
             // Edge Highlight: Lighter Cyan (#66F5FF)
@@ -212,16 +212,16 @@ class UVCalibratedVisorManager {
             // Main Pixel: Bright Cyan (#00F0FF)
             ctx.fillStyle = `rgba(0, 240, 255, ${0.92 * intensity})`;
           }
-          ctx.fillRect(x, y, pw, ph);
+          ctx.fillRect(x, y, pixelSize, pixelSize);
 
           // Subtle inner pixel core
           ctx.fillStyle = `rgba(240, 255, 255, ${0.85 * intensity})`;
-          ctx.fillRect(x + 2, y + 2, Math.max(1, pw - 4), Math.max(1, ph - 4));
+          ctx.fillRect(x + 1, y + 1, Math.max(1, pixelSize - 2), Math.max(1, pixelSize - 2));
         } else {
           // Unlit LED pixel grid dot
           ctx.shadowBlur = 0;
           ctx.fillStyle = 'rgba(0, 240, 255, 0.03)';
-          ctx.fillRect(x, y, pw, ph);
+          ctx.fillRect(x, y, pixelSize, pixelSize);
         }
       }
     }
@@ -334,7 +334,6 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         mesh.receiveShadow = true;
 
         if (name.includes('head_2')) {
-          // Apply UV-offset texture directly to the intact GLTF visor geometry
           mesh.material = faceVisorMat;
           mesh.visible = true;
         } else if (fullName.includes('circle') || fullName.includes('core')) {
@@ -489,9 +488,9 @@ function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         <meshStandardMaterial color="#F5F0E8" roughness={0.18} metalness={0.25} />
       </mesh>
 
-      {/* Face Visor Plate (Aspect Ratio matched 5:4) */}
+      {/* Face Visor Plate */}
       <mesh position={[0, 0.42, 0.46]}>
-        <planeGeometry args={[0.9, 0.72]} />
+        <planeGeometry args={[0.9, 0.9]} />
         <meshBasicMaterial map={visorMgr.texture} transparent opacity={0.98} />
       </mesh>
 
