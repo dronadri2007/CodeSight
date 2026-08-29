@@ -11,11 +11,10 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// 32x32 Pixel Art Matrix Definition (32 Columns x 32 Rows)
-// 0 = Background, 1 = Bright Cyan (#00F0FF), 2 = Highlight Lighter Cyan (#66F5FF)
-type Matrix32 = number[][];
+// 40x32 Pixel Art Grid for 100% Square Aspect Ratio on 5:4 Robot Visor
+type Matrix40x32 = number[][];
 
-function parse32x32(pattern: string[]): Matrix32 {
+function parse40x32(pattern: string[]): Matrix40x32 {
   return pattern.map((row) =>
     Array.from(row).map((char) => {
       if (char === '*') return 2;
@@ -25,25 +24,25 @@ function parse32x32(pattern: string[]): Matrix32 {
   );
 }
 
-function create32Pattern(builder: (g: string[][]) => void): Matrix32 {
-  const g: string[][] = Array.from({ length: 32 }, () => Array(32).fill('.'));
+function create40x32Pattern(builder: (g: string[][]) => void): Matrix40x32 {
+  const g: string[][] = Array.from({ length: 32 }, () => Array(40).fill('.'));
   builder(g);
-  return parse32x32(g.map((r) => r.join('')));
+  return parse40x32(g.map((r) => r.join('')));
 }
 
-function drawRect32(g: string[][], r: number, c: number, h: number, w: number, char = '#') {
+function drawRect40x32(g: string[][], r: number, c: number, h: number, w: number, char = '#') {
   for (let i = r; i < r + h; i++) {
     for (let j = c; j < c + w; j++) {
-      if (i >= 0 && i < 32 && j >= 0 && j < 32) {
+      if (i >= 0 && i < 32 && j >= 0 && j < 40) {
         g[i][j] = char;
       }
     }
   }
 }
 
-function drawCircle32(g: string[][], cr: number, cc: number, radius: number, char = '#', fill = true, highlight = false) {
+function drawCircle40x32(g: string[][], cr: number, cc: number, radius: number, char = '#', fill = true, highlight = false) {
   for (let r = 0; r < 32; r++) {
-    for (let c = 0; c < 32; c++) {
+    for (let c = 0; c < 40; c++) {
       const d = Math.sqrt((r - cr) ** 2 + (c - cc) ** 2);
       if (fill) {
         if (d <= radius) g[r][c] = char;
@@ -59,94 +58,96 @@ function drawCircle32(g: string[][], cr: number, cc: number, radius: number, cha
   }
 }
 
-// 32x32 Full-Visor Coverage Expressions
-const PIXEL_EXPRESSIONS_32X32: Record<ExpressionType, Matrix32> = {
-  // f) Neutral (Resting): Two 10x10 detailed rounded eyes + 16px wide smile with dimples
-  neutral: create32Pattern((g) => {
-    drawCircle32(g, 10, 8, 4.5, '#', true, true);
-    drawCircle32(g, 10, 23, 4.5, '#', true, true);
-    drawRect32(g, 22, 10, 2, 12, '#');
-    drawRect32(g, 21, 9, 2, 2, '*');
-    drawRect32(g, 21, 21, 2, 2, '*');
+// 40x32 Pixel Art Expressions with 1:1 Aspect Ratio (Square Pixels)
+const PIXEL_EXPRESSIONS_40X32: Record<ExpressionType, Matrix40x32> = {
+  // f) Neutral (Resting): Two 10x10 rounded eyes with highlights + 12px wide smile with dimples
+  neutral: create40x32Pattern((g) => {
+    drawCircle40x32(g, 10, 10, 4.5, '#', true, true);
+    drawCircle40x32(g, 10, 30, 4.5, '#', true, true);
+    drawRect40x32(g, 22, 14, 2, 12, '#');
+    drawRect40x32(g, 21, 13, 2, 2, '*');
+    drawRect40x32(g, 21, 25, 2, 2, '*');
   }),
 
-  // a) >.< (Playful Squint): Full-sized angled downward chevrons + cute open smile
-  squint: create32Pattern((g) => {
+  // a) >.< (Playful Squint): Angled downward chevrons + cute open smile
+  squint: create40x32Pattern((g) => {
     for (let i = 0; i < 6; i++) {
-      g[7 + i][4 + i] = '#';
-      g[7 + i][4 + i + 1] = '*';
-      g[12 + i][9 - i] = '#';
-      g[12 + i][9 - i + 1] = '*';
+      g[7 + i][5 + i] = '#';
+      g[7 + i][5 + i + 1] = '*';
+      g[12 + i][10 - i] = '#';
+      g[12 + i][10 - i + 1] = '*';
 
-      g[7 + i][27 - i] = '#';
-      g[7 + i][27 - i - 1] = '*';
-      g[12 + i][22 + i] = '#';
-      g[12 + i][22 + i - 1] = '*';
+      g[7 + i][35 - i] = '#';
+      g[7 + i][35 - i - 1] = '*';
+      g[12 + i][30 + i] = '#';
+      g[12 + i][30 + i - 1] = '*';
     }
-    drawRect32(g, 23, 11, 2, 10, '#');
-    drawRect32(g, 22, 10, 2, 2, '*');
-    drawRect32(g, 22, 20, 2, 2, '*');
+    drawRect40x32(g, 23, 15, 2, 10, '#');
+    drawRect40x32(g, 22, 14, 2, 2, '*');
+    drawRect40x32(g, 22, 24, 2, 2, '*');
   }),
 
   // b) :O (Surprised): Large 12x12 dual-layer circles + large 14x12 open O mouth
-  surprised: create32Pattern((g) => {
-    drawCircle32(g, 10, 8, 5.5, '#', false);
-    drawCircle32(g, 10, 8, 4.0, '*', false);
-    drawCircle32(g, 10, 23, 5.5, '#', false);
-    drawCircle32(g, 10, 23, 4.0, '*', false);
+  surprised: create40x32Pattern((g) => {
+    drawCircle40x32(g, 10, 10, 5.5, '#', false);
+    drawCircle40x32(g, 10, 10, 4.0, '*', false);
+    drawCircle40x32(g, 10, 30, 5.5, '#', false);
+    drawCircle40x32(g, 10, 30, 4.0, '*', false);
 
-    drawCircle32(g, 22, 16, 5.0, '#', false);
-    drawCircle32(g, 22, 16, 3.5, '*', false);
+    drawCircle40x32(g, 22, 20, 5.0, '#', false);
+    drawCircle40x32(g, 22, 20, 3.5, '*', false);
   }),
 
   // c) ^_^ (Happy): Large 12px chevron arches + full 20px wide smile with dimples
-  happy: create32Pattern((g) => {
+  happy: create40x32Pattern((g) => {
     for (let i = 0; i < 7; i++) {
-      g[13 - i][3 + i] = '#';
-      g[12 - i][3 + i] = '*';
-      g[7 + i][9 + i] = '#';
-      g[6 + i][9 + i] = '*';
+      g[13 - i][4 + i] = '#';
+      g[12 - i][4 + i] = '*';
+      g[7 + i][10 + i] = '#';
+      g[6 + i][10 + i] = '*';
 
-      g[13 - i][18 + i] = '#';
-      g[12 - i][18 + i] = '*';
-      g[7 + i][24 + i] = '#';
-      g[6 + i][24 + i] = '*';
+      g[13 - i][24 + i] = '#';
+      g[12 - i][24 + i] = '*';
+      g[7 + i][30 + i] = '#';
+      g[6 + i][30 + i] = '*';
     }
-    drawRect32(g, 23, 6, 2, 20, '#');
-    drawRect32(g, 22, 5, 2, 2, '*');
-    drawRect32(g, 22, 25, 2, 2, '*');
+    drawRect40x32(g, 23, 10, 2, 20, '#');
+    drawRect40x32(g, 22, 9, 2, 2, '*');
+    drawRect40x32(g, 22, 29, 2, 2, '*');
   }),
 
-  // d) ;) (Wink): Closed horizontal bar (14px) + Large open 10x10 eye with catchlight + Smirk
-  wink: create32Pattern((g) => {
-    drawRect32(g, 10, 2, 2, 13, '#');
-    drawRect32(g, 9, 2, 1, 13, '*');
-    drawCircle32(g, 10, 23, 4.5, '#', true, true);
-    drawRect32(g, 23, 10, 2, 12, '#');
-    drawRect32(g, 21, 21, 2, 2, '*');
+  // d) ;) (Wink): Closed horizontal bar (13px) + Large open 10x10 eye with catchlight + Smirk
+  wink: create40x32Pattern((g) => {
+    drawRect40x32(g, 10, 4, 2, 13, '#');
+    drawRect40x32(g, 9, 4, 1, 13, '*');
+    drawCircle40x32(g, 10, 30, 4.5, '#', true, true);
+    drawRect40x32(g, 23, 14, 2, 12, '#');
+    drawRect40x32(g, 21, 25, 2, 2, '*');
   }),
 
-  // e) -_- (Suspicious): Twin 14px flat horizontal lines with top highlight + straight 14px mouth
-  suspicious: create32Pattern((g) => {
-    drawRect32(g, 10, 2, 2, 13, '#');
-    drawRect32(g, 9, 2, 1, 13, '*');
-    drawRect32(g, 10, 17, 2, 13, '#');
-    drawRect32(g, 9, 17, 1, 13, '*');
-    drawRect32(g, 23, 9, 2, 14, '#');
+  // e) -_- (Suspicious): Twin 13px flat horizontal lines with top highlight + straight 14px mouth
+  suspicious: create40x32Pattern((g) => {
+    drawRect40x32(g, 10, 4, 2, 13, '#');
+    drawRect40x32(g, 9, 4, 1, 13, '*');
+    drawRect40x32(g, 10, 24, 2, 13, '#');
+    drawRect40x32(g, 9, 24, 1, 13, '*');
+    drawRect40x32(g, 23, 13, 2, 14, '#');
   }),
 };
 
-// 32x32 Full-Visor Pixel Art Texture Manager
-class FullVisorPixelManager {
+// 40x32 Pixel Art Visor Texture Manager with Square Pixel Aspect Ratio
+class SquarePixelVisorManager {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
 
-  readonly GRID_SIZE = 32;
+  readonly COLS = 40;
+  readonly ROWS = 32;
 
   constructor() {
     this.canvas = document.createElement('canvas');
-    this.canvas.width = 512;
+    // 640x512 canvas matches the 5:4 aspect ratio of the 3D visor exactly (640/40 = 16px, 512/32 = 16px)
+    this.canvas.width = 640;
     this.canvas.height = 512;
     this.ctx = this.canvas.getContext('2d')!;
 
@@ -154,37 +155,36 @@ class FullVisorPixelManager {
     this.texture.generateMipmaps = true;
     this.texture.minFilter = THREE.NearestFilter;
     this.texture.magFilter = THREE.NearestFilter;
+    this.texture.wrapS = THREE.ClampToEdgeWrapping;
+    this.texture.wrapT = THREE.ClampToEdgeWrapping;
+    this.texture.repeat.set(1, 1);
+    this.texture.offset.set(0, 0);
     this.texture.flipY = false;
 
     this.draw('neutral', 'neutral', 1);
   }
 
   draw(fromExpr: ExpressionType, toExpr: ExpressionType, t: number) {
-    const { ctx, canvas, GRID_SIZE } = this;
+    const { ctx, canvas, COLS, ROWS } = this;
     const w = canvas.width;
     const h = canvas.height;
 
-    // Deep Dark Visor Background (#0A0A0F) filling full canvas
+    // Deep Dark Visor Background (#0A0A0F)
     ctx.fillStyle = '#0A0A0F';
     ctx.fillRect(0, 0, w, h);
 
-    // Full-Screen Visor Spacing (Edge-to-edge across the entire screen area)
-    const padding = 16;
-    const availableW = w - padding * 2;
-    const availableH = h - padding * 2;
-
-    const cellW = availableW / GRID_SIZE;
-    const cellH = availableH / GRID_SIZE;
+    const cellW = w / COLS; // Exactly 16px
+    const cellH = h / ROWS; // Exactly 16px
     const gap = 1.0;
 
-    const fromGrid = PIXEL_EXPRESSIONS_32X32[fromExpr];
-    const toGrid = PIXEL_EXPRESSIONS_32X32[toExpr];
+    const fromGrid = PIXEL_EXPRESSIONS_40X32[fromExpr];
+    const toGrid = PIXEL_EXPRESSIONS_40X32[toExpr];
 
-    // Render 32x32 Pixel Grid across entire visor
-    for (let r = 0; r < GRID_SIZE; r++) {
-      for (let c = 0; c < GRID_SIZE; c++) {
-        const x = Math.round(padding + c * cellW);
-        const y = Math.round(padding + r * cellH);
+    // Render 40x32 Pixel Grid (All pixels are 100% square 1:1)
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const x = Math.round(c * cellW);
+        const y = Math.round(r * cellH);
         const pw = Math.round(cellW - gap);
         const ph = Math.round(cellH - gap);
 
@@ -232,13 +232,13 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF('/assets/greeting_robot.glb');
 
-  const pixelMgr = useMemo(() => new FullVisorPixelManager(), []);
+  const visorMgr = useMemo(() => new SquarePixelVisorManager(), []);
 
   // Expression State Tracking
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
 
-  // Apply colors & full-visor UV remapped texture
+  // Apply colors & square-aspect UV remapped texture
   const styledScene = useMemo(() => {
     const cloned = scene.clone(true);
 
@@ -303,14 +303,14 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       metalness: 0.8,
     });
 
-    // 6. Full-Visor Pixel Art Material
+    // 6. 1:1 Aspect Ratio Square Pixel Visor Material
     const faceVisorMat = new THREE.MeshBasicMaterial({
-      map: pixelMgr.texture,
+      map: visorMgr.texture,
       transparent: true,
       opacity: 0.99,
     });
 
-    // Hide original 3D mouth, eyes, eyebrows meshes so ONLY the pixel art appears
+    // Hide original 3D mouth, eyes, eyebrows meshes so ONLY the square pixel art appears
     cloned.traverse((child) => {
       const name = (child.name || '').toLowerCase();
       const parentName = (child.parent?.name || '').toLowerCase();
@@ -332,7 +332,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         mesh.receiveShadow = true;
 
         if (name.includes('head_2')) {
-          // Clone geometry and remap UV coordinates so the texture covers the FULL VISOR area
+          // Remap UV coordinates so the 640x512 canvas maps to square pixels across the visor
           const geom = mesh.geometry.clone();
           mesh.geometry = geom;
           const uvAttr = geom.attributes.uv;
@@ -340,7 +340,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
             for (let i = 0; i < uvAttr.count; i++) {
               const u = uvAttr.getX(i);
               const v = uvAttr.getY(i);
-              // Normalize U from [0.25, 0.78125] to [0, 1] across the entire visor
+              // Normalize U from [0.25, 0.78125] to [0, 1]
               const normalizedU = Math.min(1, Math.max(0, (u - 0.25) / (0.78125 - 0.25)));
               uvAttr.setXY(i, normalizedU, v);
             }
@@ -381,7 +381,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
     cloned.position.z -= centerVec.z;
 
     return cloned;
-  }, [scene, pixelMgr]);
+  }, [scene, visorMgr]);
 
   // Rotated 180 degrees horizontally to face front
   const BASE_ROTATION_Y = -Math.PI * 0.5;
@@ -406,7 +406,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       );
     }
 
-    // 2. 7-Second 32x32 Pixel Art Animation Loop:
+    // 2. 7-Second Animation Loop:
     // - 0.0s - 0.5s: Smooth transition to random expression
     // - 0.5s - 2.0s: Hold expression (1.5s)
     // - 2.0s - 2.5s: Smooth transition back to neutral
@@ -426,18 +426,18 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       // Transition from Neutral to Expression (0.5s)
       const p = cycleTime / 0.5;
       const t = easeInOutCubic(p);
-      pixelMgr.draw('neutral', currentExprRef.current, t);
+      visorMgr.draw('neutral', currentExprRef.current, t);
     } else if (cycleTime < 2.0) {
       // Hold Expression (1.5s)
-      pixelMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
+      visorMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
     } else if (cycleTime < 2.5) {
       // Transition back to Neutral (0.5s)
       const p = (cycleTime - 2.0) / 0.5;
       const t = easeInOutCubic(p);
-      pixelMgr.draw(currentExprRef.current, 'neutral', t);
+      visorMgr.draw(currentExprRef.current, 'neutral', t);
     } else {
       // Neutral Face (4.5s)
-      pixelMgr.draw('neutral', 'neutral', 1.0);
+      visorMgr.draw('neutral', 'neutral', 1.0);
     }
   });
 
@@ -450,10 +450,10 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   );
 }
 
-// Procedural 3D Robot Fallback with Full-Visor 32x32 Pixel Art Face
+// Procedural 3D Robot Fallback with Square Pixel Visor Face
 function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const headRef = useRef<THREE.Group>(null);
-  const pixelMgr = useMemo(() => new FullVisorPixelManager(), []);
+  const visorMgr = useMemo(() => new SquarePixelVisorManager(), []);
 
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
@@ -480,15 +480,15 @@ function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
     if (cycleTime < 0.5) {
       const p = cycleTime / 0.5;
       const t = easeInOutCubic(p);
-      pixelMgr.draw('neutral', currentExprRef.current, t);
+      visorMgr.draw('neutral', currentExprRef.current, t);
     } else if (cycleTime < 2.0) {
-      pixelMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
+      visorMgr.draw(currentExprRef.current, currentExprRef.current, 1.0);
     } else if (cycleTime < 2.5) {
       const p = (cycleTime - 2.0) / 0.5;
       const t = easeInOutCubic(p);
-      pixelMgr.draw(currentExprRef.current, 'neutral', t);
+      visorMgr.draw(currentExprRef.current, 'neutral', t);
     } else {
-      pixelMgr.draw('neutral', 'neutral', 1.0);
+      visorMgr.draw('neutral', 'neutral', 1.0);
     }
   });
 
@@ -500,10 +500,10 @@ function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         <meshStandardMaterial color="#F5F0E8" roughness={0.18} metalness={0.25} />
       </mesh>
 
-      {/* Face Visor Plate with Full 32x32 Pixel Art */}
+      {/* Face Visor Plate (Aspect Ratio matched 5:4) */}
       <mesh position={[0, 0.42, 0.46]}>
-        <planeGeometry args={[0.9, 0.48]} />
-        <meshBasicMaterial map={pixelMgr.texture} transparent opacity={0.98} />
+        <planeGeometry args={[0.9, 0.72]} />
+        <meshBasicMaterial map={visorMgr.texture} transparent opacity={0.98} />
       </mesh>
 
       {/* Earcups: Deep Red */}
