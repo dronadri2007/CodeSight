@@ -260,27 +260,17 @@ export function FullscreenPixelHero() {
       </motion.div>
 
       {/* Bottom Exploration Scroll Indicator */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 pb-8 flex items-center justify-between">
+      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 pb-10 flex items-center justify-center">
         <motion.button
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 2.4 }}
           onClick={scrollToContent}
-          className="group flex items-center gap-2 text-xs font-mono text-[#E5DFC9]/60 hover:text-[#E5DFC9] transition-colors cursor-pointer"
+          className="group flex items-center gap-3 text-xl sm:text-2xl font-mono font-semibold text-[#E5DFC9]/70 hover:text-[#E5DFC9] transition-colors cursor-pointer"
         >
           <span>Explore CodeSight</span>
-          <ChevronDown size={14} className="group-hover:translate-y-1 transition-transform animate-bounce text-[#E5DFC9]" />
+          <ChevronDown size={26} className="group-hover:translate-y-1 transition-transform animate-bounce text-[#E5DFC9]" />
         </motion.button>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 2.6 }}
-          className="flex items-center gap-3 text-2xs text-[#E5DFC9]/50 font-mono"
-        >
-          <span className="w-2 h-2 rounded-full bg-[#E5DFC9]" />
-          <span>Midnight Coding Atmosphere</span>
-        </motion.div>
       </footer>
     </div>
   )

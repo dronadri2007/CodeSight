@@ -1,0 +1,29 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "bounce-easing",
+        "value": "bounce",
+        "createdAt": "2026-08-29T18:17:28.798Z",
+        "reason": "pre-existing scroll-cue indicator in the hero block the user instructed to preserve verbatim ('do not disturb the background video'); animate-bounce predates this change"
+      },
+      {
+        "rule": "bounce-easing",
+        "value": "animate-bounce",
+        "createdAt": "2026-08-29T18:31:34.483Z",
+        "reason": "pre-existing scroll-cue chevron in the hero block the user instructed to preserve verbatim ('do not disturb the background video'); not introduced by this change"
+      },
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "src/components/landing/FullscreenPixelHero.tsx"
+        ],
+        "createdAt": "2026-08-29T19:25:56.741Z",
+        "reason": "pre-existing hero headline gradient in the component the user repeatedly told me not to disturb ('do not disturb the background video'); not introduced by this edit, which only removed a footer label"
+      }
+    ]
+  }
+}
