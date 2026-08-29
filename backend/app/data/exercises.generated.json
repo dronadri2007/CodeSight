@@ -11959,5 +11959,394 @@
       "Check how the file extension is extracted from the filename string.",
       "Consider whether rsplit with a maxsplit of 1 correctly isolates the final extension."
     ]
+  },
+  {
+    "id": "ex-g0607",
+    "language": "python",
+    "title": "Unthreadsafe Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import time\nfrom threading import local\n\n_request_count = 0\n\ndef log_request(path: str) -> None:\n    global _request_count\n    _request_count += 1\n    time.sleep(0.01)\n    print(f\"[{_request_count}] Request received for {path}\")\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -4,4 +4,6 @@\n \n _request_count = 0\n+_lock = threading.Lock()\n \n def log_request(path: str) -> None:\n     global _request_count\n-    _request_count += 1\n+    with _lock:\n+        _request_count += 1",
+    "reference": "The function modifies a shared global variable (_request_count) across multiple threads without synchronization. The read-modify-write operation of the increment is not atomic, which can lead to lost updates under high concurrency. Adding a threading.Lock and wrapping the critical section in a context manager ensures that only one thread updates the counter at a time.",
+    "hints": [
+      "Examine how shared state is accessed and modified in a multithreaded environment.",
+      "Look closely at the increment operation on the global variable.",
+      "Use a threading.Lock to make the critical section atomic."
+    ]
+  },
+  {
+    "id": "ex-g0608",
+    "language": "python",
+    "title": "Exception Swallowing in Job Queue",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef process_jobs(job_queue):\n    while not job_queue.empty():\n        job = job_queue.get()\n        try:\n            job.execute()\n        except:\n            job.retry()\n        finally:\n            job_queue.task_done()\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -7,2 +7,2 @@\n-        except:\n+        except Exception:\n             job.retry()",
+    "reference": "Catching base except without specifying an exception type will capture all exceptions, including system exits, keyboard interrupts, and memory errors, which should never be caught by application logic. Furthermore, it can obscure unexpected programming errors like NameError or TypeError, making debugging extremely difficult. The fix is to catch a specific exception class, such as Exception, to ensure only standard runtime errors trigger the retry mechanism.",
+    "hints": [
+      "Look closely at the exception handling block in the worker loop.",
+      "Consider what types of exceptions are being caught when using a bare exception clause.",
+      "Specify an explicit exception class instead of catching everything indiscriminately."
+    ]
+  },
+  {
+    "id": "ex-g0609",
+    "language": "python",
+    "title": "Missing Session Check",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "def get_username(session):\n    user = session.get(\"user\")\n    if user == \"\":\n        return \"Guest\"\n    return user.get(\"name\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- session.py\n+++ session.py\n@@ -5,1 +5,1px\n-    return user.get(\"name\")\n+    return user.get(\"name\") if user else \"Guest\"",
+    "reference": "The function attempts to retrieve a 'name' attribute from the user object, but it fails to handle the case where the user is not found in the session and returns None. When user is None, calling .get() on it raises an AttributeError. The fix ensures we safely check if the user object exists before trying to access its properties.",
+    "hints": [
+      "Look closely at what happens if the session does not contain the key 'user'.",
+      "Trace the return value of session.get('user') when the key is missing.",
+      "Consider adding a check to ensure 'user' is not None before calling .get() on it."
+    ]
+  },
+  {
+    "id": "ex-g0610",
+    "language": "python",
+    "title": "Thread-unsafe Report Cache",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "from threading import Lock\n\n_cache = {}\n_lock = Lock()\n\ndef get_cached_report(report_id):\n    if report_id not in _cache:\n        with _lock:\n            _cache[report_id] = generate_expensive_report(report_id)\n    return _cache[report_id]\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,3 +7,3 @@\n-    if report_id not in _cache:\n+    with _lock:\n+        if report_id not in _cache:\n             _cache[report_id] = generate_expensive_report(report_id)",
+    "reference": "This code suffers from a classic double-checked locking anti-pattern and a race condition because the initial dictionary lookup is performed outside the thread lock. Multiple threads could evaluate the 'not in' condition as true simultaneously, leading to redundant and expensive report generation and potential dictionary corruption. To fix this, the entire check-and-set operation must be wrapped inside the context manager.",
+    "hints": [
+      "Examine how threads access shared mutable state.",
+      "Look closely at the scope of the thread lock relative to the dictionary check.",
+      "Ensure the check for existence and the insertion into the cache are atomic."
+    ]
+  },
+  {
+    "id": "ex-g0611",
+    "language": "python",
+    "title": "Silent Config File Error",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\ndef load_config(filepath):\n    try:\n        with open(filepath, 'r') as f:\n            return json.load(f)\n    except FileNotFoundError:\n        print(\"Config not found, using defaults.\")\n    except json.JSONDecodeError:\n        raise ValueError(\"Invalid JSON format in config file.\")\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,2 @@\n-        print(\"Config not found, using defaults.\")\n+        print(\"Config not found, using defaults.\")\n+        return {}\n",
+    "reference": "When the specified configuration file is missing, the except block catches the FileNotFoundError and prints a warning message. However, because the function does not return a value or raise an exception in this branch, it implicitly returns None. This causes downstream code expecting a configuration dictionary to fail unexpectedly. The fix is to return a default dictionary so the caller can proceed safely.",
+    "hints": [
+      "Examine what happens to the function's return value when the file is successfully read versus when it is missing.",
+      "Look closely at the FileNotFoundError exception handler branch.",
+      "The function needs to return a fallback dictionary when the file is not found instead of allowing a silent implicit return of None."
+    ]
+  },
+  {
+    "id": "ex-g0612",
+    "language": "python",
+    "title": "False Positive Session Key Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "def is_authenticated(session):\n    if \"user_id\" in session:\n        return True\n    return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely safe. The 'in' operator safely checks for the presence of the 'user_id' key in the dictionary-like session object without raising a KeyError. Flagging this as missing a .get() or try-except block is a false positive.",
+    "hints": [
+      "Look at how the 'in' operator behaves with dictionaries in Python.",
+      "Consider whether checking membership with 'in' can raise an unhandled exception."
+    ]
+  },
+  {
+    "id": "ex-g0613",
+    "language": "python",
+    "title": "Unsynchronized Cache Access in Search Endpoint",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "from threading import Lock\n\nclass SearchService:\n    def __init__(self):\n        self.cache = {}\n        self.lock = Lock()\n\n    def get_results(self, query: str):\n        if query in self.cache:\n            return self.cache[query]\n        \n        with self.lock:\n            results = self.search_db(query)\n            self.cache[query] = results\n            return results\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -9,2 +9,2 @@\n-        if query in self.cache:\n-            return self.cache[query]\n+        with self.lock:\n+            if query in self.cache:\n+                return self.cache[query]",
+    "reference": "This code suffers from a classic read-without-lock race condition where multiple concurrent threads can check the cache simultaneously and trigger redundant database lookups. Although the write operation is protected by a lock, the initial check bypasses thread safety entirely, leading to potential cache stampedes and lost updates. Wrapping both the check and the subsequent population inside the lock ensures atomic access to the shared cache dictionary.",
+    "hints": [
+      "Examine how the cache is accessed before entering the lock block.",
+      "Consider what happens when two threads check for the exact same missing query at the exact same moment.",
+      "Extend the with self.lock context manager to cover the initial cache lookup condition."
+    ]
+  },
+  {
+    "id": "ex-g0614",
+    "language": "python",
+    "title": "Uncached Webhook IP Verification",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "import ipaddress\nfrom flask import Request\n\nTRUSTED_SUBNET = ipaddress.ip_network(\"192.0.2.0/24\")\n\ndef is_request_trusted(request: Request) -> bool:\n    client_ip = ipaddress.ip_address(request.remote_addr)\n    return client_ip in TRUSTED_SUBNET\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code performs a direct IP membership check against a hardcoded trusted subnet using the built-in ipaddress module. While hardcoding IPs might look suspicious or brittle to a novice, it is completely correct for a static webhook sender configuration where the provider uses a fixed IP range. No changes are required as this is a false positive.",
+    "hints": [
+      "Check how the ipaddress library handles network containment checks natively.",
+      "Consider if the webhook provider uses a static IP range that rarely changes."
+    ]
+  },
+  {
+    "id": "ex-g0615",
+    "language": "python",
+    "title": "Email Sender SSL Context",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nimport ssl\n\ndef send_welcome_email(recipient_email, message_body):\n    port = 465\n    smtp_server = \"smtp.example.com\"\n    sender_email = \"noreply@example.com\"\n    password = \"secret_app_password\"\n\n    context = ssl.create_default_context()\n    \n    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:\n        server.login(sender_email, password)\n        server.sendmail(sender_email, recipient_email, message_body)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely secure and correct. The use of ssl.create_default_context() ensures proper certificate validation, and SMTP_SSL correctly enforces encryption from the start of the connection. The hardcoded 'secret_app_password' might look suspicious at first glance, but in this specific context, it represents a placeholder or dummy value typical of examples, not an active vulnerability in the logic itself.",
+    "hints": [
+      "Check how the SSL context is instantiated and whether certificate verification is disabled.",
+      "Verify if the connection uses proper encryption methods suitable for port 465."
+    ]
+  },
+  {
+    "id": "ex-g0616",
+    "language": "python",
+    "title": "Missing Permission Validation on Search Endpoint",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_documents(request, query):\n    user = request.user\n    if not user.is_authenticated:\n        return JsonResponse({\"error\": \"Unauthorized\"}, status=401)\n    \n    results = Document.objects.filter(title__contains=query)\n    return JsonResponse({\"results\": list(results.values())})\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -6,1 +6,1px\n-    results = Document.objects.filter(title__contains=query)\n+    results = Document.objects.filter(title__contains=query, owner=user)",
+    "reference": "Although the endpoint properly checks if the user is authenticated, it fails to verify whether the authenticated user has authorization to view the specific documents being returned. This results in an Insecure Direct Object Reference (IDOR) or horizontal privilege escalation vulnerability, allowing any user to search and view documents belonging to other users. To fix this, always scope querysets to the currently authenticated user to enforce proper data isolation.",
+    "hints": [
+      "Examine how the search query filters the documents.",
+      "Check if the search results are restricted only to the currently authenticated user.",
+      "Add a filter condition matching the document owner to the authenticated user."
+    ]
+  },
+  {
+    "id": "ex-g0617",
+    "language": "python",
+    "title": "Unclosed File Resource in Cache Loader",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import json\n\ndef load_cache_from_disk(filepath):\n    try:\n        file_data = open(filepath, 'r')\n        return json.load(file_data)\n    except FileNotFoundError:\n        return {}\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -5,2 +5,3 @@\n-        file_data = open(filepath, 'r')\n-        return json.load(file_data)\n+        with open(filepath, 'r') as file_data:\n+            return json.load(file_data)\n",
+    "reference": "Opening files without a context manager or explicit closing can lead to file descriptor leaks, especially under repeated cache misses or disk reads. Using a 'with' statement ensures the file resource is reliably closed as soon as the read operation completes, regardless of exceptions.",
+    "hints": [
+      "Examine how external resources are acquired inside the function.",
+      "Look closely at the lifecycle of the 'file_data' object when an exception does or doesn't occur.",
+      "Consider using a context manager ('with' statement) to handle the file resource automatically."
+    ]
+  },
+  {
+    "id": "ex-g0618",
+    "language": "python",
+    "title": "Unauthenticated IP Rate Limiter Bypass",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "from fastapi import Request, HTTPException\nimport time\n\nREQUEST_LOG = {}\n\ndef check_rate_limit(request: Request):\n    client_ip = request.headers.get(\"X-Forwarded-For\")\n    now = time.time()\n    history = REQUEST_LOG.setdefault(client_ip, [])\n    history = [t for t in history if now - t < 60]\n    if len(history) > 100:\n        raise HTTPException(status_code=429, detail=\"Too many requests\")\n    history.append(now)\n    REQUEST_LOG[client_ip] = history\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- ratelimit.py\n+++ ratelimit.py\n@@ -7,1 +7,1 n-\n-    client_ip = request.headers.get(\"X-Forwarded-For\")\n+    client_ip = request.client.host",
+    "reference": "Relying blindly on the X-Forwarded-For header for rate limiting creates a severe security vulnerability because this header is easily spoofed by malicious clients. An attacker can rotate arbitrary IP addresses in this header to completely bypass rate limits and potentially launch denial-of-service attacks. The correct approach is to use the trusted network connection IP provided directly by the server framework.",
+    "hints": [
+      "Examine how the client's identifier is retrieved from the incoming request object.",
+      "Look closely at where the value assigned to client_ip originates and whether it comes from a user-controlled source.",
+      "Using request.headers.get(\"X-Forwarded-For\") allows anyone to spoof their IP address; use request.client.host instead."
+    ]
+  },
+  {
+    "id": "ex-g0619",
+    "language": "python",
+    "title": "False Positive in LRU Cache Eviction",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "from collections import OrderedDict\n\nclass SimpleCache:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.cache = OrderedDict()\n\n    def get(self, key: str) -> any:\n        if key not in self.cache:\n            return None\n        self.cache.move_to_end(key)\n        return self.cache[key]\n\n    def put(self, key: str, value: any) -> None:\n        if key in self.cache:\n            self.cache.move_to_end(key)\n        self.cache[key] = value\n        if len(self.cache) > self.capacity:\n            self.cache.popitem(last=False)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The usage of move_to_end() followed by reassignment or checking might look redundant at first glance to a novice reviewer, but it is actually the standard and correct way to maintain the recency order in Python's OrderedDict for an LRU cache implementation.",
+    "hints": [
+      "Look closely at how OrderedDict manages key ordering when an existing item is updated.",
+      "Verify whether popitem(last=False) correctly evicts the oldest item when capacity is exceeded."
+    ]
+  },
+  {
+    "id": "ex-g0620",
+    "language": "python",
+    "title": "Email Recipient List Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "def send_bulk_email(smtp_client, sender, recipients, subject, body):\n    failed = []\n    for recipient in recipients:\n        message = f\"Subject: {subject}\\n\\n{body}\"\n        try:\n            smtp_client.sendmail(sender, recipient, message)\n        except Exception:\n            failed.append(recipient)\n    return failed\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-            smtp_client.sendmail(sender, recipient, message)\n+            smtp_client.sendmail(sender, [recipient], message)",
+    "reference": "The smtplib sendmail method expects the 'to_addrs' argument to be a sequence of strings (such as a list), even when sending to a single recipient. Passing a raw string causes Python to iterate over the characters of the email address instead, leading to delivery failures or unexpected exceptions. Wrapping the recipient in a list fixes this argument type mismatch.",
+    "hints": [
+      "Examine how the recipient variable is passed to the SMTP client's sendmail method.",
+      "Check the official documentation or expected data types for the 'to_addrs' parameter in smtplib.sendmail.",
+      "A single string behaves like an iterable of characters in Python, which might not be what the underlying library expects for address lists."
+    ]
+  },
+  {
+    "id": "ex-g0621",
+    "language": "python",
+    "title": "Insecure Admin Job Enqueue",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "queue_manager.py",
+    "code": "def enqueue_admin_job(user, payload):\n    if user.is_authenticated:\n        job = Job(\"admin_task\", payload)\n        job.save()\n        return job.id\n    raise PermissionError(\"Unauthorized\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if user.is_authenticated:\n+    if user.is_authenticated and user.is_admin:",
+    "reference": "Checking only if a user is authenticated is insufficient for protecting privileged background jobs, as any standard user can trigger admin tasks. The authorization check must also verify that the user possesses the necessary administrative privileges before creating the job. Updating the condition to check both authentication and admin status prevents privilege escalation vulnerabilities.",
+    "hints": [
+      "Look closely at the condition used to authorize the user.",
+      "Authentication is not the same as authorization.",
+      "Ensure the user has administrative privileges, not just an active session."
+    ]
+  },
+  {
+    "id": "ex-g0622",
+    "language": "python",
+    "title": "Mutable Default Argument in Session Configuration",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "def create_session(user_id, permissions=[]) -> dict:\n    session = {\"user_id\": user_id, \"permissions\": permissions}\n    session[\"active\"] = True\n    return session\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def create_session(user_id, permissions=[]) -> dict:\n+ def create_session(user_id, permissions=None) -> dict:\n+     if permissions is None:\n+         permissions = []",
+    "reference": "Python evaluates default argument values only once, at the time the function is defined, rather than each time it is called. This means that using a mutable object like a list as a default argument will share that exact same list instance across all subsequent function calls where the argument is omitted. To prevent unintended side effects and data leakage between user sessions, use None as the default and instantiate a new list inside the function body.",
+    "hints": [
+      "Look closely at the function signature and how default values are handled in Python.",
+      "Consider what happens to the permissions list if multiple sessions are created without specifying permissions.",
+      "Replace the mutable default argument with None and initialize a new list inside the function."
+    ]
+  },
+  {
+    "id": "ex-g0623",
+    "language": "python",
+    "title": "Uncaught Exception in Background Queue",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "queue_worker.py",
+    "code": "import time\n\ndef process_jobs(queue):\n    while not queue.empty():\n        job = queue.get()\n        try:\n            job.execute()\n        except QueueError:\n            logger.error(f\"Failed to execute job {job.id}\")\n        queue.task_done()\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "@@ -9,1 +9,2 @@\n+        finally:\n             queue.task_done()",
+    "reference": "Background job queues often rely on task counting mechanisms like queue.task_done() to track when all items have been processed. If an exception occurs during job execution and is caught by the except block, control flow jumps out of the try block without ensuring task_done() is called. Wrapping the execution in a try/finally block ensures that task_done() always executes, preventing deadlocks in queue processing threads.",
+    "hints": [
+      "Look closely at how the queue's internal state tracking is managed.",
+      "Consider what happens to the control flow when an exception is successfully caught and handled.",
+      "Use a finally block to ensure cleanup operations always run regardless of exceptions."
+    ]
+  },
+  {
+    "id": "ex-g0624",
+    "language": "python",
+    "title": "Path Traversal in File Upload",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\ndef save_uploaded_file(upload_dir, uploaded_file):\n    filename = uploaded_file.name\n    destination_path = os.path.join(upload_dir, filename)\n    with open(destination_path, 'wb') as f:\n        f.write(uploaded_file.read())\n    return destination_path\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -2,4 +2,4 @@\n def save_uploaded_file(upload_dir, uploaded_file):\n-    filename = uploaded_file.name\n-    destination_path = os.path.join(upload_dir, filename)\n+    filename = os.path.basename(uploaded_file.name)\n+    destination_path = os.path.join(upload_dir, filename)",
+    "reference": "The function directly trusts the filename provided by the user, which can contain directory traversal sequences like '../../etc/passwd'. This allows an attacker to write files outside of the intended upload directory and potentially overwrite critical system files. Using os.path.basename strips any directory components from the filename, ensuring the file is saved strictly within the target directory.",
+    "hints": [
+      "Examine how the destination path is constructed from user-supplied input.",
+      "Consider what happens if the uploaded file's name contains relative path traversal characters.",
+      "Use os.path.basename() on the filename to strip out any directory paths before joining."
+    ]
+  },
+  {
+    "id": "ex-g0625",
+    "language": "python",
+    "title": "Ignoring Specific Exception Types in CSV Import",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(filepath):\n    try:\n        with open(filepath, mode='r') as file:\n            reader = csv.DictReader(file)\n            return [row for row in reader]\n    except:\n        print(\"Failed to import data\")\n        return []\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    except:\n+    except FileNotFoundError:",
+    "reference": "Using a bare 'except:' clause catches all exceptions, including system-exiting ones like SystemExit and KeyboardInterrupt, making debugging difficult. It is a best practice to catch specific exceptions, such as FileNotFoundError, to handle anticipated errors gracefully without masking unexpected issues.",
+    "hints": [
+      "Consider what kinds of exceptions might actually occur when dealing with file operations.",
+      "Catching all exceptions indiscriminately can hide bugs like NameError or TypeError.",
+      "Replace the bare except statement with the specific exception expected when a file is missing."
+    ]
+  },
+  {
+    "id": "ex-g0626",
+    "language": "python",
+    "title": "Token Bucket Rate Limiter Check",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\nclass RateLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.refill_rate = refill_rate\n        self.tokens = float(capacity)\n        self.last_refill = time.monotonic()\n\n    def consume(self, tokens: int = 1) -> bool:\n        now = time.monotonic()\n        elapsed = now - self.last_refill\n        self.last_refill = now\n        \n        self.tokens = min(float(self.capacity), self.tokens + elapsed * self.refill_rate)\n        \n        if self.tokens >= tokens:\n            self.tokens -= tokens\n            return True\n        return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This implementation uses time.monotonic() which is immune to system clock updates, preventing race conditions or bypasses from time manipulation. Floating-point accumulation of tokens is bounded by min() to prevent overflow, and the logic correctly handles elapsed time between arbitrary calls.",
+    "hints": [
+      "Check which time function is being used and whether it is susceptible to system clock changes.",
+      "Verify if the token count can exceed the maximum capacity after a long period of inactivity."
+    ]
   }
 ]
