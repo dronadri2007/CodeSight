@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  body {
+    background-color: #08080A;
+    color: #FFFFFF;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(14, 14, 18, 0.65);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: #007AFF;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.25);
+}
+
+.glass-button {
+  background: linear-gradient(135deg, #007AFF 0%, #0056B3 100%);
+  box-shadow: 0 4px 20px rgba(0, 122, 255, 0.4);
+  transition: all 0.2s ease-in-out;
+}
+
+.glass-button:hover {
+  background: linear-gradient(135deg, #0A84FF 0%, #0066D6 100%);
+  box-shadow: 0 6px 25px rgba(0, 122, 255, 0.55);
+  transform: translateY(-1px);
+}
+
+.glass-button:active {
+  transform: translateY(0px);
+}
+
+/* Bulletproof Spline Watermark Removal */
+#spline-logo,
+#spline-watermark,
+.spline-watermark,
+[class*="spline-watermark"],
+[class*="watermark"],
+[id*="spline-logo"],
+[id*="spline-watermark"],
+a[href*="spline.design"],
+a[href*="spline"],
+canvas + a,
+div:has(> a[href*="spline.design"]),
+div:has(> a[href*="spline"]),
+body > a,
+body > div > a[target="_blank"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
+  clip-path: inset(100%) !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
