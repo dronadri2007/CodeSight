@@ -63,6 +63,7 @@ demo or on a CI schedule.
 | `app/progress.py` | attempt timeline + running catch-rate + per-class first-vs-latest |
 | `app/leaderboard.py` | rank sessions by `0.7*catch_rate + 0.3*avg_explanation` (min attempts, tier filter, `you` row) |
 | `app/concepts.py` | recommendation engine — `data/concepts.json` (6 defect-class concepts + videos + a 3-question micro-check quiz) |
+| `app/topics.py` | topic prediction — stateless P/R/F1 grading over `data/topic_exercises.json` (30-80 line files; predict which defect classes are present). Reveals the answer + a note for every class. No DB. |
 | `app/tiers.py` | beginner/intermediate/pro, promotion test (3 curated next-tier exercises, mean loc >= 0.7) |
 | `app/reports.py` | exercise reporting — 3 distinct sessions hides an exercise from listings |
 
@@ -98,6 +99,24 @@ Append to `app/data/exercises.json`. Each record needs `real_lines` (the lines
 the fix changed; `[]` for a clean file), `fix_diff`, and `reference`. Answer
 fields never leave the server — only `/grade` reads them.
 
+### Topic-prediction files
+
+Topic files live in `app/data/topic_exercises.json`. Ids match `^topic-\d{3}$`
+(`topic-001`..`topic-006`). Each record needs a `present_classes` list (1-3 of
+the 6 defect classes — `injection`, `auth`, `error-handling`, `concurrency`,
+`logic`, `resource` — never `clean`) and a `notes` object with **all 6** class
+keys, every value a non-empty authored string (present classes: where the
+defect is; absent classes: why that pattern is genuinely not here). `code` must
+be 30-80 lines with >= 3 top-level `def`s and must `ast.parse`; `line_count` /
+`function_count` are derived in the API, **not stored** in the record.
+`present_classes` + `notes` never leave the server — only
+`POST /topic/{id}/predict` reads them.
+
+Dataset coverage (spec section 6): exactly 6 files; every one of the 6 classes
+is a present class in >= 2 files; at least one single-class file and at least
+one three-class file. `app/topics.py` validates every record at import and
+`tests/test_topics.py::test_topic_data_integrity` guards the coverage.
+
 ## Endpoints
 
 `GET /health` · `GET /exercises[?tier=&source=]` · `GET /exercises/{id}` ·
@@ -106,6 +125,7 @@ fields never leave the server — only `/grade` reads them.
 `GET /progress/{session_id}` · `GET /leaderboard` ·
 `GET /concepts` · `GET /concept/{id}` ·
 `GET /concept/{id}/micro-check` · `POST /concept/{id}/micro-check` ·
+`GET /topics` · `GET /topic/{id}` · `POST /topic/{id}/predict` ·
 `GET /session/{id}` · `GET /session/{id}/integrity` ·
 `GET /promotion-test/{id}` · `POST /promotion-test/{id}/evaluate` ·
 `POST /exercises/{id}/report` — full shapes in `../CONTRACT.md`.

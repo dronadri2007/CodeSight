@@ -8,6 +8,7 @@ Endpoints (see CONTRACT.md):
   GET  /session/{session_id} · GET /session/{session_id}/integrity
   GET  /concepts · GET /concept/{id}
   GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
+  GET  /topics · GET /topic/{id} · POST /topic/{id}/predict
   GET  /promotion-test/{session_id} · POST /promotion-test/{session_id}/evaluate
 """
 import logging
@@ -17,7 +18,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app import ai_review, concepts, leaderboard as lb, reports, tiers
+from app import ai_review, concepts, leaderboard as lb, reports, tiers, topics
 from app import exercises as ex
 from app.config import (
     ALLOWED_ORIGIN_REGEX,
@@ -56,6 +57,10 @@ from app.schemas import (
     ReportRequest,
     ReportResponse,
     SessionInfo,
+    TopicFile,
+    TopicPredictRequest,
+    TopicPredictResult,
+    TopicSummary,
     WeaknessProfile,
 )
 
@@ -278,6 +283,24 @@ def get_micro_check(concept_id: str):
 @app.post("/concept/{concept_id}/micro-check", response_model=MicroCheckResult)
 def submit_micro_check(concept_id: str, req: MicroCheckRequest):
     return concepts.grade_micro_check(concept_id, req.answers)
+
+
+# --- topic prediction (stateless, deterministic) --------------------
+@app.get("/topics", response_model=list[TopicSummary])
+def list_topics():
+    return topics.list_topics()
+
+
+@app.get("/topic/{topic_id}", response_model=TopicFile)
+@app.get("/topics/{topic_id}", response_model=TopicFile)
+def get_topic(topic_id: str):
+    return topics.get_topic(topic_id)
+
+
+@app.post("/topic/{topic_id}/predict", response_model=TopicPredictResult)
+@app.post("/topics/{topic_id}/predict", response_model=TopicPredictResult)
+def predict_topic(topic_id: str, req: TopicPredictRequest):
+    return topics.predict(topic_id, req.predicted_classes)
 
 
 # --- tiers + promotion -------------------------------------------

@@ -487,6 +487,207 @@ Response 404 if the concept id is unknown.
 
 ---
 
+## GET /topics
+
+Topic-prediction exercises — a larger Python file (30-80 lines, >= 3 top-level
+functions) where the learner predicts **which of the 6 defect classes are
+present** (a subset, no line localisation). Metadata only: no answer data and
+nothing that leaks how many classes are present. Order = file order in
+`topic_exercises.json`. No `?tier=` gate.
+
+**Nothing is persisted — stateless like the concept micro-check.**
+
+The 6 defect classes, canonical order (used in every response list except
+`ignored_classes`):
+
+    injection, auth, error-handling, concurrency, logic, resource
+
+`clean` is not a selectable option and never appears — every topic file has
+>= 1 real defect.
+
+Response 200:
+
+    [
+      {
+        "id": "topic-001",
+        "title": "Shipping fee calculator",
+        "language": "python",
+        "line_count": 52,
+        "function_count": 5,
+        "difficulty": "beginner"
+      }
+    ]
+
+Ids match `^topic-\d{3}$`; the shipped set is `topic-001`..`topic-006`.
+
+- `line_count` = `len(code.splitlines())`, derived at load.
+- `function_count` = count of top-level `def`, derived at load.
+- `difficulty` in `beginner | intermediate | pro` — display only, no gating.
+
+---
+
+## GET /topic/{id}
+
+The full file plus the fixed candidate list. **No `present_classes`, no
+`notes`.** (`GET /topics/{id}` is an alias for the same response.)
+
+Response 200:
+
+    {
+      "id": "topic-001",
+      "title": "Shipping fee calculator",
+      "language": "python",
+      "filename": "shipping.py",
+      "code": "FREE_SHIPPING_MIN = 75.00\n...\n",
+      "line_count": 52,
+      "function_count": 5,
+      "candidate_classes": ["injection", "auth", "error-handling", "concurrency", "logic", "resource"],
+      "instructions": "Predict which of these defect classes appear in this file. Select all that apply. At least one is present; 'clean' is not an option here.",
+      "difficulty": "beginner"
+    }
+
+- `code` — raw 30-80 line Python, `\n`-joined with a trailing newline.
+- `candidate_classes` — always the 6 classes in canonical order, identical for
+  every exercise, echoed so the frontend renders its checkbox group from the
+  response.
+- `instructions` — constant string. It states "at least one is present", so an
+  empty prediction is wrong by design.
+
+Response 404 — `{"detail": "unknown topic"}` if the id is unknown (GET and POST).
+
+---
+
+## POST /topic/{id}/predict
+
+Grade a predicted set by set-overlap precision / recall / F1 and reveal
+everything: the answer set plus an authored teaching note for **every** one of
+the 6 classes (present and absent). **Stateless — nothing is written.**
+(`POST /topics/{id}/predict` is an alias.)
+
+Request:
+
+    { "predicted_classes": ["injection", "logic"] }
+
+- `predicted_classes` — optional, defaults to `[]`. Schema caps length at 20.
+- Normalisation (mirrors micro-check ignoring unknown `question_id`s):
+  - each token is stripped of surrounding whitespace, then matched
+    **case-sensitively** against the 6 canonical strings;
+  - tokens that do not match one of the 6 (including `"clean"`, typos, empties)
+    are **dropped** and echoed back in `ignored_classes` (input order,
+    duplicates kept);
+  - duplicates among valid tokens are collapsed (set semantics);
+  - `[]` / omitted / all-invalid is a **valid (poor) answer graded as 0**,
+    HTTP 200 — not a 422.
+- Only malformed JSON or wrong types (e.g. `predicted_classes: 5`) yield 422.
+
+Response 200:
+
+    {
+      "id": "topic-002",
+      "predicted_classes": ["injection", "auth"],
+      "ignored_classes": [],
+      "present_classes": ["auth", "error-handling"],
+      "true_positives": ["auth"],
+      "false_positives": ["injection"],
+      "false_negatives": ["error-handling"],
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5,
+      "exact_match": false,
+      "verdict": "partial",
+      "passed": false,
+      "near_miss": false,
+      "summary": "1 of 2 correct. Missed error-handling. Over-flagged injection.",
+      "classes": [
+        { "defect_class": "auth", "present": true, "predicted": true,
+          "outcome": "true_positive", "note": "..." }
+        // ... always all 6, canonical order, every row carries a non-empty note
+      ],
+      "practice_exercise_ids": ["ex-002", "ex-009", "ex-010"]
+    }
+
+(A genuine `topic-002` interaction — its present set is `["auth",
+"error-handling"]`. Predicting `["injection", "auth"]` scores one hit, one
+stray, one miss.)
+
+**Scoring (exact).** `CANDIDATES` = the 6 in canonical order; `PREDICT_PASS` =
+`2/3`; `EPS` = `1e-9`.
+
+    stripped  = [c.strip() for c in predicted_classes]
+    ignored   = [c for c in stripped if c not in CANDIDATES]      # input order, dups kept
+    P         = [c for c in CANDIDATES if c in set(stripped)]     # valid, deduped
+    A         = [c for c in CANDIDATES if c in set(present_classes)]   # 1 <= len(A) <= 3
+
+    tp = [c for c in A if c in set(P)]
+    fp = [c for c in P if c not in set(A)]
+    fn = [c for c in A if c not in set(P)]
+
+    precision = len(tp) / len(P) if P else 0.0     # empty prediction -> 0.0
+    recall    = len(tp) / len(A)                    # len(A) >= 1 -> never /0
+    f1        = 2*precision*recall/(precision+recall) if (precision+recall) > 0 else 0.0
+
+    exact_match   = set(P) == set(A)
+    predicted_all = len(P) == 6                     # anti-gaming
+
+`precision` / `recall` / `f1` in the response are each `round(x, 2)`. Every
+threshold decision below uses the **unrounded** `f1`.
+
+- `passed` = `(f1 + EPS >= 2/3) and not predicted_all`. Selecting all 6 classes
+  never passes, regardless of F1 (no shipped file has more than 3 classes, so
+  spray-and-pray would otherwise clear the bar). The response still reports the
+  real precision / recall / f1 / verdict so the learner sees why.
+- `near_miss` = `(0.5 <= f1 < 1.0) and (len(fp) + len(fn) == 1)` — "one class
+  away". Orthogonal to `passed`.
+
+**`verdict` ladder** — first match wins, on unrounded values:
+
+    1. set(P) == set(A)                       -> "perfect"
+    2. P and fn == [] and fp != []            -> "over_predicted"   (recall 1.0, has strays)
+    3. P and fp == [] and fn != []            -> "under_predicted"  (precision 1.0, has misses)
+    4. f1 >= 0.5                              -> "partial"
+    5. otherwise (incl. empty P)             -> "miss"
+
+**`summary`** — deterministic template keyed by `verdict`; lists joined with
+`", "` in canonical order:
+
+    perfect          -> "All {len(A)} class(es) correct."
+    over_predicted   -> "Found all {len(A)}, but over-flagged {fp}."
+    under_predicted  -> "Every pick correct, but missed {fn}."
+    partial          -> "{len(tp)} of {len(P)} correct." (+ " Missed {fn}." / " Over-flagged {fp}.")
+    miss  (P set)    -> "Mostly off. Classes present: {A}."
+    miss  (P empty)  -> "Nothing predicted. This file has {len(A)} defect class(es)."
+
+**`classes`** — always all 6, canonical order. Every row carries a non-empty
+authored `note` (the teaching core, including the absent classes — negative
+space is taught). `outcome`:
+
+    true_positive  = present and predicted
+    false_positive = not present and predicted
+    false_negative = present and not predicted
+    true_negative  = not present and not predicted
+
+**`practice_exercise_ids`** — deduped, in-order union of the curated practice
+exercises for every **missed** class (`false_negatives`), looked up from
+`concepts.json` (`_CONCEPTS[cls]["practice_exercise_ids"]`); iterate missed
+classes in canonical order. `[]` when nothing was missed. Shown by the frontend
+when `passed` is false. Not stored in the topic record — derived from the
+concept data so there is one source of truth.
+
+**Worked examples** (`prec/rec/f1` rounded):
+
+    A                          P                          tp/fp/fn  prec/rec/f1     verdict          passed  near_miss
+    {injection}                {injection}                1/0/0     1.0/1.0/1.0     perfect          yes     no
+    {injection,auth,err-h}     {}                         0/0/3     0.0/0.0/0.0     miss             no      no
+    {injection,logic}          {injection}                1/0/1     1.0/0.5/0.67    under_predicted  yes     yes
+    {auth,logic}               {auth,logic,injection}     2/1/0     0.67/1.0/0.8    over_predicted   yes     yes
+    {injection,logic}          {injection,auth}           1/1/1     0.5/0.5/0.5     partial          no      no
+    {injection,auth,err-h}     all 6                      3/3/0     0.5/1.0/0.67    over_predicted   no      no   (anti-gaming)
+    {injection}                ["injection","injection"]  1/0/0     1.0/1.0/1.0     perfect          yes     no   (dupes collapsed)
+
+Response 404 — `{"detail": "unknown topic"}` if the id is unknown.
+
+---
+
 ## GET /session/{session_id}
 
 The session's tier. Auto-creates the session at `beginner` on first call.

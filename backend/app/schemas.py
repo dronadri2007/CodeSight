@@ -306,6 +306,61 @@ class MicroCheckResult(BaseModel):
     practice_exercise_ids: list[str]   # useful when the learner should practise
 
 
+# --- topic prediction ---------------------------------------------
+class TopicSummary(BaseModel):
+    id: str
+    title: str
+    language: str
+    line_count: int
+    function_count: int
+    difficulty: str
+
+
+class TopicFile(BaseModel):
+    id: str
+    title: str
+    language: str
+    filename: str
+    code: str
+    line_count: int
+    function_count: int
+    candidate_classes: list[str]     # always the 6, canonical order
+    instructions: str
+    difficulty: str
+
+
+class TopicPredictRequest(BaseModel):
+    predicted_classes: list[str] = Field(default_factory=list, max_length=20)
+
+
+class TopicClassResult(BaseModel):
+    defect_class: str
+    present: bool
+    predicted: bool
+    outcome: str                     # true_positive|false_positive|true_negative|false_negative
+    note: str
+
+
+class TopicPredictResult(BaseModel):
+    id: str
+    predicted_classes: list[str]     # normalised: valid, deduped, canonical order
+    ignored_classes: list[str]       # dropped tokens, input order preserved
+    present_classes: list[str]       # the reveal, canonical order
+    true_positives: list[str]
+    false_positives: list[str]
+    false_negatives: list[str]
+    precision: float                 # 2dp; 0.0 when nothing predicted
+    recall: float                    # 2dp
+    f1: float                        # 2dp
+    exact_match: bool
+    verdict: str                     # perfect|over_predicted|under_predicted|partial|miss
+    passed: bool                     # (unrounded f1 + 1e-9 >= 2/3) and not predicted-all-6
+    near_miss: bool
+    summary: str
+    classes: list[TopicClassResult]  # always 6, canonical order
+    practice_exercise_ids: list[str] # curated practice for the missed classes; [] if none
+
+
 # --- GET /session/{id} ----------------------------------------------
 class SessionInfo(BaseModel):
     session_id: str

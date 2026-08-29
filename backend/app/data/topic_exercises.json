@@ -1,0 +1,123 @@
+[
+  {
+    "id": "topic-001",
+    "title": "Shipping fee calculator",
+    "language": "python",
+    "filename": "shipping.py",
+    "code": "FREE_SHIPPING_MIN = 75.00\n\n_ZONE_RATES = {\n    \"domestic\": 1.0,\n    \"regional\": 1.6,\n    \"international\": 2.4,\n}\n\nBASE_FEE = 4.50\nPER_KG = 1.25\nMIN_BILLABLE_KG = 0.5\n\n\ndef parse_weight(raw):\n    try:\n        grams = int(raw)\n    except (TypeError, ValueError):\n        raise ValueError(\"weight must be an integer number of grams\")\n    if grams <= 0:\n        raise ValueError(\"weight must be positive\")\n    return grams / 1000.0\n\n\ndef zone_multiplier(zone):\n    if zone not in _ZONE_RATES:\n        raise KeyError(\"unknown shipping zone: \" + str(zone))\n    return _ZONE_RATES[zone]\n\n\ndef weight_fee(kg):\n    billable = max(kg, MIN_BILLABLE_KG)\n    return BASE_FEE + PER_KG * billable\n\n\ndef shipping_fee(subtotal, weight_grams, zone):\n    kg = parse_weight(weight_grams)\n    if subtotal > FREE_SHIPPING_MIN:\n        return 0.0\n    fee = weight_fee(kg) * zone_multiplier(zone)\n    return round(fee, 2)\n\n\ndef format_quote(subtotal, weight_grams, zone):\n    fee = shipping_fee(subtotal, weight_grams, zone)\n    total = round(subtotal + fee, 2)\n    label = \"FREE\" if fee == 0.0 else \"${:.2f}\".format(fee)\n    return {\n        \"subtotal\": round(subtotal, 2),\n        \"shipping\": label,\n        \"total\": total,\n        \"zone\": zone,\n    }\n",
+    "present_classes": [
+      "logic"
+    ],
+    "notes": {
+      "injection": "No SQL, shell, filesystem, or template call anywhere. `zone_multiplier` looks the zone up in a fixed in-memory dict and raises `KeyError` on anything unknown, so even a hostile zone string can only ever become a dictionary miss.",
+      "auth": "Pure calculation module with no request, user, session, or permission concept; every result depends only on the numeric arguments passed in.",
+      "error-handling": "`parse_weight` catches exactly `(TypeError, ValueError)` from the int conversion and re-raises a clear `ValueError`; `zone_multiplier` raises on an unknown zone. Failures are narrow and surfaced, never swallowed.",
+      "concurrency": "The module-level values are read-only constants and no function mutates shared state; there are no threads, locks, or async calls.",
+      "logic": "In `shipping_fee`, the free-shipping gate `if subtotal > FREE_SHIPPING_MIN` uses strict `>`, so a cart worth exactly the 75.00 minimum is still charged for delivery; the boundary should be `>=`. Everything else (grams-to-kg parsing, the MIN_BILLABLE_KG floor, zone-rate lookup and multiplication, rounding, the free label) is correct.",
+      "resource": "No file, socket, or connection is opened, and each call is constant-time arithmetic with no growing structure or cache."
+    },
+    "difficulty": "beginner"
+  },
+  {
+    "id": "topic-002",
+    "title": "Ticket attachment download",
+    "language": "python",
+    "filename": "attachments.py",
+    "code": "import sqlite3\nfrom pathlib import Path\n\nATTACHMENT_ROOT = Path(\"/var/lib/helpdesk/attachments\")\n\n_MIME_TYPES = {\n    \".pdf\": \"application/pdf\",\n    \".png\": \"image/png\",\n    \".txt\": \"text/plain\",\n    \".log\": \"text/plain\",\n}\n\nMAX_BYTES = 25 * 1024 * 1024\n\n\ndef get_connection():\n    conn = sqlite3.connect(\"helpdesk.db\")\n    conn.row_factory = sqlite3.Row\n    return conn\n\n\ndef load_ticket(ticket_id):\n    try:\n        with get_connection() as conn:\n            row = conn.execute(\n                \"SELECT id, owner_id, status FROM tickets WHERE id = ?\",\n                (ticket_id,),\n            ).fetchone()\n    except Exception:\n        return None\n    return dict(row) if row else None\n\n\ndef _content_type(name):\n    suffix = Path(name).suffix.lower()\n    return _MIME_TYPES.get(suffix, \"application/octet-stream\")\n\n\ndef _resolve(stored_name):\n    safe = Path(stored_name).name\n    return ATTACHMENT_ROOT / safe\n\n\ndef load_attachment_record(attachment_id):\n    with get_connection() as conn:\n        row = conn.execute(\n            \"SELECT id, ticket_id, stored_name, size FROM attachments WHERE id = ?\",\n            (attachment_id,),\n        ).fetchone()\n    return dict(row) if row else None\n\n\ndef download_attachment(attachment_id, current_user):\n    record = load_attachment_record(attachment_id)\n    if record is None:\n        raise FileNotFoundError(\"no such attachment\")\n    if record[\"size\"] > MAX_BYTES:\n        raise ValueError(\"attachment too large to stream\")\n    path = _resolve(record[\"stored_name\"])\n    with open(path, \"rb\") as f:\n        body = f.read()\n    return {\n        \"filename\": record[\"stored_name\"],\n        \"content_type\": _content_type(record[\"stored_name\"]),\n        \"body\": body,\n    }\n",
+    "present_classes": [
+      "auth",
+      "error-handling"
+    ],
+    "notes": {
+      "injection": "Both queries use `?` placeholders with a parameter tuple, and `_resolve` reduces `stored_name` to `Path(stored_name).name` before joining it under `ATTACHMENT_ROOT`, so a crafted name cannot traverse out of the directory or reach the query text. It looks like raw query and path handling but is parameterised and sanitised.",
+      "auth": "`download_attachment` accepts `current_user` but never uses it. It never checks that the attachment ticket is owned by or visible to that user, so any authenticated caller can pass an arbitrary `attachment_id` and pull other people files by walking the ids.",
+      "error-handling": "`load_ticket` wraps the query in `except Exception: return None`, so a database outage collapses into the same `None` that means not-found, and every caller silently turns a transient failure into a 404. `load_attachment_record` is the correct contrast, with no blanket catch.",
+      "concurrency": "Each call opens its own SQLite connection and closes it via the `with` block; there is no shared mutable state, no thread, and no async.",
+      "logic": "The size guard, the suffix-to-MIME lookup with its `application/octet-stream` default, and the `record is None` checks are all correct, with no off-by-one or inverted condition.",
+      "resource": "Each connection is a function-local opened by `get_connection()`; `with get_connection() as conn` commits or rolls back and then the name goes out of scope at return, so CPython reclaims the handle on every path. The download body is read inside `with open(...)`. Nothing is held open."
+    },
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "topic-003",
+    "title": "SLA breach report builder",
+    "language": "python",
+    "filename": "sla_report.py",
+    "code": "\"\"\"Weekly SLA-breach report for the support desk.\"\"\"\nimport csv\nimport datetime as dt\nimport sqlite3\nfrom contextlib import closing\n\nSLA_HOURS = {\"urgent\": 4, \"high\": 8, \"normal\": 24, \"low\": 72}\nBUSINESS_START, BUSINESS_END = 9, 17\n\ndef load_tickets(conn, opened_after):\n    cur = conn.execute(\n        \"SELECT id, priority, opened_at, resolved_at FROM tickets \"\n        \"WHERE opened_at >= ? AND resolved_at IS NOT NULL\",\n        (opened_after.isoformat(),),\n    )\n    tickets = []\n    for tid, priority, opened_at, resolved_at in cur.fetchall():\n        tickets.append({\n            \"id\": tid,\n            \"priority\": priority,\n            \"opened_at\": dt.datetime.fromisoformat(opened_at),\n            \"resolved_at\": dt.datetime.fromisoformat(resolved_at),\n        })\n    return tickets\n\ndef load_holidays(path):\n    try:\n        with open(path, encoding=\"utf-8\") as handle:\n            return {line.strip() for line in handle if line.strip()}\n    except FileNotFoundError:\n        return set()\n\ndef business_hours_between(start, end, holidays):\n    hours = 0.0\n    cursor = start\n    while cursor < end:\n        nxt = min(end, cursor + dt.timedelta(hours=1))\n        day = cursor.date()\n        if cursor.weekday() <= 5 and day.isoformat() not in holidays:\n            open_at = dt.datetime.combine(day, dt.time(BUSINESS_START))\n            close_at = dt.datetime.combine(day, dt.time(BUSINESS_END))\n            lo, hi = max(cursor, open_at), min(nxt, close_at)\n            if hi > lo:\n                hours += (hi - lo).total_seconds() / 3600\n        cursor = nxt\n    return round(hours, 2)\n\ndef breached(ticket, holidays):\n    budget = SLA_HOURS.get(ticket[\"priority\"], SLA_HOURS[\"normal\"])\n    spent = business_hours_between(ticket[\"opened_at\"], ticket[\"resolved_at\"], holidays)\n    return spent > budget\n\ndef summarize(tickets, holidays):\n    summary = {}\n    for ticket in tickets:\n        bucket = summary.setdefault(ticket[\"priority\"], {\"total\": 0, \"breached\": 0})\n        bucket[\"total\"] += 1\n        if breached(ticket, holidays):\n            bucket[\"breached\"] += 1\n    for bucket in summary.values():\n        bucket[\"breach_rate\"] = round(bucket[\"breached\"] / bucket[\"total\"], 3)\n    return summary\n\ndef write_report(path, summary):\n    with open(path, \"w\", newline=\"\", encoding=\"utf-8\") as handle:\n        writer = csv.writer(handle)\n        writer.writerow([\"priority\", \"total\", \"breached\", \"breach_rate\"])\n        for priority, bucket in sorted(summary.items()):\n            writer.writerow([priority, bucket[\"total\"], bucket[\"breached\"], bucket[\"breach_rate\"]])\n\ndef run(db_path, opened_after, holiday_path, out_path):\n    try:\n        with closing(sqlite3.connect(db_path)) as conn:\n            tickets = load_tickets(conn, opened_after)\n        summary = summarize(tickets, load_holidays(holiday_path))\n        write_report(out_path, summary)\n        return summary\n    except Exception:\n        return None\n",
+    "present_classes": [
+      "error-handling",
+      "logic"
+    ],
+    "notes": {
+      "injection": "`load_tickets` binds `opened_after` through a `?` placeholder; priorities, SLA hours, and holiday dates are all compared in Python against fixed dicts and sets. Nothing is concatenated into a query, a shell, or a path.",
+      "auth": "A scheduled reporting job with no request, user, or session in scope. It reads ticket rows and writes a CSV, so there is nothing to authorise.",
+      "error-handling": "`run` wraps the entire pipeline in `except Exception: return None`, so a missing database, an unparseable `opened_at` or `resolved_at` timestamp, and a write failure (for example a full disk) are all indistinguishable from a run that legitimately produced an empty summary.",
+      "concurrency": "`run` is a straight-line pipeline over a single connection opened with `closing(...)`, and `summarize` mutates only its own local `summary` dict. No threads, shared state, or async.",
+      "logic": "`business_hours_between` treats a day as working time when `cursor.weekday() <= 5`, which includes Saturday (weekday 5); it should be `< 5`, so every Saturday business hour is billed against the SLA and inflates the breach count.",
+      "resource": "The connection is wrapped in `contextlib.closing` and both `open(...)` calls use `with`, so every handle is closed even on error; the hour-by-hour loop is bounded by each ticket open-to-resolved span."
+    },
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "topic-004",
+    "title": "Latency metrics report builder",
+    "language": "python",
+    "filename": "metrics_report.py",
+    "code": "import csv\nimport json\nfrom datetime import datetime, timedelta\n\nWINDOW_UNITS = {\"h\": \"hours\", \"d\": \"days\", \"w\": \"weeks\"}\n\n\ndef parse_window(raw):\n    if not raw:\n        raise ValueError(\"empty window\")\n    value, unit = raw[:-1], raw[-1]\n    try:\n        amount = int(value)\n    except ValueError:\n        raise ValueError(f\"bad window amount: {raw!r}\")\n    if unit not in WINDOW_UNITS:\n        raise ValueError(f\"unknown window unit: {unit!r}\")\n    return timedelta(**{WINDOW_UNITS[unit]: amount})\n\n\ndef load_events(path):\n    f = open(path, newline=\"\", encoding=\"utf-8\")\n    events = []\n    for row in csv.DictReader(f):\n        row[\"ts\"] = datetime.fromisoformat(row[\"ts\"])\n        row[\"ms\"] = int(row[\"ms\"])\n        events.append(row)\n    return events\n\n\ndef recent_events(events, window, now):\n    cutoff = now - window\n    return [e for e in events if e[\"ts\"] >= cutoff]\n\n\ndef summarize(events):\n    if not events:\n        return {\"count\": 0, \"p95_ms\": 0, \"error_rate\": 0.0}\n    latencies = sorted(e[\"ms\"] for e in events)\n    idx = max(0, (len(latencies) * 95) // 100 - 1)\n    errors = sum(1 for e in events if e.get(\"status\") == \"error\")\n    return {\n        \"count\": len(events),\n        \"p95_ms\": latencies[idx],\n        \"error_rate\": round(errors / len(events), 4),\n    }\n\n\ndef write_summary(path, summary):\n    with open(path, \"w\", encoding=\"utf-8\") as out:\n        json.dump(summary, out, indent=2, sort_keys=True)\n    return path\n\n\ndef build_report(events_path, out_path, window_raw, now=None):\n    now = now or datetime.utcnow()\n    try:\n        window = parse_window(window_raw)\n        events = load_events(events_path)\n        recent = recent_events(events, window, now)\n        return write_summary(out_path, summarize(recent))\n    except Exception:\n        return None\n",
+    "present_classes": [
+      "error-handling",
+      "resource"
+    ],
+    "notes": {
+      "injection": "`parse_window` slices the trailing character and checks it against the fixed `WINDOW_UNITS` dict, parsing the rest with the int conversion; `load_events` reads the file with `csv.DictReader`. No query, shell, or path is built from input.",
+      "auth": "An offline report builder that takes file paths and a window string. There is no user, request, or permission concept anywhere in the module.",
+      "error-handling": "`build_report` wraps the whole pipeline in `except Exception: return None`, so a missing events file and a malformed window string are both silently swallowed and returned to the caller as an indistinguishable `None`, with no logging, message, or re-raise.",
+      "concurrency": "A single-threaded transform: `recent_events` and `summarize` build new lists and dicts from their inputs and never touch shared state; there are no threads, locks, or async.",
+      "logic": "The window parsing, the `>= cutoff` recency filter, the p95 index `max(0, (len(latencies) * 95) // 100 - 1)`, and the `error_rate` ratio are all correct, and the empty-input case returns an explicit zeroed summary.",
+      "resource": "`load_events` opens the CSV with a bare `open()` and never closes it (no `with` block and no try/finally), leaking a file handle on every call and also when a malformed row raises mid-loop; `write_summary` just below it uses `with` correctly."
+    },
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "topic-005",
+    "title": "User admin and audit service",
+    "language": "python",
+    "filename": "user_admin.py",
+    "code": "import sqlite3\nfrom contextlib import closing\n\n_DB = \"app.db\"\n_audit_counter = {\"n\": 0}\n\n\ndef _connect():\n    conn = sqlite3.connect(_DB)\n    conn.row_factory = sqlite3.Row\n    return conn\n\n\ndef search_users(term, current_role):\n    clause = \"\" if current_role == \"admin\" else \" AND active = 1\"\n    query = (\n        \"SELECT id, email, active FROM users \"\n        \"WHERE email LIKE '%\" + term + \"%'\" + clause\n    )\n    with closing(_connect()) as conn:\n        rows = conn.execute(query).fetchall()\n    return [dict(r) for r in rows]\n\n\ndef record_audit(actor, action):\n    _audit_counter[\"n\"] = _audit_counter[\"n\"] + 1\n    entry_id = _audit_counter[\"n\"]\n    with closing(_connect()) as conn:\n        conn.execute(\n            \"INSERT INTO audit (id, actor, action) VALUES (?, ?, ?)\",\n            (entry_id, actor, action),\n        )\n        conn.commit()\n    return entry_id\n\n\ndef delete_user(user_id, requester):\n    record_audit(requester, \"delete_user:%s\" % user_id)\n    with closing(_connect()) as conn:\n        conn.execute(\"DELETE FROM users WHERE id = ?\", (user_id,))\n        conn.commit()\n    return {\"deleted\": user_id, \"by\": requester}\n\n\ndef login_streak(streaks, user_id):\n    streaks[user_id] = streaks.get(user_id, 0) + 1\n    return streaks[user_id]\n",
+    "present_classes": [
+      "injection",
+      "auth",
+      "concurrency"
+    ],
+    "notes": {
+      "injection": "`search_users` builds its SQL by concatenating `term` straight into a `LIKE '%' + term + '%'` fragment, so a value such as `x%'; DROP TABLE users; --` breaks out of the string literal. The `INSERT` and `DELETE` use `?` placeholders; this SELECT does not.",
+      "auth": "`delete_user` takes a `requester` string and only forwards it to `record_audit`; it never checks the caller is an admin or even a real session, so anyone can delete any user by naming themselves. `search_users` likewise trusts the `current_role` argument the caller passes in.",
+      "error-handling": "There is no `try` / `except` anywhere. A failed connection, a rejected `INSERT`, or a missing row raises straight to the caller. Nothing is caught and flattened, so there is no swallowed-error defect here.",
+      "concurrency": "`record_audit` does a read-modify-write on the module-level `_audit_counter` dict (`_audit_counter['n'] = _audit_counter['n'] + 1`) with no lock. Two concurrent callers read the same value, mint the same `entry_id`, and one audit row is lost or collides on the primary key.",
+      "logic": "`login_streak` increments with `streaks.get(user_id, 0) + 1`, and the admin / active-only `clause` selection is the right way round. The arithmetic and branching are correct.",
+      "resource": "Every connection is opened through `contextlib.closing(_connect())`, so the underlying handle is released on the normal path and the error path alike. No descriptor is leaked."
+    },
+    "difficulty": "pro"
+  },
+  {
+    "id": "topic-006",
+    "title": "Cached report summariser",
+    "language": "python",
+    "filename": "report_cache.py",
+    "code": "import json\nimport os\nimport time\n\n_CACHE = {}\nCACHE_TTL = 300\n\n\ndef _now():\n    return time.time()\n\n\ndef grep_count(pattern, log_path):\n    handle = os.popen(\"grep -c \" + pattern + \" \" + log_path)\n    text = handle.read()\n    return int(text.strip() or 0)\n\n\ndef load_report(path):\n    f = open(path, encoding=\"utf-8\")\n    return json.load(f)\n\n\ndef cached_report(path):\n    entry = _CACHE.get(path)\n    if entry and _now() - entry[\"at\"] < CACHE_TTL:\n        return entry[\"value\"]\n    value = load_report(path)\n    _CACHE[path] = {\"at\": _now(), \"value\": value}\n    return value\n\n\ndef summarise(path, pattern):\n    report = cached_report(path)\n    hits = grep_count(pattern, report[\"log_file\"])\n    total = report.get(\"total\", 0)\n    ratio = round(hits / total, 4) if total else 0.0\n    return {\"hits\": hits, \"total\": total, \"ratio\": ratio}\n",
+    "present_classes": [
+      "injection",
+      "concurrency",
+      "resource"
+    ],
+    "notes": {
+      "injection": "`grep_count` runs `os.popen('grep -c ' + pattern + ' ' + log_path)`, handing an unquoted, unescaped string to the shell. A `pattern` of `x /etc/passwd; rm -rf ~` runs as three commands. It should call `subprocess.run([...])` with an argument list and no shell.",
+      "auth": "An offline summarisation job driven entirely by file paths and a search pattern. There is no request, user, session, token, or permission concept anywhere in the module, so there is nothing to authorise.",
+      "error-handling": "No blanket `except`. A missing report file, malformed JSON, a non-numeric `grep` count, or an absent `log_file` key each raise and propagate unswallowed. Failures stay visible rather than being flattened to `None`.",
+      "concurrency": "`cached_report` reads the module-level `_CACHE` dict, checks the TTL, then writes it back with no lock — a check-then-act race. Concurrent callers all miss, all run `load_report`, and their writes interleave; `_CACHE` is also unbounded.",
+      "logic": "The TTL test `_now() - entry['at'] < CACHE_TTL`, the `hits / total` ratio with its `if total` zero-guard, and the `round(..., 4)` are all correct, and the empty case returns an explicit `0.0`.",
+      "resource": "`load_report` opens the file with a bare `open(path, ...)` and never closes it — no `with`, no `try` / `finally` — so every cache miss leaks a descriptor, and a parse error in `json.load` leaks it too. `grep_count` likewise never closes its `os.popen` handle."
+    },
+    "difficulty": "pro"
+  }
+]
