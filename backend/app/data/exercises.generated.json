@@ -11167,5 +11167,408 @@
       "Look closely at the exception handling mechanism used by the Argon2 verification library.",
       "Consider what return value is expected for an invalid password versus a system error in an authentication function."
     ]
+  },
+  {
+    "id": "ex-g0567",
+    "language": "python",
+    "title": "Command Injection in Image Thumbnailer",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import subprocess\n\ndef create_thumbnail(image_path):\n    output_path = \"thumb_\" + image_path\n    command = \"convert \" + image_path + \" -resize 100x100 \" + output_path\n    subprocess.run(command, shell=True)\n    return output_path\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    command = \"convert \" + image_path + \" -resize 100x100 \" + output_path\n-    subprocess.run(command, shell=True)\n+    command = [\"convert\", image_path, \"-resize\", \"100x100\", output_path]\n+    subprocess.run(command, shell=False)",
+    "reference": "This code suffers from a command injection vulnerability because it concatenates untrusted user input directly into a shell command string with shell=True enabled. An attacker can supply a malicious filename containing shell metacharacters like semicolons to execute arbitrary system commands. To fix this, pass the command arguments as a list and set shell=False, which prevents the shell from interpreting special characters.",
+    "hints": [
+      "Look closely at how the operating system command is being constructed.",
+      "Examine the usage of the subprocess module and the shell parameter.",
+      "Avoid string concatenation for commands and pass arguments as a list with shell=False."
+    ]
+  },
+  {
+    "id": "ex-g0568",
+    "language": "python",
+    "title": "Unsafe Shared Counter in Concurrent File Uploads",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import threading\n\nactive_uploads = 0\n\ndef handle_upload(file_data):\n    global active_uploads\n    active_uploads += 1\n    try:\n        save_to_disk(file_data)\n    finally:\n        active_uploads -= 1\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,1 +6,1 @@\n-    active_uploads += 1\n+    with upload_lock:\n+        active_uploads += 1",
+    "reference": "The code uses a global integer to track active uploads, which is incremented and decremented across multiple threads without synchronization. In Python, the operation 'active_uploads += 1' is not atomic and consists of multiple bytecode instructions that can be interrupted by the GIL and thread context switches, leading to race conditions. To fix this, a threading.Lock should be used to protect the critical section where the shared state is modified.",
+    "hints": [
+      "Look closely at how the function tracks state across multiple calls.",
+      "Consider what happens when multiple threads execute the function simultaneously.",
+      "Remember that basic arithmetic operations on global variables in Python are not thread-safe by default and require a Lock."
+    ]
+  },
+  {
+    "id": "ex-g0569",
+    "language": "python",
+    "title": "Mutable Default Argument in Search Cache",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_database(query, results=[]):\n    import time\n    time.sleep(0.1)\n    results.append(query)\n    return results\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def search_database(query, results=[]):\n+ def search_database(query, results=None):\n+     if results is None:\n+         results = []",
+    "reference": "Python evaluates default arguments only once when the function is defined, rather than each time it is called. When multiple threads concurrently invoke this search endpoint, they share the exact same 'results' list object, leading to race conditions and data corruption. Fixing this requires using 'None' as the default value and initializing a new list inside the function scope.",
+    "hints": [
+      "Look closely at how default function arguments are handled in Python.",
+      "Consider what happens when a function with a mutable default argument is called multiple times across threads.",
+      "Initialize the list inside the function body using None as the default instead."
+    ]
+  },
+  {
+    "id": "ex-g0570",
+    "language": "python",
+    "title": "Unsynchronized Cache in Thumbnail Generator",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import threading\n\n_thumbnail_cache = {}\n\ndef get_thumbnail(image_path):\n    if image_path not in _thumbnail_cache:\n        img = generate_thumbnail(image_path)\n        _thumbnail_cache[image_path] = img\n    return _thumbnail_cache[image_path]\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -5,3 +5,4 @@\n     if image_path not in _thumbnail_cache:\n+        with _lock:\n             img = generate_thumbnail(image_path)\n             _thumbnail_cache[image_path] = img",
+    "reference": "This code suffers from a classic check-then-act race condition in a multi-threaded environment. Multiple threads could simultaneously check the cache, find the image missing, and concurrently execute the expensive generation and dictionary insertion. To fix this, a threading.Lock should be used to make the check and update operations atomic.",
+    "hints": [
+      "Look at how shared state is accessed across multiple threads.",
+      "Consider what happens if two threads call this function with the same path at the exact same time.",
+      "Introduce a threading.Lock and wrap the generation and cache assignment inside a context manager."
+    ]
+  },
+  {
+    "id": "ex-g0571",
+    "language": "python",
+    "title": "Unclosed File Resource in PDF Report Generator",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def generate_summary_report(data, output_path):\n    report_file = open(output_path, \"w\")\n    report_file.write(\"Summary Report\\n\")\n    for item in data:\n        report_file.write(f\"{item}\\n\")\n    return output_path\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    report_file = open(output_path, \"w\")\n+    with open(output_path, \"w\") as report_file:\n+        report_file.write(\"Summary Report\\n\")\n+        for item in data:\n+            report_file.write(f\"{item}\\n\")\n-    report_file.write(\"Summary Report\\n\")\n-    for item in data:\n-        report_file.write(f\"{item}\\n\")",
+    "reference": "Opening a file without a context manager or explicit close call relies on garbage collection to release the file descriptor, which can lead to resource leaks and locked files in production. Using a context manager ensures the file is safely and promptly closed as soon as the block exits, even if exceptions occur during writing.",
+    "hints": [
+      "Examine how external resources are acquired inside the function.",
+      "Consider what happens to the file handle if an exception occurs during the loop.",
+      "Use a context manager (the 'with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0572",
+    "language": "python",
+    "title": "Unthreadsafe Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "from threading import Thread\n\nrequest_count = 0\n\ndef log_request(endpoint):\n    global request_count\n    request_count += 1\n    print(f\"Logging request {request_count} to {endpoint}\")\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -1,6 +1,7 @@\n-from threading import Thread\n+from threading import Lock, Thread\n \n request_count = 0\n+count_lock = Lock()\n \n def log_request(endpoint):\n     global request_count\n-    request_count += 1\n+    with count_lock:\n+        request_count += 1\n     print(f\"Logging request {request_count} to {endpoint}\")",
+    "reference": "The code increments a shared global variable across multiple threads without synchronization. In Python, the augmented assignment operator (+=) is not guaranteed to be atomic, which can lead to race conditions where updates are overwritten. Introducing a threading.Lock around the critical section ensures that only one thread modifies the counter at a time.",
+    "hints": [
+      "Consider how multiple threads might execute this function simultaneously.",
+      "Look closely at the request_count variable and how it is modified.",
+      "Use a threading.Lock to make the critical section atomic."
+    ]
+  },
+  {
+    "id": "ex-g0573",
+    "language": "python",
+    "title": "Unbounded Database Query in Search Endpoint",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(db_session, query_term, limit=100):\n    search_pattern = f\"%{query_term}%\"\n    results = db_session.query(User).filter(\n        User.username.ilike(search_pattern)\n    ).all()\n    return results\n",
+    "real_lines": [
+      3,
+      4,
+      5
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -3,3 +3,3 @@\n     results = db_session.query(User).filter(\n         User.username.ilike(search_pattern)\n-    ).all()\n+    ).limit(limit).all()",
+    "reference": "The search function queries the database using user-supplied input without enforcing a result size limit on the query execution. If the search term matches a vast number of records, calling `.all()` loads every matching row into memory, potentially causing severe memory exhaustion and database strain. Adding `.limit(limit)` ensures the result set is bounded and protects system resources from denial-of-service conditions.",
+    "hints": [
+      "Examine how the query is executed against the database.",
+      "Look at the parameters accepted by the function definition.",
+      "Consider what happens if the search query matches hundreds of thousands of rows."
+    ]
+  },
+  {
+    "id": "ex-g0574",
+    "language": "python",
+    "title": "Unbounded Webhook Payload Reading",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request):\n    content_length = request.headers.get('Content-Length')\n    if not content_length:\n        return {'error': 'Missing Content-Length'}, 411\n    \n    payload = request.stream.read()\n    return {'status': 'success', 'size': len(payload)}, 200\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    payload = request.stream.read()\n+    payload = request.stream.read(int(content_length))",
+    "reference": "Reading from an incoming request stream without specifying a maximum length can lead to a denial of service (DoS) vulnerability via memory exhaustion if a malicious client sends an excessively large payload. By explicitly passing the parsed Content-Length to the read method, we ensure the application only consumes the expected number of bytes. This protects the server memory from being overwhelmed by unconstrained input streams.",
+    "hints": [
+      "Examine how the request stream is being consumed inside the function.",
+      "Consider what happens if a client sends a malicious request with a massive or infinite data stream.",
+      "Pass a size argument derived from the Content-Length header to the read() method to cap the consumption."
+    ]
+  },
+  {
+    "id": "ex-g0575",
+    "language": "python",
+    "title": "False Positive in Rate Limiter Window Reset",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass SlidingWindowRateLimiter:\n    def __init__(self, capacity: int, window_size: float):\n        self.capacity = capacity\n        self.window_size = window_size\n        self.requests = []\n\n    def is_allowed(self, current_time: float) -> bool:\n        # Remove timestamps outside the current window\n        cutoff = current_time - self.window_size\n        while self.requests and self.requests[0] <= cutoff:\n            self.requests.pop(0)\n        \n        if len(self.requests) < self.capacity:\n            self.requests.append(current_time)\n            return True\n        return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct. While using list.pop(0) has O(N) time complexity, it is standard and efficient enough for small rate-limiting capacities where N represents the maximum number of allowed requests per window. The state is correctly updated and checked before appending.",
+    "hints": [
+      "Look at the time complexity of list operations relative to the expected capacity of a rate limiter.",
+      "Verify if the state cleanup correctly handles window boundaries before checking capacity."
+    ]
+  },
+  {
+    "id": "ex-g0576",
+    "language": "python",
+    "title": "False Positive in CSV DictReader Fieldnames",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef process_csv_file(file_obj):\n    reader = csv.DictReader(file_obj)\n    if not reader.fieldnames:\n        raise ValueError(\"CSV file is empty or missing headers\")\n    \n    for row in reader:\n        yield {k.strip(): v.strip() for k, v in row.items() if k is not None}\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses 'k is not None' when filtering row items. Novices might suspect this is a bug because csv.DictReader fieldnames are usually strings, but this is actually a robust defensive check against rows that contain extra delimiters resulting in None keys when restval is not specified.",
+    "hints": [
+      "Check how csv.DictReader handles rows that have more fields than the header.",
+      "Verify whether the 'k is not None' condition serves a protective purpose for malformed rows."
+    ]
+  },
+  {
+    "id": "ex-g0577",
+    "language": "python",
+    "title": "Unthreadsafe Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nrequest_count = 0\n\ndef is_rate_limited():\n    global request_count\n    if request_count >= 10:\n        return True\n    request_count += 1\n    return False\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -9,1 +9,1 @@\n-    request_count += 1\n+    with lock:\n+        request_count += 1",
+    "reference": "The function checks and increments a global counter without synchronization, making it vulnerable to race conditions under concurrent execution. Multiple threads can read the same count simultaneously, bypass the limit, and overwrite each other's increments. Using a threading lock ensures that the check and increment operations occur atomically.",
+    "hints": [
+      "Consider what happens when multiple threads execute this function at the exact same time.",
+      "The read and write operations on the global variable are not atomic.",
+      "You need to use a threading.Lock to protect the critical section where the counter is updated."
+    ]
+  },
+  {
+    "id": "ex-g0578",
+    "language": "python",
+    "title": "Unauthenticated Report Generation",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_monthly_report(user, db_connection):\n    if not user:\n        raise ValueError(\"User required\")\n    \n    report_data = db_connection.query(\"SELECT * FROM sensitive_financials\")\n    return format_report(report_data)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    report_data = db_connection.query(\"SELECT * FROM sensitive_financials\")\n+    if not user.is_admin:\n+        raise PermissionError(\"Unauthorized\")\n+    report_data = db_connection.query(\"SELECT * FROM sensitive_financials\")",
+    "reference": "This code suffers from an authorization defect because it checks only if a user exists, but fails to verify if that user has the necessary permissions to access sensitive financial data. Any authenticated user can trigger the generation of this restricted report, leading to potential data exposure. To fix this, you must add a role-based check before querying the database to ensure the user is authorized.",
+    "hints": [
+      "Look closely at what is being validated about the user before the report is generated.",
+      "The function checks if the user object is present, but what about user roles or permissions?",
+      "Add a check to verify if the user has administrative privileges before executing the database query."
+    ]
+  },
+  {
+    "id": "ex-g0579",
+    "language": "python",
+    "title": "SQL Injection in User Authentication",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef authenticate_user(username, password):\n    conn = sqlite3.connect('users.db')\n    cursor = conn.cursor()\n    query = f\"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'\"\n    cursor.execute(query)\n    user = cursor.fetchone()\n    conn.close()\n    return user\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = f\"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'\"\n-    cursor.execute(query)\n+    query = \"SELECT * FROM users WHERE username = ? AND password = ?\"\n+    cursor.execute(query, (username, password))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly interpolated into the query string using f-strings. An attacker can manipulate the input to alter the structure of the SQL command, potentially bypassing authentication entirely. The fix is to use parameterized queries by passing parameters as a tuple to the execute method, allowing the database driver to safely escape the inputs.",
+    "hints": [
+      "Examine how the SQL query string is constructed before it is executed.",
+      "Look closely at the use of f-strings for database queries involving user input.",
+      "Replace string interpolation with query parameters (?) and pass the variables as a tuple to cursor.execute()."
+    ]
+  },
+  {
+    "id": "ex-g0580",
+    "language": "python",
+    "title": "Uncaught Session Key Error",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "def get_username(session):\n    try:\n        return session[\"user\"][\"name\"]\n    except KeyError:\n        return None\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- session.py\n+++ session.py\n@@ -3,1 +3,1px\n-        return session[\"user\"][\"name\"]\n+        return session.get(\"user\", {}).get(\"name\")",
+    "reference": "The code attempts to access nested dictionary keys directly inside a try-except block catching KeyError. However, if the \"user\" key exists but its value is not a dictionary (e.g., None), accessing [\"name\"] raises a TypeError instead of a KeyError, causing the function to crash. Using the .get() method safely handles missing keys and prevents unexpected exceptions.",
+    "hints": [
+      "Look closely at the dictionary operations inside the try block.",
+      "Consider what happens if the 'user' key exists, but its value is not another dictionary.",
+      "Using dictionary .get() methods or checking for types can prevent unhandled exceptions."
+    ]
+  },
+  {
+    "id": "ex-g0581",
+    "language": "python",
+    "title": "Unthreadsafe Balance Update",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "from threading import Lock\n\nclass Wallet:\n    def __init__(self, initial_balance):\n        self.balance = initial_balance\n        self.lock = Lock()\n\n    def withdraw(self, amount):\n        if self.balance >= amount:\n            self.balance -= amount\n            return True\n        return False\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -9,2 +9,2 @@\n-        if self.balance >= amount:\n-            self.balance -= amount\n+        with self.lock:\n+            if self.balance >= amount:\n+                self.balance -= amount\n+                return True\n+            return False",
+    "reference": "This code suffers from a classic check-then-act race condition where multiple threads can concurrently pass the balance check before the deduction occurs. Because the critical section is unprotected by the available lock, concurrent withdrawals can cause the balance to drop below zero. Wrapping the conditional check and the update inside a context manager for the lock ensures atomicity.",
+    "hints": [
+      "Look closely at the class attributes initialized in the constructor.",
+      "Notice that a threading Lock is created but never actually used in the methods.",
+      "Wrap the conditional check and the balance modification inside a `with self.lock:` block to make the operation atomic."
+    ]
+  },
+  {
+    "id": "ex-g0582",
+    "language": "python",
+    "title": "Mutable Default Argument in Session Cache",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "session_cache.py",
+    "code": "def get_user_session(user_id, active_sessions={}):\n    if user_id not in active_sessions:\n        active_sessions[user_id] = {\"authenticated\": True}\n    return active_sessions[user_id]\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "--- session_cache.py\n+++ session_cache.py\n@@ -1,1 +1,2 @@\n-def get_user_session(user_id, active_sessions={}):\n+def get_user_session(user_id, active_sessions=None):\n+    if active_sessions is None: active_sessions = {}",
+    "reference": "Python evaluates default arguments only once, when the function is defined, rather than each time it is called. Using a mutable dictionary as a default argument means that all subsequent calls without an explicit session dictionary will share the exact same state, causing data leakage between different users. To fix this, use None as the default value and instantiate a new dictionary inside the function body if the argument is not provided.",
+    "hints": [
+      "Examine how default function arguments are evaluated in Python.",
+      "Look closely at the second parameter in the function signature.",
+      "Consider what happens to the dictionary across multiple function calls when no argument is passed."
+    ]
+  },
+  {
+    "id": "ex-g0583",
+    "language": "python",
+    "title": "Unsynchronized Global Config Reload",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import threading\n\n_config = {}\n\ndef update_config(new_settings):\n    global _config\n    _config.update(new_settings)\n\ndef get_config():\n    return _config\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -6,1 +6,2 @@\n+    with threading.Lock():\n         _config.update(new_settings)",
+    "reference": "This code updates a shared global dictionary across multiple threads without synchronization. When one thread modifies the dictionary while another reads or writes to it, a race condition occurs, which can corrupt the internal state of the dictionary. Adding a threading.Lock ensures that updates are atomic and thread-safe.",
+    "hints": [
+      "Consider what happens if multiple threads call update_config at the same time.",
+      "Global state shared between threads often needs synchronization primitives.",
+      "Use a threading.Lock() context manager around the update operation."
+    ]
+  },
+  {
+    "id": "ex-g0584",
+    "language": "python",
+    "title": "Unthreadsafe Job Status Update",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "queue.py",
+    "code": "import time\nimport threading\n\nclass JobQueue:\n    def __init__(self):\n        self.jobs = {}\n        self.lock = threading.Lock()\n\n    def update_status(self, job_id, status):\n        self.jobs[job_id] = status\n        time.sleep(0.01)\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "@@ -10,1 +10,2 @@\n-        self.jobs[job_id] = status\n+        with self.lock:\n+            self.jobs[job_id] = status",
+    "reference": "This code updates a shared dictionary without acquiring the re-entrant lock instance that was initialized specifically for thread safety. Since multiple background worker threads can invoke update_status concurrently, this creates a race condition that may corrupt the dictionary or cause inconsistent state. Wrapping the dictionary mutation inside a with self.lock context manager guarantees mutual exclusion.",
+    "hints": [
+      "Look closely at the class attributes initialized in the constructor.",
+      "Consider what happens when multiple worker threads call the update_status method simultaneously.",
+      "The lock attribute is defined on the class but never actually utilized inside the method."
+    ]
+  },
+  {
+    "id": "ex-g0585",
+    "language": "python",
+    "title": "Handling SMTP Connection Errors",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.login('user@example.com', 'secret')\n    server.sendmail('user@example.com', 'admin@example.com', message)\n    server.quit()\n",
+    "real_lines": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fix_diff": "@@ -3,6 +3,8 @@\n def send_alert(message):\n+    try:\n         server = smtplib.SMTP('smtp.example.com', 587)\n         server.starttls()\n         server.login('user@example.com', 'secret')\n         server.sendmail('user@example.com', 'admin@example.com', message)\n         server.quit()\n+    except smtplib.SMTPException as e:\n+        print(f\"Failed to send email: {e}\")",
+    "reference": "Network operations and external service calls like SMTP connections are prone to unexpected failures such as authentication errors or connection timeouts. Without proper exception handling, these errors will crash the application and leave network sockets unclosed. Wrapping the SMTP operations in a try-except block catching smtplib.SMTPException ensures graceful failure handling.",
+    "hints": [
+      "Consider what happens if the network drops or authentication fails during the email sending process.",
+      "Network and protocol-specific libraries usually define custom exception hierarchies for operational failures.",
+      "Use a try-except block targeting smtplib.SMTPException around the SMTP operations to prevent unhandled crashes."
+    ]
+  },
+  {
+    "id": "ex-g0586",
+    "language": "python",
+    "title": "Unsafe File Extension Check",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(uploaded_file):\n    ALLOWED_EXTENSIONS = {\"png\", \"jpg\", \"jpeg\"}\n    filename = uploaded_file.name\n    if \".\" in filename and filename.rsplit(\".\", 1)[1] in ALLOWED_EXTENSIONS:\n        return uploaded_file.save(f\"/var/uploads/{filename}\")\n    raise ValueError(\"Invalid file type\")\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    if \".\" in filename and filename.rsplit(\".\", 1)[1] in ALLOWED_EXTENSIONS:\n+    if \".\" in filename and filename.rsplit(\".\", 1)[1].lower() in ALLOWED_EXTENSIONS:",
+    "reference": "The code validates file extensions by splitting the filename string, but it fails to normalize the case of the extracted extension. An attacker could bypass this restriction by uploading a malicious file named \"malware.PNG\" because uppercase extensions are not present in the lowercase ALLOWED_EXTENSIONS set. To fix this vulnerability, call the .lower() method on the extracted extension before checking it against the allowed set.",
+    "hints": [
+      "Look closely at how file extensions are compared against the allowed set.",
+      "Consider what happens if an otherwise valid extension uses uppercase letters.",
+      "Applying a standard string normalization method like lower() to the extracted extension will prevent casing bypasses."
+    ]
   }
 ]
