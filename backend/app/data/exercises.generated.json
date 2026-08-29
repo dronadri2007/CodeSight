@@ -6831,5 +6831,402 @@
       "Examine how the global counter is modified inside the route handler.",
       "Use a threading.Lock to protect the critical section where the counter is incremented."
     ]
+  },
+  {
+    "id": "ex-g0347",
+    "language": "python",
+    "title": "Unusual looking payment calculation",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_total(subtotal, tax_rate):\n    multiplier = 1.0 + tax_rate\n    return round(subtotal * multiplier, 2)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of floating-point multiplication with tax rates often raises alarms among reviewers due to precision issues. However, the calculation correctly scales the amount before applying the round() function to two decimal places, which is standard practice for currency representation in this context.",
+    "hints": [
+      "Check if the rounding is applied before or after the multiplication.",
+      "Verify whether the float multiplication introduces any unhandled precision errors before the round function truncates it."
+    ]
+  },
+  {
+    "id": "ex-g0348",
+    "language": "python",
+    "title": "Thread-Unsafe Shared Session State",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "class SessionManager:\n    def __init__(self):\n        self._active_sessions = {}\n\n    def get_session(self, user_id: str, create_fn):\n        if user_id not in self._active_sessions:\n            self._active_sessions[user_id] = create_fn()\n        return self._active_sessions[user_id]\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- session_manager.py\n+++ session_manager.py\n@@ -5,3 +5,4 @@\n     def get_session(self, user_id: str, create_fn):\n-        if user_id not in self._active_sessions:\n-            self._active_sessions[user_id] = create_fn()\n+        with self._lock:\n+            if user_id not in self._active_sessions:\n+                self._active_sessions[user_id] = create_fn()",
+    "reference": "Checking the existence of a key and subsequently inserting it into a shared dictionary is not an atomic operation in Python. In a multi-threaded environment, two threads can check the condition simultaneously, leading to redundant session creation and potential overwrites. Adding a reentrant lock ensures that the check-then-act critical section executes atomically.",
+    "hints": [
+      "Consider how this code behaves when multiple threads call get_session concurrently.",
+      "Look closely at the check-then-act pattern involving the dictionary.",
+      "Use a threading Lock to protect the critical section where the session is checked and created."
+    ]
+  },
+  {
+    "id": "ex-g0349",
+    "language": "python",
+    "title": "File Resource Leak in Job Processor",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "def process_job(job_id, data):\n    log_file = open(\"job_history.log\", \"a\")\n    log_file.write(f\"Processing job {job_id}: {data}\\n\")\n    if not data:\n        raise ValueError(\"Empty data\")\n    log_file.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,1 +6,1 @@\n-    log_file.close()\n+    log_file.close()",
+    "reference": "The function opens a file to record job history, but if the input data is empty, it raises a ValueError before reaching the log_file.close() call. This causes a file descriptor leak every time a bad job is processed. To fix this, you should use a context manager (the 'with' statement) which automatically closes the file even if an exception occurs.",
+    "hints": [
+      "Look closely at what happens when an exception is raised inside the function.",
+      "Check if all opened resources are guaranteed to be closed under every execution path.",
+      "Use a 'with' statement for file handling to automatically manage cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0350",
+    "language": "python",
+    "title": "Unclosed Database Session",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "import sqlite3\n\ndef get_user_data(user_id):\n    connection = sqlite3.connect('app.db')\n    cursor = connection.cursor()\n    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))\n    result = cursor.fetchone()\n    return result\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,2 @@\n+    with sqlite3.connect('app.db') as connection:\n-    connection = sqlite3.connect('app.db')",
+    "reference": "Opening a database connection without properly closing it can lead to resource leaks and locked database files. Using a context manager such as a 'with' statement ensures that the connection is safely closed after the code block executes, even if an exception occurs.",
+    "hints": [
+      "Check how resources like files or database connections are managed throughout their lifecycle.",
+      "Consider what happens to the database connection once the function returns a result.",
+      "Use a context manager (the 'with' statement) to automatically handle the closing of the connection."
+    ]
+  },
+  {
+    "id": "ex-g0351",
+    "language": "python",
+    "title": "Missing Request Status Code Logging",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request, response):\n    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)\n    path = request.path\n    method = request.method\n    status = response.status_code\n    duration = response.headers.get('X-Response-Time', '0ms')\n    print(f\"{client_ip} - - [{method} {path}] {duration}\")\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -7,1 +7,1 @@\n-    print(f\"{client_ip} - - [{method} {path}] {duration}\")\n+    print(f\"{client_ip} - - [{method} {path}] {status} {duration}\")",
+    "reference": "HTTP request logging typically requires recording the resulting status code to monitor application health and error rates successfully. The original implementation successfully extracts the status code variable into memory, but accidentally omits it from the final formatted log string. Adding the status variable to the print statement ensures complete visibility into the outcome of each client request.",
+    "hints": [
+      "Examine all variables extracted at the beginning of the function.",
+      "Check if every variable is actually utilized inside the format string of the print statement.",
+      "The variable storing the HTTP response status code is defined on line 5 but never printed."
+    ]
+  },
+  {
+    "id": "ex-g0352",
+    "language": "python",
+    "title": "CSV Total Calculation Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef calculate_total(file_path):\n    total = 0\n    with open(file_path, mode='r', encoding='utf-8') as file:\n        reader = csv.reader(file)\n        for row in reader:\n            total += row[1]\n    return total\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-            total += row[1]\n+            total += float(row[1])",
+    "reference": "The csv module reads all values as strings by default, leading to a TypeError when attempting arithmetic operations. To fix this, you must explicitly cast the string value from the CSV file into a numeric type like float or int before adding it to the accumulator.",
+    "hints": [
+      "Examine the data types being used inside the loop.",
+      "Consider what type of data the CSV reader yields for each cell.",
+      "Cast the column value to a numeric type before adding it to total."
+    ]
+  },
+  {
+    "id": "ex-g0353",
+    "language": "python",
+    "title": "Missing Case Insensitivity in Search Query",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(query, users):\n    results = []\n    for user in users:\n        if query in user[\"username\"]:\n            results.append(user)\n    return results\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        if query in user[\"username\"]:\n+        if query.lower() in user[\"username\"].lower():",
+    "reference": "The search function performs a case-sensitive substring check between the search query and the usernames. If a user searches with different capitalization than the stored username, matching records will be missed. Normalizing both strings to lowercase resolves this issue and ensures robust search functionality.",
+    "hints": [
+      "Consider what happens if the user types a capital letter while the stored data is lowercase.",
+      "Look closely at the substring membership check in the loop.",
+      "Convert both the query and the target username to lowercase before performing the 'in' check."
+    ]
+  },
+  {
+    "id": "ex-g0354",
+    "language": "python",
+    "title": "Uncaught Exception in Password Hashing",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import bcrypt\n\ndef verify_password(stored_hash: str, provided_password: str) -> bool:\n    try:\n        return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash.encode('utf-8'))\n    except ValueError:\n        return False\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    except ValueError:\n+    except (ValueError, TypeError):",
+    "reference": "The bcrypt.checkpw function expects both arguments to be of type bytes. If a malformed stored hash or non-string input causes a TypeError instead of a ValueError, the exception propagates unhandled and can crash the authentication flow. Catching both ValueError and TypeError ensures robust error handling for unexpected input types.",
+    "hints": [
+      "Look closely at the exception type being caught in the except block.",
+      "Consider what data types the underlying hashing library expects and what exceptions it might raise if given unexpected types.",
+      "bcrypt.checkpw can raise a TypeError in addition to a ValueError when given invalid types, which currently bypasses the safety net."
+    ]
+  },
+  {
+    "id": "ex-g0355",
+    "language": "python",
+    "title": "Request Logging Timestamp Bug",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import time\nimport logging\n\ndef log_request(request, response_time=None):\n    if response_time is None:\n        response_time = time.time()\n    log_data = {\n        \"path\": request.path,\n        \"duration\": time.time() - response_time,\n        \"status\": request.status_code\n    }\n    logging.info(\"Request handled\", extra=log_data)\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    if response_time is None:\n-        response_time = time.time()\n+    start_time = time.time()\n+    # compute duration later using start_time",
+    "reference": "The function attempts to calculate the request duration by using the optional response_time parameter as a start timestamp, but defaults it to the current time if it is not provided. When response_time is None, setting it to time.time() means duration will be calculated as time.time() - time.time(), resulting in a duration of nearly zero. To fix this, the code should distinguish between the request start time and the completion time, ensuring the start time is always recorded before processing.",
+    "hints": [
+      "Look closely at how the 'response_time' parameter is used when it is initially set to None.",
+      "Trace what value 'response_time' holds when the subtraction 'time.time() - response_time' is executed on the subsequent lines.",
+      "The parameter name 'response_time' is misleading if it is intended to represent the start of the request."
+    ]
+  },
+  {
+    "id": "ex-g0356",
+    "language": "python",
+    "title": "Uninitialized Accumulator in Report Generator",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def calculate_total_sales(transactions):\n    for txn in transactions:\n        total += txn.get(\"amount\", 0.0)\n    return total\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "@@ -1,4 +1,5 @@\n def calculate_total_sales(transactions):\n+    total = 0.0\n     for txn in transactions:\n         total += txn.get(\"amount\", 0.0)\n     return total",
+    "reference": "The function attempts to accumulate sales amounts into a variable named 'total' without initializing it first. This results in a NameError when the loop tries to access 'total' before assignment. Adding 'total = 0.0' at the beginning of the function resolves this issue by establishing the base value for accumulation.",
+    "hints": [
+      "Check the scope and lifecycle of variables used inside the function.",
+      "Look closely at the variable being updated in the loop and where its initial value comes from.",
+      "The variable 'total' is used with the '+=' operator before it has been defined or assigned a starting value."
+    ]
+  },
+  {
+    "id": "ex-g0357",
+    "language": "python",
+    "title": "Dynamic Email Subject Interpolation",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "def create_email_subject(template: str, context: dict) -> str:\n    return template.format_map(context)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of format_map instead of standard string formatting or evaluation functions like eval() is safe. It only performs dictionary key lookups and does not execute arbitrary code, making it immune to injection attacks.",
+    "hints": [
+      "Check which specific formatting method is being used on the string.",
+      "Consider whether format_map executes arbitrary code or merely performs dictionary lookups."
+    ]
+  },
+  {
+    "id": "ex-g0358",
+    "language": "python",
+    "title": "Unclosed Session in Database Helper",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "database.py",
+    "code": "def get_user_data(session_factory, user_id):\n    session = session_factory()\n    user = session.query(User).filter_by(id=user_id).first()\n    if not user:\n        return None\n    return user.to_dict()\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,6 @@\n-    session = session_factory()\n+    with session_factory() as session:\n+        user = session.query(User).filter_by(id=user_id).first()\n+        if not user:\n+            return None\n+        return user.to_dict()",
+    "reference": "This function manually instantiates a database session without ensuring it is properly closed or returned to the connection pool if an early return or exception occurs. Using a context manager ensures that the session lifecycle is managed correctly and resources are released promptly. Leaving sessions unclosed can lead to connection leaks and eventually exhaust the database connection pool.",
+    "hints": [
+      "Examine how resources are acquired and released throughout the function's execution path.",
+      "Look closely at what happens to the session object when the function hits an early return statement.",
+      "Wrap the session initialization in a context manager using the 'with' statement to guarantee cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0359",
+    "language": "python",
+    "title": "Unclosed Webhook Response Stream",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import urllib.request\nimport json\n\ndef handle_webhook(url, payload):\n    data = json.dumps(payload).encode(\"utf-8\")\n    req = urllib.request.Request(url, data=data, headers={\"Content-Type\": \"application/json\"})\n    response = urllib.request.urlopen(req)\n    return response.status\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    response = urllib.request.urlopen(req)\n-    return response.status\n+    with urllib.request.urlopen(req) as response:\n+        return response.status",
+    "reference": "The function opens a network connection using urllib.request.urlopen without properly closing the response stream, which can lead to file descriptor and socket leaks over time. Utilizing a context manager ensures that the underlying HTTP response connection is properly closed and returned to the connection pool immediately after reading the status code.",
+    "hints": [
+      "Examine how external resources and network connections are managed after being opened.",
+      "Consider what happens to the socket connection if an exception occurs or if the function exits without explicitly closing the response.",
+      "Use a context manager (the 'with' statement) around the urlopen call to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0360",
+    "language": "python",
+    "title": "Missing Exception Type in Thumbnail Handler",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def process_thumbnail(image_path):\n    try:\n        img = Image.open(image_path)\n        img.thumbnail((128, 128))\n        img.save(image_path + \".thumb.jpg\")\n    except:\n        print(\"Failed to process image\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    except:\n+    except IOError:",
+    "reference": "Using a bare `except:` clause catches all exceptions, including system-exiting ones like `KeyboardInterrupt` and `SystemExit`, which makes debugging difficult and hides unexpected errors. It is best practice to catch specific exceptions, such as `IOError` or `OSError`, when dealing with file I/O operations like saving images.",
+    "hints": [
+      "Look closely at the except block.",
+      "What kind of exceptions might occur when opening and saving image files?",
+      "Add a specific exception type after the except keyword instead of leaving it bare."
+    ]
+  },
+  {
+    "id": "ex-g0361",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "upload_service.py",
+    "code": "def save_upload(file_obj, destination_path):\n    dest_file = open(destination_path, 'wb')\n    chunk = file_obj.read(8192)\n    while chunk:\n        dest_file.write(chunk)\n        chunk = file_obj.read(8192)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    dest_file = open(destination_path, 'wb')\n+    with open(destination_path, 'wb') as dest_file:",
+    "reference": "Opening a file without a context manager or explicit closing can lead to file descriptor leaks if exceptions occur or if the garbage collector delays finalization. In high-throughput applications, this can exhaust available file descriptors and cause service crashes. Using a 'with' statement guarantees that the file resource is properly closed immediately after the block exits.",
+    "hints": [
+      "Examine how system resources like file descriptors are managed throughout their lifecycle.",
+      "Look closely at the file opening mechanism and consider what happens when the function returns successfully or raises an exception.",
+      "Replace the direct assignment with a context manager (the 'with' statement) to ensure deterministic cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0362",
+    "language": "python",
+    "title": "Insecure Webhook Signature Comparison",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(request_body: bytes, signature: str, secret: str) -> bool:\n    expected_signature = hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()\n    return signature == expected_signature\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    return signature == expected_signature\n+    return hmac.compare_digest(signature, expected_signature)",
+    "reference": "Using the standard equality operator (==) for comparing cryptographic signatures introduces a timing attack vulnerability. An attacker can measure the time it takes for the comparison to fail, allowing them to guess the signature byte by byte. Using hmac.compare_digest ensures constant-time execution, preventing timing-based side-channel attacks.",
+    "hints": [
+      "Examine how the signature strings are compared at the end of the function.",
+      "Standard string comparison operators are not constant-time in Python.",
+      "Look up python's hmac module for a function designed specifically for secure string and byte comparisons."
+    ]
+  },
+  {
+    "id": "ex-g0363",
+    "language": "python",
+    "title": "SQL Injection in Rate Limiter",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import sqlite3\n\ndef check_rate_limit(conn, user_ip):\n    cursor = conn.cursor()\n    query = \"SELECT count FROM requests WHERE ip = '\" + user_ip + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    return result[0] if result else 0\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT count FROM requests WHERE ip = '\" + user_ip + \"'\"\n-    cursor.execute(query)\n+    query = \"SELECT count FROM requests WHERE ip = ?\"\n+    cursor.execute(query, (user_ip,))\n",
+    "reference": "This function suffers from a classic SQL injection vulnerability because it concatenates user input directly into the SQL query string. An attacker could supply a malicious IP string to manipulate the query logic and bypass rate limiting. The fix is to use parameterized queries with placeholders, allowing the database driver to safely handle the input.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look at how the user_ip variable is incorporated into the query.",
+      "Use parameterized queries with question mark placeholders instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0364",
+    "language": "python",
+    "title": "SQL Injection in Payment Lookup",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import sqlite3\n\ndef get_payment_status(db_conn, transaction_id):\n    cursor = db_conn.cursor()\n    query = \"SELECT status FROM transactions WHERE id = '\" + transaction_id + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    return result[0] if result else None\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT status FROM transactions WHERE id = '\" + transaction_id + \"'\"\n+    query = \"SELECT status FROM transactions WHERE id = ?\"\n+    cursor.execute(query, (transaction_id,))",
+    "reference": "This code is vulnerable to SQL injection because it concatenates the raw transaction_id directly into the SQL query string. An attacker could supply a malicious string containing SQL commands to alter the query logic and access unauthorized data. The vulnerability is fixed by using parameterized queries, which safely separate the SQL code from user-supplied data.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look at how user input is incorporated into the query execution flow.",
+      "Replace string concatenation with parameterized query placeholders to let the database driver safely handle input."
+    ]
+  },
+  {
+    "id": "ex-g0365",
+    "language": "python",
+    "title": "Unsynchronized Webhook State Counter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "from fastapi import FastAPI, Request\nimport asyncio\n\napp = FastAPI()\nactive_requests = 0\n\n@app.post(\"/webhook\")\nasync def receive_webhook(request: Request):\n    global active_requests\n    active_requests += 1\n    try:\n        data = await request.json()\n        await asyncio.sleep(0.1)\n        return {\"status\": \"processed\", \"active\": active_requests}\n    finally:\n        active_requests -= 1\n",
+    "real_lines": [
+      6,
+      10,
+      15
+    ],
+    "fix_diff": "--- webhook_receiver.py\n+++ webhook_receiver.py\n@@ -3,3 +3,3 @@\n app = FastAPI()\n-active_requests = 0\n+active_requests = asyncio.Lock()\n \n@@ -9,3 +9,4 @@\n     global active_requests\n-    active_requests += 1\n+    async with active_requests:\n+        active_count += 1\n@@ -15,3 +16,4 @@\n     finally:\n-        active_requests -= 1\n+        async with active_requests:\n+            active_count -= 1",
+    "reference": "Although Python's asyncio is single-threaded cooperatively, compound operations like augmented assignment (+= and -=) on shared global state are vulnerable to race conditions if an await suspension point occurs between reading and writing the value. Since an asynchronous sleep happens during request handling, other incoming webhooks can interleave and corrupt the counter. Fixing this requires protecting the critical section with an asyncio.Lock to ensure atomicity across suspension points.",
+    "hints": [
+      "Look closely at how global state is modified inside the asynchronous route handler.",
+      "Consider what happens when execution yields control back to the event loop using 'await'.",
+      "Use an asyncio.Lock to safely guard the increment and decrement operations on the shared counter."
+    ]
+  },
+  {
+    "id": "ex-g0366",
+    "language": "python",
+    "title": "Uncaught Stripe Card Error",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import stripe\n\ndef charge_customer(amount, payment_method_id):\n    try:\n        intent = stripe.PaymentIntent.create(\n            amount=amount,\n            currency=\"usd\",\n            payment_method=payment_method_id,\n            confirm=True\n        )\n        return intent[\"status\"]\n    except stripe.error.StripeError as e:\n        logger.error(f\"Payment failed: {e}\")\n        return False\n",
+    "real_lines": [
+      12
+    ],
+    "fix_diff": "-        logger.error(f\"Payment failed: {e}\")\n+        import logging\n+        logging.error(f\"Payment failed: {e}\")",
+    "reference": "The function attempts to log the payment failure using the logger variable, but it was never defined or imported in this module. This causes a NameError when an exception is caught, masking the original payment error. Fixing this requires properly importing and using the logging module.",
+    "hints": [
+      "Check all the variables used in the except block for proper initialization or scope.",
+      "Look closely at the logging mechanism being used inside the except block.",
+      "The logger object is referenced without being imported or instantiated in the file."
+    ]
   }
 ]
