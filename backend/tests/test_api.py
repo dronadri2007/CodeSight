@@ -51,6 +51,7 @@ def test_exercises_source_filter(client):
 def test_exercise_file_hides_answers(client):
     f = client.get("/exercises/ex-001").json()
     assert "code" in f
+    assert f["title"] and f["defect_class"] == "injection"
     assert not any(k in f for k in ("real_lines", "fix_diff", "reference"))
 
 

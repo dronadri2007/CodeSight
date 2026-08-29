@@ -22,6 +22,8 @@ class ExerciseSummary(BaseModel):
 class ExerciseFile(BaseModel):
     id: str
     language: str
+    title: str
+    defect_class: str
     filename: str
     code: str
     line_count: int

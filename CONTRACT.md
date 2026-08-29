@@ -57,6 +57,8 @@ Response 200:
     {
       "id": "ex-001",
       "language": "python",
+      "title": "User lookup by email",
+      "defect_class": "injection",
       "filename": "users.py",
       "code": "def get_user(email):\n    ...",
       "line_count": 3,
@@ -64,6 +66,10 @@ Response 200:
       "difficulty": "beginner",
       "source": "curated"
     }
+
+- `title` / `defect_class` are the same values as in `GET /exercises` — safe
+  to show as the workspace header. No answer data (`real_lines`, `fix_diff`,
+  `reference`) is ever in this response.
 
 Response 404 if the id is unknown.
 

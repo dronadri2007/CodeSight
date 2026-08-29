@@ -132,6 +132,8 @@ def get_file(exercise_id: str) -> ExerciseFile:
     return ExerciseFile(
         id=r["id"],
         language=r["language"],
+        title=r["title"],
+        defect_class=r["defect_class"],
         filename=r["filename"],
         code=r["code"],
         line_count=_line_count(r["code"]),
