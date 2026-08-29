@@ -28,6 +28,8 @@ export interface ExerciseSummary {
 export interface ExerciseFile {
   id: string
   language: string
+  title: string
+  defect_class: string
   filename: string
   code: string
   line_count: number

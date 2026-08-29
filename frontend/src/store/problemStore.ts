@@ -5,7 +5,7 @@ import { useAuthStore } from './authStore'
 
 interface ProblemFilter {
   mode: 'all' | ProblemMode
-  difficulty: 'all' | Difficulty
+  difficulty: string // 'all' | backend tier ('beginner' | 'intermediate' | 'pro')
   defectClassId: string
   searchQuery: string
 }

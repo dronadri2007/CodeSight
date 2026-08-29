@@ -50,6 +50,8 @@ export async function getExerciseFile(id: string): Promise<ExerciseFile> {
     return {
       id: e.id,
       language: e.language ?? 'python',
+      title: e.title ?? e.id,
+      defect_class: e.defectClassId ?? e.defectClass ?? 'logic',
       filename: (e as unknown as { filename?: string }).filename ?? 'snippet.py',
       code: e.code ?? '',
       line_count: (e.code ?? '').split('\n').length,
