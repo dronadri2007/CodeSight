@@ -8,7 +8,7 @@ Legend: **BE** = backend (built + tested + deployed) · **FE** = frontend UI ·
 **Wired** = the frontend actually calls the backend.
 
 **Deployment:** Backend live on Railway
-(`codesight-code-review-production.up.railway.app`), Postgres, 56 tests passing
+(`codesight-code-review-production.up.railway.app`), Postgres, 61 tests passing
 (+10 network tests skipped by default). 1002 exercises (19 curated + 983
 generated); generated pool under human review.
 Frontend on Vercel, running on its own mock data — **not yet connected to the
@@ -35,11 +35,11 @@ backend**.
 | # | Feature | BE | FE | Wired | Notes |
 |---|---|---|---|---|---|
 | 6 | Progressive hints + score decay | done — `/exercises/{id}/hints/{n}`, `hints_used` in `/grade` (1.0 / 0.9 / 0.75 / 0.5) | done | no | |
-| 7 | Concept micro-check (2-3 questions) | **not built** | UI exists | no | needs a `questions` field + endpoint, or keep FE-only static |
+| 7 | Concept micro-check (2-3 questions) | done — `GET/POST /concept/{id}/micro-check` (3 MCQs/concept, stateless grading, pass = 2/3) | UI exists | no | answer key stays server-side; result returns per-question explanations |
 | 8 | Progress-over-time | done — `/progress/{session_id}` (timeline + running catch-rate + per-class first-vs-latest) | done — Recharts | no | |
 | 9 | Prompt-injection guard | done — grader system prompt + 4000-char cap | n/a | yes (server-side) | basic form |
 
-**Tier 2: backend 3/4, frontend 3/4, wired 0/4.**
+**Tier 2: backend 4/4, frontend 3/4, wired 0/4.**
 
 ---
 
@@ -134,7 +134,7 @@ backend**.
 
 | # | Task | Note |
 |---|---|---|
-| I | Concept micro-check backend (#7) | or keep FE-only static |
+| I | Wire the micro-check UI to `GET/POST /concept/{id}/micro-check` (backend done) | FE, small |
 | J | Integrity telemetry on `/grade` (paste events, timing, integrity score) | the whole Integrity section |
 | K | Multiplayer + leaderboard (#10, #11) | 5-8 person-days — roadmap only |
 | L | Human-review the 983 generated exercises (`review_exercises.py`, beginner tier first) | teammate, ongoing |
@@ -145,9 +145,9 @@ backend**.
 
 ## Bottom line
 
-**Backend: ~90% of the recommended feature set is built, tested, and live** —
-everything except multiplayer, concept micro-check, large-code prediction, and
-integrity telemetry (all explicitly deferrable).
+**Backend: ~92% of the recommended feature set is built, tested, and live** —
+everything except multiplayer, large-code prediction, and integrity telemetry
+(all explicitly deferrable).
 
 **Frontend: UI exists for most features but runs entirely on mock data.**
 
