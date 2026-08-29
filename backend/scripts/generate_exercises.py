@@ -4,24 +4,33 @@ app/data/exercises.generated.json (source="generated", ids ex-gNNNN).
     cd backend
     python scripts/generate_exercises.py --count 200
 
-Needs GEMINI_API_KEY. On the free tier expect ~1-2 s per exercise plus
-rate-limit backoff. Safe to re-run: it resumes from the highest existing id
-and skips code it already has. Generated exercises are NEVER used in a
-promotion test; users can flag broken ones via POST /exercises/{id}/report.
+Needs GEMINI_API_KEY in .env. The free tier caps gemini-3.5-flash-lite at
+500 requests/day *per project*, so to go further in one day put a second
+key from a different project in .env as GEMINI_API_KEY2 (GEMINI_API_KEY3,
+GEMINI_API_KEY4 also work). The script uses the first key until it returns
+a per-day RESOURCE_EXHAUSTED, then rotates to the next; when every key is
+out of daily quota it saves and stops cleanly.
+
+Safe to re-run: it resumes from the highest existing id and skips code it
+already has. Generated exercises are NEVER used in a promotion test; users
+can flag broken ones via POST /exercises/{id}/report.
 """
 import argparse
 import ast
 import json
+import os
 import pathlib
 import random
 import sys
+import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from pydantic import BaseModel  # noqa: E402
-
-from app.gemini import generate  # noqa: E402
+import app.config  # noqa: E402, F401  (imports load_dotenv() -> .env is read)
+from google import genai  # noqa: E402
+from google.genai import errors as genai_errors  # noqa: E402
 from google.genai import types  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parents[1] / "app" / "data" / "exercises.generated.json"
 
@@ -35,6 +44,89 @@ DOMAINS = [
 ]
 
 MODEL = "gemini-3.5-flash-lite"  # separate free-tier daily quota from the grader
+
+_KEY_ENV = ["GEMINI_API_KEY", "GEMINI_API_KEY2", "GEMINI_API_KEY3", "GEMINI_API_KEY4"]
+
+
+class AllKeysExhausted(Exception):
+    """Every configured API key is out of daily quota."""
+
+
+class _DailyExhausted(Exception):
+    """One key hit its per-day free-tier limit (not a transient per-minute cap)."""
+
+
+class KeyPool:
+    """One genai client per API key; rotate forward when a key's day is spent."""
+
+    def __init__(self) -> None:
+        keys, seen = [], set()
+        for name in _KEY_ENV:
+            v = os.getenv(name, "").strip()
+            if v and v not in seen:
+                keys.append(v)
+                seen.add(v)
+        if not keys:
+            sys.exit("no GEMINI_API_KEY (or GEMINI_API_KEY2...) in .env / environment")
+        self._clients = [genai.Client(api_key=k) for k in keys]
+        self._n = len(keys)
+        self.i = 0
+
+    @property
+    def client(self):
+        return self._clients[self.i]
+
+    @property
+    def label(self) -> str:
+        return f"key {self.i + 1}/{self._n}"
+
+    def rotate(self) -> bool:
+        if self.i + 1 < self._n:
+            self.i += 1
+            return True
+        return False
+
+
+def _is_quota(e: Exception) -> bool:
+    s = str(e)
+    return "RESOURCE_EXHAUSTED" in s or "429" in s
+
+
+def _is_daily(e: Exception) -> bool:
+    s = str(e)
+    return "PerDay" in s or "per day" in s or "free_tier_requests" in s
+
+
+def _once(pool: KeyPool, **kw):
+    """One generate_content on the current key, with per-minute backoff.
+    Raises _DailyExhausted if the key hit its per-day free-tier limit."""
+    last = None
+    for attempt in range(4):
+        try:
+            return pool.client.models.generate_content(**kw)
+        except genai_errors.APIError as e:
+            last = e
+            if _is_quota(e) and _is_daily(e):
+                raise _DailyExhausted() from e
+            transient = _is_quota(e) or isinstance(e, genai_errors.ServerError)
+            if transient and attempt < 3:
+                time.sleep(6 * (attempt + 1) if _is_quota(e) else 2 ** attempt)
+                continue
+            raise
+    raise last  # pragma: no cover
+
+
+def _generate(pool: KeyPool, **kw):
+    """As _once, but on a per-day exhaustion rotate to the next key. Raises
+    AllKeysExhausted when there is no key left with quota."""
+    while True:
+        try:
+            return _once(pool, **kw)
+        except _DailyExhausted as e:
+            print(f"  {pool.label} out of daily quota")
+            if not pool.rotate():
+                raise AllKeysExhausted("every Gemini key is out of daily quota") from e
+            print(f"  -> switched to {pool.label}")
 
 
 class Gen(BaseModel):
@@ -97,6 +189,7 @@ def main() -> None:
     ap.add_argument("--count", type=int, default=100)
     args = ap.parse_args()
 
+    pool = KeyPool()
     data, seen, last = _load_existing()
     made = skipped = 0
     for _ in range(args.count):
@@ -104,7 +197,8 @@ def main() -> None:
         diff = random.choice(DIFFICULTIES)
         dom = random.choice(DOMAINS)
         try:
-            resp = generate(
+            resp = _generate(
+                pool,
                 model=MODEL,
                 contents=_prompt(dc, diff, dom),
                 config=types.GenerateContentConfig(
@@ -116,6 +210,9 @@ def main() -> None:
                 ),
             )
             g = (getattr(resp, "parsed", None) or Gen.model_validate_json(resp.text)).model_dump()
+        except AllKeysExhausted as e:
+            print(f"  STOP: {e} - saving and exiting")
+            break
         except Exception as e:  # noqa: BLE001
             print(f"  gen error: {type(e).__name__}: {e}")
             skipped += 1

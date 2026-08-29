@@ -63,6 +63,12 @@ Writes `app/data/exercises.generated.json` (`source: "generated"`, ids
 range, deduped); resumes from the last id. Generated exercises are never used
 in a promotion test and can be flagged via `POST /exercises/{id}/report`.
 
+The free tier caps `gemini-3.5-flash-lite` at 500 requests/day per project.
+To keep going the same day, add `GEMINI_API_KEY2` (and `...3`, `...4`) from
+other projects to `.env` — the script rotates to the next key on a per-day
+`RESOURCE_EXHAUSTED` and stops cleanly when all keys are spent. These extra
+keys are script-only; the deployed API still uses just `GEMINI_API_KEY`.
+
 ## Reviewing generated exercises
 
     python scripts/review_exercises.py --difficulty beginner   # a/r/e/s/q per exercise
