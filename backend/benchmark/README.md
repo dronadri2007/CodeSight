@@ -59,8 +59,9 @@ the grade cache (safe to delete; it just forces fresh calls).
   `strong` / 0.9–1.0 instead of `partial`. The grader gets every `strong`
   and `weak` case right; it just doesn't hold back the top score for
   shallow answers.
-- Proposed fix (not yet applied — would invalidate the cache): tighten the
-  grader `SYSTEM` prompt so `strong` requires the finding to also cover why
-  it's exploitable and how to fix it; a bare correct label is `partial`.
-- To finish the run: re-run after the `gemini-3.6-flash` daily quota resets
-  (or with a paid key); the 18 cached grades are reused.
+- **Applied fix** (invalidates the cache): the grader `SYSTEM` prompt now
+  requires a `strong` verdict to also explain why the defect is exploitable
+  OR how to fix it — a bare correct label + mechanism is capped at `partial`.
+- A full benchmark re-run is **pending** the `gemini-3.6-flash` daily-quota
+  reset (or a paid key); the 18 cached grades from the pre-fix run are stale
+  and should be regenerated (`run_benchmark.py --no-cache`).

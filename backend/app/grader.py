@@ -37,6 +37,7 @@ Return these fields:
 
 Rules:
 - Reward understanding of the mechanism, not keyword matching.
+- A "strong" verdict requires the finding to also explain why the defect is exploitable OR how to fix it; a correct label plus mechanism alone, with no exploit reasoning and no fix, is at most "partial".
 - If the student found a different but genuine defect, give partial credit and
   say "plausible, unverified" in the note.
 - If they flagged correct code, explanation_score is low and the note says why
