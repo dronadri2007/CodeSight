@@ -3,6 +3,15 @@
 Two pools, merged: data/exercises.json (curated, human-reviewed) and, if
 present, data/exercises.generated.json (LLM-generated, source="generated").
 Answer data (real_lines, fix_diff, reference) is never sent to the client.
+
+A third file, data/exercises.review.json, is an append-only sidecar written
+by scripts/review_exercises.py: {id: {status, by, at, note?, patch?}}. It is
+merged here at load time so a teammate can review generated exercises on a
+separate machine by editing only that file (no merge conflicts with
+generation, which only ever appends to exercises.generated.json). status is
+one of "approved" | "rejected" | "edited"; "rejected" drops the exercise
+from listings, "patch" overrides fields on an "edited" one. Curated
+exercises are implicitly "approved".
 """
 import json
 from pathlib import Path
@@ -15,6 +24,7 @@ from app.schemas import ExerciseFile, ExerciseSummary, HintResponse
 _DIR = Path(__file__).parent / "data"
 _CURATED = _DIR / "exercises.json"
 _GENERATED = _DIR / "exercises.generated.json"
+_REVIEW = _DIR / "exercises.review.json"
 
 TIER_ORDER = ["beginner", "intermediate", "pro"]
 
@@ -22,6 +32,13 @@ TIER_ORDER = ["beginner", "intermediate", "pro"]
 def next_tier(tier: str) -> str | None:
     i = TIER_ORDER.index(tier)
     return TIER_ORDER[i + 1] if i + 1 < len(TIER_ORDER) else None
+
+
+def _load_reviews() -> dict[str, dict]:
+    if not _REVIEW.exists():
+        return {}
+    raw = json.loads(_REVIEW.read_text(encoding="utf-8"))
+    return raw if isinstance(raw, dict) else {}
 
 
 def _load() -> dict[str, dict]:
@@ -32,7 +49,16 @@ def _load() -> dict[str, dict]:
         for r in json.loads(path.read_text(encoding="utf-8")):
             r.setdefault("difficulty", "beginner")
             r.setdefault("source", src)
+            r["review_status"] = "approved" if src == "curated" else "unreviewed"
             out[r["id"]] = r
+
+    for ex_id, entry in _load_reviews().items():
+        r = out.get(ex_id)
+        if r is None:
+            continue
+        r["review_status"] = entry.get("status", r["review_status"])
+        if isinstance(entry.get("patch"), dict):
+            r.update(entry["patch"])
     return out
 
 
@@ -59,9 +85,12 @@ def list_summaries(
     tier: str | None = None,
     source: str | None = None,
     hidden_ids: set[str] | None = None,
+    reviewed_only: bool = False,
 ) -> list[ExerciseSummary]:
     """`tier` is cumulative — tier="intermediate" returns beginner + intermediate.
-    `source` filters to exactly that pool. `hidden_ids` are excluded (reported)."""
+    `source` filters to exactly that pool. `hidden_ids` are excluded (reported).
+    Exercises a reviewer marked "rejected" are always excluded; `reviewed_only`
+    additionally drops anything not yet "approved"."""
     allowed = None
     if tier is not None:
         if tier not in TIER_ORDER:
@@ -72,9 +101,19 @@ def list_summaries(
         _summary(r)
         for r in _EXERCISES.values()
         if r["id"] not in hidden
+        and r.get("review_status") != "rejected"
+        and (not reviewed_only or r.get("review_status") == "approved")
         and (allowed is None or r["difficulty"] in allowed)
         and (source is None or r["source"] == source)
     ]
+
+
+def review_counts() -> dict[str, int]:
+    """{status: n} across all exercises — for scripts/review status output."""
+    out: dict[str, int] = {}
+    for r in _EXERCISES.values():
+        out[r["review_status"]] = out.get(r["review_status"], 0) + 1
+    return out
 
 
 def curated_ids_for_tier(tier: str) -> list[str]:

@@ -43,7 +43,7 @@ demo or on a CI schedule.
 | `app/config.py` | env → settings (key, model, origins, DB URL) |
 | `app/db.py` / `app/models.py` | SQLAlchemy engine + the `attempts` table |
 | `app/schemas.py` | request/response shapes (mirror `../CONTRACT.md`) |
-| `app/exercises.py` | load `data/exercises.json`, serve file vs. answer data |
+| `app/exercises.py` | load curated + generated pools, merge `exercises.review.json` sidecar, serve file vs. answer data |
 | `app/localisation.py` | line-overlap scoring (±2 tolerance), pure Python |
 | `app/grader.py` | Gemini call for explanation + teaching, hash-cached, safe fallback |
 | `app/ai_review.py` | Gemini as an independent reviewer; diffs AI vs student vs ground truth |
@@ -62,6 +62,17 @@ Writes `app/data/exercises.generated.json` (`source: "generated"`, ids
 `ex-gNNNN`). Needs `GEMINI_API_KEY`. Validates each (parses, line numbers in
 range, deduped); resumes from the last id. Generated exercises are never used
 in a promotion test and can be flagged via `POST /exercises/{id}/report`.
+
+## Reviewing generated exercises
+
+    python scripts/review_exercises.py --difficulty beginner   # a/r/e/s/q per exercise
+    python scripts/review_exercises.py --status                # progress counts
+
+Verdicts land in the append-only sidecar `app/data/exercises.review.json`
+(`{id: {status, by, at, note?, patch?}}`), merged in `exercises.py` at load:
+`rejected` hides an exercise from listings, `edited` applies its `patch`,
+`approved` marks it human-reviewed. Stdlib only — a reviewer needs just
+Python, not the full backend. Full runbook: `REVIEW.md`.
 
 ## Adding exercises
 
