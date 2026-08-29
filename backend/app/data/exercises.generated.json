@@ -5650,5 +5650,386 @@
       "Look at the specific exception being caught in the except block.",
       "Cache clients usually raise communication errors like ConnectionError when they are unreachable."
     ]
+  },
+  {
+    "id": "ex-g0287",
+    "language": "python",
+    "title": "Uncaught Exception in Webhook Signature Verification",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(payload: bytes, signature: str, secret: str) -> bool:\n    expected_signature = hmac.new(\n        secret.encode(),\n        payload,\n        hashlib.sha256\n    ).hexdigest()\n    return hmac.compare_digest(expected_signature, signature)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-    return hmac.compare_digest(expected_signature, signature)\n+    return isinstance(signature, str) and hmac.compare_digest(expected_signature, signature)",
+    "reference": "The function compares the expected HMAC signature with the provided signature using hmac.compare_digest. However, if the incoming signature header is missing or of an unexpected type like None, compare_digest raises a TypeError instead of safely returning False. Adding a type check ensures that invalid or missing signatures are handled gracefully without crashing the request handler.",
+    "hints": [
+      "Consider what happens if the input types to the comparison function are unexpected.",
+      "Look closely at the types expected by the standard library's string comparison function.",
+      "Ensure that a missing or non-string signature header does not cause an unhandled exception."
+    ]
+  },
+  {
+    "id": "ex-g0288",
+    "language": "python",
+    "title": "Unmasked Authorization Header in Request Logger",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_request(request):\n    headers = dict(request.headers)\n    auth_token = headers.get('Authorization')\n    if auth_token:\n        logging.info(f\"Incoming request with Auth: {auth_token}\")\n    else:\n        logging.info(\"Incoming request without Auth\")\n    return True\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -6,1 +6,1 @@\n-        logging.info(f\"Incoming request with Auth: {auth_token}\")\n+        logging.info(\"Incoming request with Auth: [REDACTED]\")",
+    "reference": "Logging raw authorization tokens exposes sensitive credentials to log management systems, disk storage, and potentially unauthorized readers. An attacker with log read access could steal the token and impersonate the user. The fix is to redact or mask sensitive header values before writing them to any log output.",
+    "hints": [
+      "Examine what data is being recorded in the log statements.",
+      "Look closely at the variable being printed when an authorization header is present.",
+      "Consider whether sensitive credentials like tokens should ever be stored in plain text in log files."
+    ]
+  },
+  {
+    "id": "ex-g0289",
+    "language": "python",
+    "title": "Exception Swallowing in Inventory Check",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import requests\n\ndef check_stock(item_id: str) -> bool:\n    try:\n        response = requests.get(f\"https://api.inventory.local/items/{item_id}\")\n        response.raise_for_status()\n        return response.json().get(\"in_stock\", False)\n    except Exception:\n        pass\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -7,2 +7,2 @@\n-    except Exception:\n-        pass\n+    except requests.RequestException as e:\n+        logger.error(f\"Failed to check stock for {item_id}: {e}\")\n+        raise",
+    "reference": "The function silently catches all exceptions using a bare 'except Exception' block and returns None by default instead of bubbling up the failure or logging it. This anti-pattern masks underlying network or parsing issues, making debugging difficult as callers assume the item is simply out of stock. The fix involves catching specific request exceptions, logging the error context, and re-raising the exception so the caller is properly notified of the failure.",
+    "hints": [
+      "Examine how exceptions are handled at the end of the function.",
+      "Consider what happens to the caller if the external inventory service goes down completely.",
+      "Avoid using a generic 'except Exception' block with a 'pass' statement that hides critical failures."
+    ]
+  },
+  {
+    "id": "ex-g0290",
+    "language": "python",
+    "title": "Lazy Configuration Loading with Mutable Default",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import os\nimport json\n\nclass ConfigLoader:\n    def __init__(self, overrides={}):\n        self._config = {\"debug\": False, \"timeout\": 30}\n        self._config.update(overrides)\n\n    def get(self, key):\n        return self._config.get(key)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "While using a mutable default argument like '{}' is a well-known anti-pattern in Python due to shared state across calls, it is completely safe here. The dictionary is only used for read-only lookups and initialization via '.update()', and a brand new instance-level dictionary 'self._config' is created on every instantiation, meaning mutations to 'self._config' never affect the default parameter or subsequent calls.",
+    "hints": [
+      "Check how the 'overrides' parameter is actually used inside the constructor.",
+      "Determine if the default argument's state leaks across different instances of ConfigLoader."
+    ]
+  },
+  {
+    "id": "ex-g0291",
+    "language": "python",
+    "title": "Missing Exception Type in Report Export",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "exporter.py",
+    "code": "def export_report(data, filename):\n    try:\n        with open(filename, 'w') as f:\n            f.write(data)\n    except:\n        print(\"Failed to export report\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    except:\n+    except IOError:",
+    "reference": "Catching a bare 'except:' clause without specifying an exception type will trap all runtime exceptions, including system exits, keyboard interrupts, and programming errors like NameError. This makes debugging extremely difficult because it silently swallows unexpected issues. You should always catch specific exception classes, such as IOError or OSError, when dealing with file I/O operations.",
+    "hints": [
+      "Look closely at the except statement in the code.",
+      "Consider what happens if an unexpected bug, like a typo in a variable name, occurs inside the try block.",
+      "Specify the exact exception type, such as IOError, instead of using a bare except clause."
+    ]
+  },
+  {
+    "id": "ex-g0292",
+    "language": "python",
+    "title": "CSV Row Counter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "csv_counter.py",
+    "code": "import csv\n\ndef count_rows(file_path):\n    total_rows = 0\n    with open(file_path, mode='r', encoding='utf-8') as file:\n        reader = csv.reader(file)\n        for row in reader:\n            total_rows += 1\n    return total_rows\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely safe and correct. The 'with' statement ensures that the file is properly and automatically closed after reading, even if an exception occurs inside the block. Therefore, there are no resource leaks.",
+    "hints": [
+      "Check how the file resource is managed in this function.",
+      "Verify whether the file is guaranteed to be closed when the function exits or if an error is raised."
+    ]
+  },
+  {
+    "id": "ex-g0293",
+    "language": "python",
+    "title": "Unescaped Wildcards in Search Query",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(query):\n    db = get_database()\n    if not query:\n        return []\n    escaped_query = query.replace(\"\\\\\", \"\\\\\\\\\")\n    search_pattern = f\"%{escaped_query}%\"\n    cursor = db.execute(\"SELECT id, username FROM users WHERE username LIKE ?\", (search_pattern,))\n    return cursor.fetchall()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    escaped_query = query.replace(\"\\\\\", \"\\\\\\\\\")\n+    escaped_query = query.replace(\"\\\\\", \"\\\\\\\\\").replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")",
+    "reference": "The LIKE operator in SQL treats '%' and '_' as special wildcard characters, which can lead to unintended broader matches or denial-of-service if user input contains them unescaped. While parameterization prevents SQL injection, it does not automatically escape wildcard characters for the LIKE clause. The fix explicitly escapes '%' and '_' and specifies an escape character to ensure literal matching.",
+    "hints": [
+      "Look closely at how special characters used in SQL pattern matching are handled.",
+      "Consider what happens if a user searches for a string containing a percent sign '%' or underscore '_'.",
+      "You need to escape the special LIKE wildcards and inform the SQL query which character is acting as the escape."
+    ]
+  },
+  {
+    "id": "ex-g0294",
+    "language": "python",
+    "title": "Unsafe File Extension Check",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def allowed_file(filename):\n    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png'},\n    return '.' in filename and \\\n           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png'},\n+    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png'}",
+    "reference": "The bug is caused by a trailing comma on the assignment line, which inadvertently converts the ALLOWED_EXTENSIONS variable into a tuple containing a set rather than just the set itself. This causes the membership check to fail because it looks for the string extension inside a tuple instead of evaluating against the set of strings. Removing the comma fixes the data type and ensures the membership operator works as intended.",
+    "hints": [
+      "Look closely at the punctuation used when defining the allowed extensions variable.",
+      "Examine the data type of ALLOWED_EXTENSIONS by printing it or checking its initialization syntax.",
+      "A trailing comma at the end of a statement can unintentionally create a container type you might not expect."
+    ]
+  },
+  {
+    "id": "ex-g0295",
+    "language": "python",
+    "title": "False Positive Session Key Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "def clear_user_session(session):\n    keys_to_remove = list(session.keys())\n    for key in keys_to_remove:\n        session.pop(key)\n    return session\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code looks suspicious to novices because modifying a dictionary while iterating over it directly (e.g., for key in session) is a common bug in Python. However, this code creates a separate list of keys first using list(session.keys()), which safely prevents any runtime dictionary size mutation errors. Therefore, flagging this is a false positive.",
+    "hints": [
+      "Look closely at how the dictionary keys are retrieved before the loop begins.",
+      "Consider whether mutating the session dictionary affects the active iteration mechanism."
+    ]
+  },
+  {
+    "id": "ex-g0296",
+    "language": "python",
+    "title": "Pass-through Hash Verification",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef verify_password_hash(stored_hash: str, provided_hash: str) -> bool:\n    return hmac.compare_digest(stored_hash, provided_hash)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although using hmac.compare_digest might look like manual hash handling if you are expecting a framework-level authentication helper, it is actually the cryptographically correct way to prevent timing attacks in Python when comparing strings or hashes. This is a false positive.",
+    "hints": [
+      "Check how the string comparison is being performed.",
+      "Look up the documentation for the hmac module's string comparison functions."
+    ]
+  },
+  {
+    "id": "ex-g0297",
+    "language": "python",
+    "title": "Handling Mail Sending Exceptions",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_welcome_email(user_email):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.login('user@example.com', 'password')\n    server.sendmail('user@example.com', user_email, 'Welcome!')\n    server.quit()\n",
+    "real_lines": [
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fix_diff": "--- email_sender.py\n+++ email_sender.py\n@@ -4,5 +4,9 @@\n-    server = smtplib.SMTP('smtp.example.com', 587)\n-    server.starttls()\n-    server.login('user@example.com', 'password')\n-    server.sendmail('user@example.com', user_email, 'Welcome!')\n-    server.quit()\n+    try:\n+        server = smtplib.SMTP('smtp.example.com', 587)\n+        server.starttls()\n+        server.login('user@example.com', 'password')\n+        server.sendmail('user@example.com', user_email, 'Welcome!')\n+        server.quit()\n+    except smtplib.SMTPException as e:\n+        print(f\"Failed to send email: {e}\")",
+    "reference": "Network operations like sending emails are prone to unexpected failures such as connection timeouts, authentication errors, or server rejections. Without proper exception handling using try-except blocks, these errors will cause the entire program to crash. Catching specific exceptions like smtplib.SMTPException allows the application to gracefully handle mail transmission failures.",
+    "hints": [
+      "Consider what happens if the SMTP server is down or unreachable when this function runs.",
+      "Network and server operations can raise exceptions that need to be caught.",
+      "Wrap the SMTP operations in a try-except block targeting smtplib.SMTPException."
+    ]
+  },
+  {
+    "id": "ex-g0298",
+    "language": "python",
+    "title": "Deferred Task Execution Using functools.partial",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import functools\nimport logging\n\nlogger = logging.getLogger(__name__)\n\ndef enqueue_task(registry, func, *args, **kwargs):\n    task_handle = functools.partial(func, *args, **kwargs)\n    registry.append(task_handle)\n    logger.info(\"Successfully queued task: %s\", func.__name__)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Novice reviewers often flag 'func.__name__' because some arbitrary callables (like custom class instances implementing __call__) do not have a __name__ attribute, which would raise an AttributeError. However, in this background job queue context, tasks are strictly enforced to be standard Python functions or methods, making __name__ safe and correct to access.",
+    "hints": [
+      "Check how the task identifier is being logged at the end of the function.",
+      "Consider what happens if a caller passes a generic object with a __call__ method instead of a standard function."
+    ]
+  },
+  {
+    "id": "ex-g0299",
+    "language": "python",
+    "title": "Path Traversal in CSV Import",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nimport os\n\ndef import_user_csv(filename, current_user):\n    if not current_user.get('is_admin'):\n        return {\"error\": \"Unauthorized\"}\n    base_dir = \"/var/app/uploads\"\n    file_path = os.path.join(base_dir, filename)\n    with open(file_path, mode='r') as f:\n        reader = csv.reader(f)\n        return list(reader)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    file_path = os.path.join(base_dir, filename)\n+    file_path = os.path.abspath(os.path.join(base_dir, filename))\n+    if not file_path.startswith(base_dir + os.sep):\n+        return {\"error\": \"Invalid file path\"}",
+    "reference": "Although the function checks if the current user is an administrator, it contains a path traversal vulnerability. By supplying a filename containing directory traversal sequences like '../../etc/passwd', an attacker can read arbitrary files outside the intended base directory. To fix this, resolve the absolute path and ensure it remains strictly within the designated base directory.",
+    "hints": [
+      "Examine how the file path is constructed from user input.",
+      "Consider what happens if the filename contains relative path operators.",
+      "Use os.path.abspath and check that the resulting path starts with the base directory."
+    ]
+  },
+  {
+    "id": "ex-g0300",
+    "language": "python",
+    "title": "Password Hashing with Salt",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hashlib\n\ndef hash_password(password: str, salt: str) -> str:\n    combined = salt + password\n    return hashlib.sha256(combined.encode('utf-8')).hexdigest()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although SHA-256 without a stretching function like PBKDF2 is generally discouraged for password storage in modern applications, the implementation correctly utilizes a unique salt concatenated with the password, preventing basic rainbow table attacks and functioning as a standard cryptographic hash without defects for this scope. Flagging this as insecure is a false positive for a basic implementation exercise.",
+    "hints": [
+      "Check how the salt is combined with the input password.",
+      "Verify if the hashing algorithm produces a consistent and expected output format."
+    ]
+  },
+  {
+    "id": "ex-g0301",
+    "language": "python",
+    "title": "Suspicious looking string formatting in request logger",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_request(method, path):\n    log_message = \"Request: %s %s\" % (method, path)\n    logging.info(log_message)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses old-style percent formatting (%s), which is sometimes flagged for potential security risks if variables are untrusted. However, in this case, it is completely safe because it is used strictly for formatting standard tuple values into a logging message without evaluating dynamic user input as code.",
+    "hints": [
+      "Check how the string interpolation is performed and whether user input is actually executed or just formatted.",
+      "Verify if the variables passed into the format string are treated as raw data or if they pose a genuine injection threat."
+    ]
+  },
+  {
+    "id": "ex-g0302",
+    "language": "python",
+    "title": "Dynamic Configuration Evaluator",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import ast\n\ndef load_config_value(raw_value: str):\n    try:\n        return ast.literal_eval(raw_value)\n    except (ValueError, SyntaxError):\n        return raw_value\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses ast.literal_eval, which is completely safe for evaluating strings containing Python literal structures (like strings, numbers, tuples, lists, dicts, booleans, and None). Unlike the dangerous eval(), it cannot execute arbitrary code or functions, making this implementation secure despite its appearance.",
+    "hints": [
+      "Check which evaluation function from the ast module is being used.",
+      "Consider whether ast.literal_eval can execute arbitrary code compared to standard eval."
+    ]
+  },
+  {
+    "id": "ex-g0303",
+    "language": "python",
+    "title": "Global State in Authentication Check",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "current_user = None\n\ndef authenticate(username, password):\n    global current_user\n    if username == \"admin\" and password == \"secret\":\n        current_user = username\n        return True\n    return False\n\ndef get_current_user():\n    return current_user\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-        current_user = username\n+        return True",
+    "reference": "This code uses a global variable to store the currently authenticated user, which introduces a race condition in multi-threaded web servers. When multiple requests are handled concurrently, one request can overwrite the global current_user value before another request finishes reading it. To fix this, authentication state should be stored in request-scoped storage or passed explicitly per session rather than mutating shared global state.",
+    "hints": [
+      "Examine how the application tracks who is currently logged in.",
+      "Look closely at the mutable state shared across function calls.",
+      "Consider what happens when two different users authenticate at the exact same time."
+    ]
+  },
+  {
+    "id": "ex-g0304",
+    "language": "python",
+    "title": "Unclosed Configuration File Resource",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_configuration(filepath):\n    f = open(filepath, 'r')\n    config_data = json.load(f)\n    return config_data\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    f = open(filepath, 'r')\n+    with open(filepath, 'r') as f:",
+    "reference": "Opening a file without using a context manager or explicitly closing it can lead to resource leaks, especially if an exception occurs during reading or parsing. Using the 'with' statement ensures that the file handle is automatically and safely closed once the block is exited. This practice prevents file descriptor exhaustion in long-running applications.",
+    "hints": [
+      "Examine how system resources like file handles are managed after they are opened.",
+      "Think about what happens to the file descriptor if an exception is raised inside the function.",
+      "Consider utilizing a context manager (the 'with' statement) to handle the file lifecycle automatically."
+    ]
+  },
+  {
+    "id": "ex-g0305",
+    "language": "python",
+    "title": "Unclosed File Resource in PDF Report Generator",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def generate_summary_report(data, output_path):\n    f = open(output_path, \"w\")\n    f.write(\"=== Summary Report ===\\n\")\n    for key, value in data.items():\n        f.write(f\"{key}: {value}\\n\")\n    f.close()\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(output_path, \"w\")\n+    with open(output_path, \"w\") as f:",
+    "reference": "Opening a file without a context manager or a try-finally block creates a resource leak if an exception occurs during writing. If the function errors out before reaching f.close(), the file descriptor remains open until garbage collection. Using a context manager ('with' statement) guarantees that the file is safely closed regardless of whether exceptions are raised.",
+    "hints": [
+      "Examine how external resources like files are acquired at the start of the function.",
+      "Consider what happens to the file descriptor if an exception occurs inside the loop.",
+      "Refactor the file opening logic to use a context manager ('with' statement) to ensure automatic cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0306",
+    "language": "python",
+    "title": "Unsafe Cache Key Formatting",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\nclass CacheLayer:\n    def __init__(self, client: redis.Redis):\n        self.client = client\n\n    def get_user_data(self, tenant_id: str, user_id: str) -> str:\n        cache_key = \"tenant:%s:user:%s\" % (tenant_id, user_id)\n        return self.client.get(cache_key)\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -8,1 +8,15 @@\n-        cache_key = \"tenant:%s:user:%s\" % (tenant_id, user_id)\n+        if not tenant_id.isalnum() or not user_id.isalnum():\n+            raise ValueError(\"Invalid characters in identifiers\")\n+        cache_key = f\"tenant:{tenant_id}:user:{user_id}\"",
+    "reference": "This code constructs a Redis cache key using string formatting with raw input parameters. If an attacker can inject delimiter characters like colons or spaces into tenant_id or user_id, they can manipulate the namespace to access or poison keys belonging to other tenants. The fix requires validating the input format or sanitizing identifiers to ensure they conform to expected alphanumeric patterns.",
+    "hints": [
+      "Examine how the cache key is constructed from the function arguments.",
+      "Consider what happens if the input strings contain Redis key separators.",
+      "Validate that the input parameters only contain safe characters before using them in the key."
+    ]
   }
 ]
