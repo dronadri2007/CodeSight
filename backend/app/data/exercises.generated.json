@@ -12740,5 +12740,261 @@
       "Check how the string comparison is being performed.",
       "Verify whether the comparison function is vulnerable to timing attacks."
     ]
+  },
+  {
+    "id": "ex-g0647",
+    "language": "python",
+    "title": "Insecure Hardcoded API Key Fallback",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import os\n\ndef load_api_config(user_config):\n    config = {\n        \"timeout\": user_config.get(\"timeout\", 30),\n        \"api_key\": user_config.get(\"api_key\", \"sk_live_998877665544332211\")\n    }\n    return config\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-        \"api_key\": user_config.get(\"api_key\", \"sk_live_998877665544332211\")\n+        \"api_key\": user_config.get(\"api_key\") or os.environ.get(\"API_KEY\")",
+    "reference": "Hardcoding production secrets or high-privileged API keys as default fallbacks in source code is a critical security vulnerability. If a user configuration omits the api_key field, the application silently falls back to a hardcoded credential, potentially exposing sensitive resources or leaking keys via version control. The fix is to retrieve the required credential from a secure environment variable or raise an exception if it is missing.",
+    "hints": [
+      "Examine how default values are assigned when a configuration key is missing.",
+      "Look closely at the fallback value used for the api_key property.",
+      "Avoid embedding static secrets directly in the source code; use environment variables instead."
+    ]
+  },
+  {
+    "id": "ex-g0648",
+    "language": "python",
+    "title": "Inventory Batch Deallocation",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def process_deallocations(allocations: dict[str, int], stock: dict[str, int]) -> None:\n    for sku, qty in tuple(allocations.items()):\n        if qty <= 0:\n            continue\n        stock[sku] = stock.get(sku, 0) + qty\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Iterating over a tuple copy of dictionary items via tuple(allocations.items()) is a safe and intentional pattern used here to avoid RuntimeError: dictionary changed size during iteration, if another part of the system modifies the dictionary concurrently or if it gets mutated downstream. It is not a bug.",
+    "hints": [
+      "Check how the dictionary items are being iterated over. Is it modifying the original collection directly during the loop?",
+      "Consider why a tuple wrapper is used around the items() call in a synchronous function."
+    ]
+  },
+  {
+    "id": "ex-g0649",
+    "language": "python",
+    "title": "Unclosed File Resource in PDF Report Generator",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def generate_summary_report(data, output_path):\n    f = open(output_path, \"w\")\n    f.write(f\"Report Summary\\nTotal Records: {len(data)}\\n\")\n    for item in data:\n        f.write(f\"{item.get('name')}: {item.get('value')}\\n\")\n    return output_path\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- report.py\n+++ report.py\n@@ -1,3 +1,2 @@\n def generate_summary_report(data, output_path):\n-    f = open(output_path, \"w\")\n-    f.write(f\"Report Summary\\nTotal Records: {len(data)}\\n\")\n+    with open(output_path, \"w\") as f:\n+        f.write(f\"Report Summary\\nTotal Records: {len(data)}\\n\")",
+    "reference": "The function opens a file to write the report content but never closes it, leading to a potential file descriptor leak. Using a context manager ensures that the file handle is properly and automatically closed as soon as the execution leaves the block, even if exceptions occur. This is a best practice for managing external resources safely and efficiently in Python.",
+    "hints": [
+      "Examine how external system resources like files or network sockets are opened and managed.",
+      "Look closely at the lifecycle of the file object created on the second line.",
+      "Refactor the file handling to use a context manager (the 'with' statement) rather than a raw 'open' call."
+    ]
+  },
+  {
+    "id": "ex-g0650",
+    "language": "python",
+    "title": "Handling Missing SMTP Configuration",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_welcome_email(recipient):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.sendmail('from@example.com', recipient, 'Welcome!')\n    server.quit()\n",
+    "real_lines": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "fix_diff": "@@ -4,4 +4,7 @@\n     server = smtplib.SMTP('smtp.example.com', 587)\n-    server.starttls()\n-    server.sendmail('from@example.com', recipient, 'Welcome!')\n-    server.quit()\n+    try:\n+        server.starttls()\n+        server.sendmail('from@example.com', recipient, 'Welcome!')\n+    finally:\n+        server.quit()",
+    "reference": "Network operations like sending emails are prone to unexpected failures such as connection drops or authentication issues. If an exception occurs during transmission, the SMTP server connection might remain open without executing the quit method. Using a try-finally block ensures that the server connection is always properly closed regardless of whether the transmission succeeds.",
+    "hints": [
+      "Consider what happens if an error occurs halfway through executing the operations inside the function.",
+      "Network connections and server sessions need to be safely closed even when exceptions are raised.",
+      "Wrap the communication steps in a try block and place the server.quit() call inside a finally block."
+    ]
+  },
+  {
+    "id": "ex-g0651",
+    "language": "python",
+    "title": "Closing Webhook Request File Descriptor",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request_path):\n    f = open(request_path, \"r\")\n    data = f.read()\n    if \"critical\" in data:\n        trigger_alert()\n    return data\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,3 @@\n-    f = open(request_path, \"r\")\n+    with open(request_path, \"r\") as f:\n+        data = f.read()",
+    "reference": "Opening files without using a context manager or explicitly closing them can lead to file descriptor leaks under heavy webhook traffic. As the number of incoming requests grows, the system may run out of available file descriptors, causing crashes. Using a 'with' statement ensures that the file is automatically and safely closed once the block is exited.",
+    "hints": [
+      "Look closely at how external resources like files are managed in the function.",
+      "Consider what happens to the file handle if an exception occurs or when the function completes.",
+      "Refactor the file opening logic to use a context manager ('with' statement)."
+    ]
+  },
+  {
+    "id": "ex-g0652",
+    "language": "python",
+    "title": "Swallowing Exceptions in Payment Processing",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import requests\n\ndef process_refund(transaction_id, amount):\n    payload = {\"id\": transaction_id, \"amount\": amount}\n    try:\n        response = requests.post(\"https://api.pay.com/refund\", json=payload, timeout=10)\n        response.raise_for_status()\n        return response.json()\n    except requests.RequestException:\n        return False\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -8,2 +8,2 @@\n-    except requests.RequestException:\n-        return False\n+    except requests.RequestException as e:\n+        raise PaymentGatewayError(f\"Refund failed for {transaction_id}: {e}\") from e",
+    "reference": "Swallowing exceptions by returning a generic boolean obscures the underlying cause of failure and prevents the calling function from handling the specific error or initiating retries. Instead, you should catch the exception, log or wrap it in a domain-specific custom exception, and re-raise it using 'from e' to preserve the traceback. This ensures proper monitoring and robust error propagation throughout the payments pipeline.",
+    "hints": [
+      "Look closely at how errors are handled when the external API call fails.",
+      "Returning a boolean status instead of raising or propagating an exception can mask critical failure details upstream.",
+      "Consider catching the exception as a variable and re-raising a domain-specific exception while preserving the original traceback."
+    ]
+  },
+  {
+    "id": "ex-g0653",
+    "language": "python",
+    "title": "Email Sender SSL Context",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\nimport ssl\n\ndef send_welcome_email(receiver_email):\n    port = 465\n    smtp_server = \"smtp.example.com\"\n    sender_email = \"my_email@example.com\"\n    password = \"secret_password\"\n\n    context = ssl.create_default_context()\n    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:\n        server.login(sender_email, password)\n        server.sendmail(sender_email, receiver_email, \"Subject: Welcome\\n\\nHello!\")\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses ssl.create_default_context() which properly enables certificate verification by default in Python. Although hardcoding credentials looks suspicious, the implementation of the SSL connection itself is secure and free of defects.",
+    "hints": [
+      "Check how the SSL context is created using the ssl module.",
+      "Verify whether certificate checks are disabled or if default secure settings are applied."
+    ]
+  },
+  {
+    "id": "ex-g0654",
+    "language": "python",
+    "title": "Unclosed Image Resource in Thumbnail Generator",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(input_path, output_path, size=(128, 128)):\n    img = Image.open(input_path)\n    img.thumbnail(size)\n    img.save(output_path)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    img = Image.open(input_path)\n+    with Image.open(input_path) as img:",
+    "reference": "The function opens an image using Pillow's Image.open() without ensuring the underlying file descriptor is properly closed after use. Over time, processing many images this way can lead to file descriptor exhaustion, especially on operating systems with strict limits. Wrapping the open call in a context manager guarantees that the resource is safely closed as soon as the block exits.",
+    "hints": [
+      "Look at how external resources like files are acquired.",
+      "Consider what happens to the file handle returned by Image.open after saving.",
+      "Use a context manager (the 'with' statement) to ensure proper cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0655",
+    "language": "python",
+    "title": "Log Sensitive Authorization Headers",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_incoming_request(request):\n    headers = request.headers\n    auth_token = headers.get(\"Authorization\")\n    logging.info(\"Received request with auth: %s\", auth_token)\n    return True\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-     logging.info(\"Received request with auth: %s\", auth_token)\n+     logging.info(\"Received request with auth: [REDACTED]\")",
+    "reference": "Logging sensitive information such as Authorization tokens can compromise system security if log files are exposed or improperly accessed. Attackers with read access to the logs can hijack sessions or impersonate users using these intercepted credentials. The best practice is to redact sensitive authentication data before writing it to application logs.",
+    "hints": [
+      "Examine what data is being recorded in the log file.",
+      "Look closely at the second argument passed to the logging function.",
+      "Remove or mask the variable containing the token before sending it to the logger."
+    ]
+  },
+  {
+    "id": "ex-g0656",
+    "language": "python",
+    "title": "Global Config Cache Race Condition",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\n_config_cache = None\n\ndef get_config(path):\n    global _config_cache\n    if _config_cache is None:\n        with open(path, 'r') as f:\n            _config_cache = json.load(f)\n    return _config_cache\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -5,3 +5,4 @@\n def get_config(path):\n     global _config_cache\n+    import threading\n     if _config_cache is None:\n         with open(path, 'r') as f:\n             _config_cache = json.load(f)\n     return _config_cache",
+    "reference": "This code suffers from a race condition when multiple threads attempt to load the configuration simultaneously. If two threads check the `_config_cache is None` condition at the same time before either has populated it, both will open and read the file, resulting in redundant work and potentially corrupted state. To fix this, a threading lock should be used around the check-and-set block to ensure thread safety.",
+    "hints": [
+      "Think about what happens if two threads call this function at the exact same time.",
+      "Look closely at the check for whether the cache is None and how it is populated.",
+      "Using a threading.Lock() around the initialization block will prevent concurrent execution."
+    ]
+  },
+  {
+    "id": "ex-g0657",
+    "language": "python",
+    "title": "Insecure Hardcoded API Key",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "def load_config():\n    config = {\n        \"host\": \"localhost\",\n        \"port\": 8080,\n        \"auth_token\": \"secret_token_12345\"\n    }\n    return config\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-        \"auth_token\": \"secret_token_12345\"\n+        \"auth_token\": os.getenv(\"AUTH_TOKEN\")",
+    "reference": "Hardcoding sensitive credentials directly into the source code is a major security risk because anyone with access to the codebase can compromise the system. Secrets such as API keys and auth tokens should always be loaded dynamically from environment variables or a secure vault. By using os.getenv, the application remains secure and follows the principle of separation of code and configuration.",
+    "hints": [
+      "Look at how sensitive values are stored in the dictionary.",
+      "Consider the risks of sharing this code on a public repository.",
+      "Use an environment variable function to retrieve the secret dynamically."
+    ]
+  },
+  {
+    "id": "ex-g0658",
+    "language": "python",
+    "title": "Floating-point precision issue in currency conversion",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_total_amount(items, tax_rate):\n    subtotal = 0.0\n    for item in items:\n        subtotal += item[\"price\"]\n    total = subtotal * (1 + tax_rate)\n    return round(total, 2)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -5,1 +5,1 @@\n-    total = subtotal * (1 + tax_rate)\n+    total = round(subtotal * (1 + tax_rate), 10)",
+    "reference": "Floating-point arithmetic in Python can introduce tiny rounding inaccuracies due to how decimal numbers are represented in binary. When calculating financial totals, these floating-point imperfections can accumulate or cause unexpected results before the final rounding step. Wrapping the intermediate multiplication in a high-precision round or using the decimal module prevents these precision errors.",
+    "hints": [
+      "Look closely at how Python handles floating-point arithmetic during multiplication.",
+      "Consider what happens when you multiply a float with recurring binary decimals by another float.",
+      "Try rounding the result of the multiplication to a high decimal precision before passing it to the final rounding function."
+    ]
+  },
+  {
+    "id": "ex-g0659",
+    "language": "python",
+    "title": "Safe Request IP Extraction",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def get_client_ip(request):\n    forwarded_for = request.headers.get(\"X-Forwarded-For\")\n    if forwarded_for:\n        return forwarded_for.split(\",\")[0].strip()\n    return request.remote_addr\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although using X-Forwarded-For can sometimes be spoofed if not behind a trusted reverse proxy, this implementation correctly handles the comma-separated chain by taking the first IP (the original client) and safely falling back to remote_addr. Furthermore, this is only used for logging purposes, making it secure against injection or security bypass vulnerabilities.",
+    "hints": [
+      "Check how the comma-separated values in the X-Forwarded-For header are processed.",
+      "Consider the security impact of this value since it is solely used for logging purposes."
+    ]
   }
 ]
