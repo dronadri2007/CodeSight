@@ -44,6 +44,11 @@ class Attempt(Base):
     explanation_score: Mapped[float] = mapped_column(Float, default=0.0)
     explanation_verdict: Mapped[str] = mapped_column(String(32), default="")
 
+    # Optional behavioural telemetry + derived integrity score (see app/integrity.py).
+    integrity_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    integrity_verdict: Mapped[str] = mapped_column(String(16), default="")
+    telemetry: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     seq: Mapped[int] = mapped_column(Integer, default=_next_seq, index=True)
 

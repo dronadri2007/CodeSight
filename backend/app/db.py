@@ -32,6 +32,9 @@ _ADDED_COLUMNS = {
     "attempts": {
         "hints_used": "INTEGER NOT NULL DEFAULT 0",
         "seq": "INTEGER NOT NULL DEFAULT 0",
+        "integrity_score": "FLOAT",
+        "integrity_verdict": "VARCHAR(16) NOT NULL DEFAULT ''",
+        "telemetry": "JSON",
     },
 }
 

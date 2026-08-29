@@ -39,12 +39,31 @@ class HintResponse(BaseModel):
 
 
 # --- POST /grade -----------------------------------------------------------
+class GradeTelemetry(BaseModel):
+    """Optional behavioural signals the frontend may send with a submission.
+    Used only to compute an integrity score — never to block or rescore."""
+
+    time_to_submit_ms: int | None = Field(default=None, ge=0)  # exercise open -> submit
+    paste_count: int = Field(default=0, ge=0)                  # pastes into the explanation
+    pasted_chars: int = Field(default=0, ge=0)                 # total characters pasted
+    tab_blur_count: int = Field(default=0, ge=0)              # times the tab lost focus
+    tab_blur_ms: int = Field(default=0, ge=0)                 # total unfocused time
+    keystroke_count: int = Field(default=0, ge=0)            # keystrokes in the explanation
+
+
 class GradeRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
     exercise_id: str
     selected_lines: list[int] = Field(default_factory=list)
     explanation: str = Field(default="", max_length=4000)
     hints_used: int = Field(default=0, ge=0, le=10)
+    telemetry: GradeTelemetry | None = None
+
+
+class IntegritySignal(BaseModel):
+    score: float                                    # 0.0-1.0, 1.0 = no concerns
+    verdict: Literal["clean", "review", "flagged"]
+    flags: list[str]                                # human-readable reasons, may be empty
 
 
 class LocalisationResult(BaseModel):
@@ -75,6 +94,7 @@ class GradeResponse(BaseModel):
     hints_used: int
     hint_multiplier: float          # 1.0 / 0.9 / 0.75 / 0.5
     score_after_hints: float        # mean(loc, expl) * multiplier, 0.0-1.0
+    integrity: IntegritySignal | None = None   # present only when telemetry was sent
 
 
 # --- model-facing schema for the grader call -----------------------------

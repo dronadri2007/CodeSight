@@ -28,6 +28,7 @@ from app.config import (
 from app.db import get_db, init_db
 from app.grader import diagnostics, grade_explanation
 from app.hints import score_multiplier
+from app.integrity import score_integrity
 from app.localisation import score_localisation
 from app.models import Attempt
 from app.profile import build_profile
@@ -161,6 +162,10 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
     combined = (loc["score"] + expl["explanation_score"]) / 2
     score_after_hints = round(combined * mult, 2)
 
+    # Integrity telemetry is optional and advisory only — it never changes the
+    # grade above, it is just recorded and surfaced.
+    integrity = score_integrity(req.explanation, req.telemetry) if req.telemetry else None
+
     db.add(
         Attempt(
             session_id=req.session_id,
@@ -173,6 +178,9 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
             localisation_verdict=loc["verdict"],
             explanation_score=expl["explanation_score"],
             explanation_verdict=expl["explanation_verdict"],
+            integrity_score=integrity.score if integrity else None,
+            integrity_verdict=integrity.verdict if integrity else "",
+            telemetry=req.telemetry.model_dump() if req.telemetry else None,
         )
     )
     db.commit()
@@ -194,6 +202,7 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
         hints_used=req.hints_used,
         hint_multiplier=mult,
         score_after_hints=score_after_hints,
+        integrity=integrity,
     )
 
 

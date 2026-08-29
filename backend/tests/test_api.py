@@ -71,12 +71,86 @@ def test_grade_response_shape(client):
     ).json()
     assert set(d) == {
         "localisation", "explanation", "teaching", "defect_class", "reference_fix",
-        "hints_used", "hint_multiplier", "score_after_hints",
+        "hints_used", "hint_multiplier", "score_after_hints", "integrity",
     }
     assert set(d["localisation"]) == {"score", "verdict", "real_lines", "note"}
     assert set(d["explanation"]) == {"score", "verdict", "note"}
     assert set(d["teaching"]) == {"where", "why_missed", "pattern"}
     assert d["defect_class"] == "injection"
+    assert d["integrity"] is None  # no telemetry sent
+
+
+# --- integrity telemetry -------------------------------------------
+def test_grade_integrity_clean_when_typed_normally(client):
+    expl = "The user email is interpolated straight into the SQL string on line 2, "
+    expl += "so an attacker can inject a quote and change the query. Bind it instead."
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-001", "selected_lines": [2],
+            "explanation": expl,
+            "telemetry": {
+                "time_to_submit_ms": 95_000, "paste_count": 0, "pasted_chars": 0,
+                "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": len(expl) + 20,
+            },
+        },
+    ).json()
+    assert d["integrity"]["verdict"] == "clean"
+    assert d["integrity"]["score"] == 1.0
+    assert d["integrity"]["flags"] == []
+
+
+def test_grade_integrity_flags_a_dominant_paste(client):
+    expl = "x" * 200
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-001", "selected_lines": [2],
+            "explanation": expl,
+            "telemetry": {
+                "time_to_submit_ms": 8_000, "paste_count": 1, "pasted_chars": 200,
+                "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": 3,
+            },
+        },
+    ).json()
+    assert d["integrity"]["verdict"] == "flagged"
+    assert d["integrity"]["score"] < 0.4
+    assert any("pasted" in f for f in d["integrity"]["flags"])
+    # the grade itself is untouched by integrity
+    assert d["score_after_hints"] == client.post(
+        "/grade",
+        json={"session_id": "t2", "exercise_id": "ex-001", "selected_lines": [2], "explanation": expl},
+    ).json()["score_after_hints"]
+
+
+def test_grade_integrity_flags_off_tab_time(client):
+    expl = "This code fails to check that the row exists before using it. " * 3
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-002", "selected_lines": [1],
+            "explanation": expl,
+            "telemetry": {
+                "time_to_submit_ms": 120_000, "paste_count": 0, "pasted_chars": 0,
+                "tab_blur_count": 2, "tab_blur_ms": 45_000, "keystroke_count": len(expl),
+            },
+        },
+    ).json()
+    assert d["integrity"]["verdict"] in {"review", "flagged"}
+    assert any("focused" in f for f in d["integrity"]["flags"])
+
+
+def test_grade_integrity_ignores_signals_on_short_answers(client):
+    d = client.post(
+        "/grade",
+        json={
+            "session_id": "t", "exercise_id": "ex-001", "selected_lines": [2],
+            "explanation": "sql injection",
+            "telemetry": {"time_to_submit_ms": 200, "paste_count": 0, "pasted_chars": 0,
+                          "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": 1},
+        },
+    ).json()
+    assert d["integrity"]["verdict"] == "clean"
 
 
 def test_grade_correct_line_is_hit(client):

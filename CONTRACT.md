@@ -118,7 +118,15 @@ Request:
       "exercise_id": "ex-001",
       "selected_lines": [2],
       "explanation": "User input is interpolated straight into the SQL string.",
-      "hints_used": 0
+      "hints_used": 0,
+      "telemetry": {
+        "time_to_submit_ms": 94000,
+        "paste_count": 0,
+        "pasted_chars": 0,
+        "tab_blur_count": 0,
+        "tab_blur_ms": 0,
+        "keystroke_count": 180
+      }
     }
 
 - `session_id` — any stable string the client generates once and reuses
@@ -128,6 +136,12 @@ Request:
 - `hints_used` — 0–10, how many hints the student opened. Scales
   `score_after_hints` only; the raw scores and the weakness profile are
   unaffected.
+- `telemetry` — **optional** behavioural signals for the integrity score
+  below. Omit it entirely and `integrity` in the response is `null`. All
+  fields are non-negative integers; `time_to_submit_ms` may be omitted.
+  Measured client-side: `paste_count` / `pasted_chars` from paste events on
+  the explanation field, `tab_blur_count` / `tab_blur_ms` from
+  `visibilitychange`, `keystroke_count` from keydown on the explanation.
 
 Response 200:
 
@@ -152,13 +166,25 @@ Response 200:
       "reference_fix": "Use a parameterised query and bind email as a parameter.",
       "hints_used": 0,
       "hint_multiplier": 1.0,
-      "score_after_hints": 0.9
+      "score_after_hints": 0.9,
+      "integrity": {
+        "score": 1.0,
+        "verdict": "clean",
+        "flags": []
+      }
     }
 
 - `hint_multiplier` — from `hints_used` (1.0 / 0.9 / 0.75 / 0.5).
 - `score_after_hints` — `mean(localisation.score, explanation.score) *
   hint_multiplier`, rounded to 2dp. A display number; not stored, not used by
   the profile.
+- `integrity` — `null` unless `telemetry` was sent. When present:
+  - `score` — 0.0–1.0, 1.0 = no concerns. `1.0 - sum(penalties)`, clamped.
+  - `verdict` — `clean` (≥ 0.8) · `review` (0.4 ≤ score < 0.8) · `flagged` (< 0.4).
+  - `flags` — human-readable reasons (dominant paste, few keystrokes for the
+    text length, implausibly fast submit, long time off-tab). May be empty.
+  - **Advisory only** — it never changes the grade or gates the submission
+    ("practice, not exam"). It is stored on the attempt for a later mentor view.
 
 Field rules:
 
