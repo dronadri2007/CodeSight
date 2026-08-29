@@ -556,9 +556,24 @@ def test_skill_card_leaderboard_rank(client):
     assert client.get("/profile/rookie/card").json()["leaderboard_rank"] is None
 
 
+# --- admin auth ------------------------------------------------
+def test_admin_needs_a_token(client):
+    assert client.get("/admin/stats").status_code == 401
+    assert client.get("/admin/exercises").status_code == 401
+
+
+def test_admin_login_wrong_password(client):
+    assert client.post("/admin/login", json={"password": "nope"}).status_code == 401
+
+
+def test_admin_login_and_use_token(client, admin_headers):
+    d = client.get("/admin/stats", headers=admin_headers).json()
+    assert d["total"] >= 1000
+
+
 # --- admin (read-only) ------------------------------------------
-def test_admin_stats_shape(client):
-    d = client.get("/admin/stats").json()
+def test_admin_stats_shape(client, admin_headers):
+    d = client.get("/admin/stats", headers=admin_headers).json()
     assert d["total"] >= 1000
     assert set(d) == {
         "total", "by_status", "by_source", "by_difficulty", "by_defect_class",
@@ -568,30 +583,94 @@ def test_admin_stats_shape(client):
     assert d["by_source"].get("curated", 0) >= 35
 
 
-def test_admin_exercises_filters(client):
-    everything = client.get("/admin/exercises").json()
+def test_admin_exercises_filters(client, admin_headers):
+    everything = client.get("/admin/exercises", headers=admin_headers).json()
     assert everything["total"] == everything["matched"] >= 1000
     row = everything["exercises"][0]
     assert set(row) >= {"id", "title", "review_status", "status_label", "difficulty_label", "reports", "source"}
     assert "code" not in row and "real_lines" not in row
 
-    curated = client.get("/admin/exercises?source=curated").json()
+    curated = client.get("/admin/exercises?source=curated", headers=admin_headers).json()
     assert curated["matched"] < everything["total"]
     assert all(r["source"] == "curated" for r in curated["exercises"])
 
-    pending = client.get("/admin/exercises?status=Pending").json()
+    pending = client.get("/admin/exercises?status=Pending", headers=admin_headers).json()
     assert all(r["status_label"] == "Pending" for r in pending["exercises"])
 
-    hit = client.get("/admin/exercises?search=injection&limit=5").json()
+    hit = client.get("/admin/exercises?search=injection&limit=5", headers=admin_headers).json()
     assert hit["matched"] >= 1 and len(hit["exercises"]) <= 5
 
 
-def test_admin_exercises_reports_reflected(client):
+def test_admin_exercises_reports_reflected(client, admin_headers):
     client.post("/exercises/ex-g0001/report", json={"session_id": "a", "reason": "bad"})
     client.post("/exercises/ex-g0001/report", json={"session_id": "b", "reason": "bad"})
-    row = next(r for r in client.get("/admin/exercises?search=ex-g0001").json()["exercises"] if r["id"] == "ex-g0001")
+    row = next(r for r in client.get("/admin/exercises?search=ex-g0001", headers=admin_headers).json()["exercises"] if r["id"] == "ex-g0001")
     assert row["reports"] == 2
-    assert client.get("/admin/stats").json()["reported"] == 1
+    assert client.get("/admin/stats", headers=admin_headers).json()["reported"] == 1
+
+
+# --- admin write path (Postgres overlay) ----------------------
+def test_admin_review_status_persists_and_gates_listings(client, admin_headers):
+    # reject a generated exercise -> it drops from the public listing
+    assert "ex-g0002" in {e["id"] for e in client.get("/exercises").json()}
+    r = client.post("/admin/exercises/ex-g0002/review", headers=admin_headers, json={"status": "rejected", "note": "wrong fix"})
+    assert r.status_code == 200 and r.json()["review_status"] == "rejected"
+    assert "ex-g0002" not in {e["id"] for e in client.get("/exercises").json()}
+    # still resolvable by id
+    assert client.get("/exercises/ex-g0002").status_code == 200
+    # approve it back
+    client.post("/admin/exercises/ex-g0002/review", headers=admin_headers, json={"status": "approved"})
+    assert "ex-g0002" in {e["id"] for e in client.get("/exercises").json()}
+
+
+def test_admin_create_edit_delete_exercise(client, admin_headers):
+    body = {
+        "title": "Admin-made injection", "defect_class": "injection", "difficulty": "beginner",
+        "code": "def q(u):\n    return db.execute(\"select * from t where u='\" + u + \"'\")\n",
+        "real_lines": [2], "fix_diff": "+ bind u", "reference": "string interpolation into SQL.",
+        "hints": ["follow u", "line 2 concatenates"],
+    }
+    r = client.post("/admin/exercises", headers=admin_headers, json=body)
+    assert r.status_code == 201, r.text
+    exid = r.json()["id"]
+    assert exid.startswith("adm-")
+
+    # it shows up everywhere the effective set is used
+    assert exid in {e["id"] for e in client.get("/exercises").json()}
+    f = client.get(f"/exercises/{exid}").json()
+    assert f["title"] == "Admin-made injection" and "real_lines" not in f
+    full = client.get(f"/admin/exercises/{exid}", headers=admin_headers).json()
+    assert full["real_lines"] == [2] and full["source"] == "admin"
+
+    # grade against it (answers come from the overlay)
+    g = client.post("/grade", json={"session_id": "s", "exercise_id": exid, "selected_lines": [2], "explanation": "x"}).json()
+    assert g["localisation"]["verdict"] == "hit"
+
+    # edit the title
+    client.put(f"/admin/exercises/{exid}", headers=admin_headers, json={"title": "Renamed"})
+    assert client.get(f"/exercises/{exid}").json()["title"] == "Renamed"
+
+    # bad code on patch -> 422
+    assert client.put(f"/admin/exercises/{exid}", headers=admin_headers, json={"code": "def ("}).status_code == 422
+
+    # delete
+    assert client.delete(f"/admin/exercises/{exid}", headers=admin_headers).status_code == 200
+    assert client.get(f"/exercises/{exid}").status_code == 404
+
+
+def test_admin_create_validation(client, admin_headers):
+    assert client.post("/admin/exercises", headers=admin_headers, json={
+        "title": "bad", "defect_class": "injection", "difficulty": "beginner", "code": "def ("
+    }).status_code == 422
+    assert client.post("/admin/exercises", headers=admin_headers, json={
+        "title": "bad", "defect_class": "not-a-class", "difficulty": "beginner", "code": "x = 1"
+    }).status_code == 422
+
+
+def test_admin_review_unknown_is_404(client, admin_headers):
+    assert client.post("/admin/exercises/nope/review", headers=admin_headers, json={"status": "approved"}).status_code == 404
+    assert client.put("/admin/exercises/nope", headers=admin_headers, json={"title": "x"}).status_code == 404
+    assert client.delete("/admin/exercises/nope", headers=admin_headers).status_code == 404
 
 
 # --- concepts (recommendation engine) --------------------------------

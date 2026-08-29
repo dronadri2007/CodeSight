@@ -64,6 +64,73 @@ def _load() -> dict[str, dict]:
 
 _EXERCISES = _load()
 
+# --- admin overlay (Postgres) ---------------------------------------------
+# Admin edits live in the exercise_overrides table and layer on top of the
+# JSON base here, lazily loaded and cached. app/adminstore.py calls
+# invalidate() after every write.
+_EFFECTIVE: dict[str, dict] | None = None
+
+
+def _load_overrides() -> list:
+    try:
+        from app.db import SessionLocal
+        from app.models import ExerciseOverride
+
+        with SessionLocal() as db:
+            return [
+                {
+                    "id": o.id,
+                    "op": o.op,
+                    "data": o.data or {},
+                    "review_status": o.review_status or "",
+                }
+                for o in db.query(ExerciseOverride).all()
+            ]
+    except Exception:  # DB not ready / table absent — no overrides
+        return []
+
+
+def _apply_override(merged: dict[str, dict], ov: dict) -> None:
+    oid, op = ov["id"], ov["op"]
+    if op == "delete":
+        merged.pop(oid, None)
+        return
+    if op == "create":
+        rec = dict(ov["data"])
+        rec["id"] = oid
+        rec.setdefault("source", "admin")
+        rec.setdefault("difficulty", "beginner")
+        rec.setdefault("language", "python")
+        rec.setdefault("hints", [])
+        rec["review_status"] = ov["review_status"] or "approved"
+        merged[oid] = rec
+        return
+    base = merged.get(oid)
+    if base is None:
+        return
+    base = dict(base)
+    base.update(ov["data"])
+    if ov["review_status"]:
+        base["review_status"] = ov["review_status"]
+    merged[oid] = base
+
+
+def _effective() -> dict[str, dict]:
+    global _EFFECTIVE
+    if _EFFECTIVE is not None:
+        return _EFFECTIVE
+    merged = {k: dict(v) for k, v in _EXERCISES.items()}
+    for ov in _load_overrides():
+        _apply_override(merged, ov)
+    _EFFECTIVE = merged
+    return merged
+
+
+def invalidate() -> None:
+    """Drop the effective-set cache — call after any admin write."""
+    global _EFFECTIVE
+    _EFFECTIVE = None
+
 
 def _line_count(code: str) -> int:
     return code.count("\n") if code.endswith("\n") else code.count("\n") + 1
@@ -99,7 +166,7 @@ def list_summaries(
     hidden = hidden_ids or set()
     return [
         _summary(r)
-        for r in _EXERCISES.values()
+        for r in _effective().values()
         if r["id"] not in hidden
         and r.get("review_status") != "rejected"
         and (not reviewed_only or r.get("review_status") == "approved")
@@ -111,7 +178,7 @@ def list_summaries(
 def review_counts() -> dict[str, int]:
     """{status: n} across all exercises — for scripts/review status output."""
     out: dict[str, int] = {}
-    for r in _EXERCISES.values():
+    for r in _effective().values():
         out[r["review_status"]] = out.get(r["review_status"], 0) + 1
     return out
 
@@ -119,20 +186,20 @@ def review_counts() -> dict[str, int]:
 def all_rows() -> list[dict]:
     """Shallow copies of every exercise record (admin view). Includes answer
     fields — callers must strip what the client shouldn't see."""
-    return [dict(r) for r in _EXERCISES.values()]
+    return [dict(r) for r in _effective().values()]
 
 
 def curated_ids_for_tier(tier: str) -> list[str]:
     """Curated exercise ids at exactly this difficulty, stable order."""
     return [
         r["id"]
-        for r in _EXERCISES.values()
+        for r in _effective().values()
         if r["source"] == "curated" and r["difficulty"] == tier
     ]
 
 
 def get_file(exercise_id: str) -> ExerciseFile:
-    r = _EXERCISES.get(exercise_id)
+    r = _effective().get(exercise_id)
     if r is None:
         raise HTTPException(status_code=404, detail="unknown exercise")
     return ExerciseFile(
@@ -151,7 +218,7 @@ def get_file(exercise_id: str) -> ExerciseFile:
 
 def get_hint(exercise_id: str, index: int) -> HintResponse:
     """index is 1-based. 404 for an unknown exercise or an out-of-range hint."""
-    r = _EXERCISES.get(exercise_id)
+    r = _effective().get(exercise_id)
     if r is None:
         raise HTTPException(status_code=404, detail="unknown exercise")
     hints = r.get("hints", [])
@@ -168,11 +235,11 @@ def get_hint(exercise_id: str, index: int) -> HintResponse:
 def get_answer(exercise_id: str) -> dict:
     """Answer data for the grader only. Raises 404 if unknown. Resolves by id
     even for a reported/hidden exercise, so an in-progress attempt still works."""
-    r = _EXERCISES.get(exercise_id)
+    r = _effective().get(exercise_id)
     if r is None:
         raise HTTPException(status_code=404, detail="unknown exercise")
     return r
 
 
 def exists(exercise_id: str) -> bool:
-    return exercise_id in _EXERCISES
+    return exercise_id in _effective()

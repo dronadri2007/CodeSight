@@ -61,7 +61,9 @@ demo or on a CI schedule.
 | `app/profile.py` | aggregate a session's attempts → weakest class + next step |
 | `app/skillcard.py` | shareable review-skill card (skill score + headline, strongest/weakest, FP discipline, rank) |
 | `app/progress.py` | attempt timeline + running catch-rate + per-class first-vs-latest |
-| `app/admin.py` | read-only corpus + review-progress views for an admin dashboard (no auth, no CRUD) |
+| `app/admin.py` | admin corpus + review-progress views |
+| `app/adminauth.py` | ADMIN_PASSWORD -> HMAC bearer token; `require_admin` dependency |
+| `app/adminstore.py` | exercise CRUD as a Postgres overlay (`exercise_overrides`) on the committed JSON |
 | `app/leaderboard.py` | rank sessions by `0.7*catch_rate + 0.3*avg_explanation` (min attempts, tier filter, `you` row) |
 | `app/concepts.py` | recommendation engine — `data/concepts.json` (6 defect-class concepts + videos + a 3-question micro-check quiz) |
 | `app/topics.py` | topic prediction — stateless P/R/F1 grading over `data/topic_exercises.json` (30-80 line files; predict which defect classes are present). Reveals the answer + a note for every class. No DB. |
@@ -124,7 +126,8 @@ one three-class file. `app/topics.py` validates every record at import and
 `GET /exercises/{id}/hints/{n}` · `POST /grade` · `POST /ai-review` ·
 `GET /profile/{session_id}` · `GET /profile/{session_id}/card` ·
 `GET /progress/{session_id}` · `GET /leaderboard` ·
-`GET /admin/stats` · `GET /admin/exercises` ·
+`POST /admin/login` · `GET /admin/stats` · `GET /admin/exercises[/{id}]` ·
+`POST/PUT/DELETE /admin/exercises` · `POST /admin/exercises/{id}/review` ·
 `GET /concepts` · `GET /concept/{id}` ·
 `GET /concept/{id}/micro-check` · `POST /concept/{id}/micro-check` ·
 `GET /topics` · `GET /topic/{id}` · `POST /topic/{id}/predict` ·

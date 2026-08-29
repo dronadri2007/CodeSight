@@ -11,7 +11,13 @@ def _reload_with_sidecar(tmp_path, monkeypatch, mapping):
     sidecar = tmp_path / "exercises.review.json"
     sidecar.write_text(json.dumps(mapping), encoding="utf-8")
     monkeypatch.setattr(ex, "_REVIEW", sidecar)
-    return ex._load()
+    loaded = ex._load()
+    # route list_summaries() etc. through this loaded set: swap the base,
+    # drop the effective-set cache, and neutralise the DB overlay.
+    monkeypatch.setattr(ex, "_EXERCISES", loaded)
+    monkeypatch.setattr(ex, "_EFFECTIVE", None)
+    monkeypatch.setattr(ex, "_load_overrides", lambda: [])
+    return loaded
 
 
 def _first_generated_id():

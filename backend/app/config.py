@@ -8,6 +8,10 @@ load_dotenv()
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
 GRADER_MODEL: str = os.getenv("GRADER_MODEL", "gemini-3.6-flash")
 
+# Admin API. Unset -> the whole /admin/* surface returns 503 (disabled).
+ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
+ADMIN_TOKEN_TTL_HOURS: int = int(os.getenv("ADMIN_TOKEN_TTL_HOURS", "12"))
+
 ALLOWED_ORIGINS: list[str] = [
     o.strip()
     for o in os.getenv(

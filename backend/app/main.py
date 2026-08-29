@@ -20,9 +20,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app import admin as adm
+from app import adminauth, adminstore
 from app import ai_review, concepts, leaderboard as lb, reports, tiers, topics
 from app import exercises as ex
 from app.config import (
+    ADMIN_TOKEN_TTL_HOURS,
     ALLOWED_ORIGIN_REGEX,
     ALLOWED_ORIGINS,
     DB_IS_SQLITE,
@@ -51,8 +53,15 @@ from app.schemas import (
     MicroCheck,
     MicroCheckRequest,
     MicroCheckResult,
+    AdminExerciseCreate,
+    AdminExerciseFull,
+    AdminExercisePatch,
     AdminExercises,
+    AdminLoginRequest,
+    AdminReviewRequest,
     AdminStats,
+    AdminToken,
+    AdminWriteResult,
     ProgressReport,
     SessionIntegrity,
     SkillCard,
@@ -268,13 +277,25 @@ def leaderboard(
     )
 
 
-# --- admin (read-only corpus views; no auth) -------------------------
-@app.get("/admin/stats", response_model=AdminStats)
+# --- admin ---------------------------------------------------------
+# Auth: POST /admin/login with ADMIN_PASSWORD -> bearer token; everything else
+# needs `Authorization: Bearer <token>`. Whole surface is 503 if ADMIN_PASSWORD
+# is unset. Writes are a Postgres overlay on the committed exercise JSON.
+@app.post("/admin/login", response_model=AdminToken)
+def admin_login(req: AdminLoginRequest):
+    if not adminauth.admin_enabled():
+        raise HTTPException(status_code=503, detail="admin API disabled (ADMIN_PASSWORD unset)")
+    if not adminauth.check_password(req.password):
+        raise HTTPException(status_code=401, detail="wrong password")
+    return AdminToken(token=adminauth.mint_token(), ttl_hours=ADMIN_TOKEN_TTL_HOURS)
+
+
+@app.get("/admin/stats", response_model=AdminStats, dependencies=[Depends(adminauth.require_admin)])
 def admin_stats(db: Session = Depends(get_db)):
     return adm.stats(db)
 
 
-@app.get("/admin/exercises", response_model=AdminExercises)
+@app.get("/admin/exercises", response_model=AdminExercises, dependencies=[Depends(adminauth.require_admin)])
 def admin_exercises(
     search: str | None = Query(None),
     difficulty: str | None = Query(None),
@@ -288,6 +309,66 @@ def admin_exercises(
     return adm.list_exercises(
         db, search=search, difficulty=difficulty, status=status, source=source, limit=limit
     )
+
+
+@app.get("/admin/exercises/{exercise_id}", response_model=AdminExerciseFull,
+         dependencies=[Depends(adminauth.require_admin)])
+def admin_exercise_detail(exercise_id: str):
+    r = ex._effective().get(exercise_id)
+    if r is None:
+        raise HTTPException(status_code=404, detail="unknown exercise")
+    return AdminExerciseFull(
+        id=r["id"], language=r.get("language", "python"), title=r["title"],
+        defect_class=r["defect_class"], difficulty=r["difficulty"],
+        filename=r.get("filename", "snippet.py"), code=r["code"],
+        real_lines=r.get("real_lines", []), fix_diff=r.get("fix_diff", ""),
+        reference=r.get("reference", ""), hints=r.get("hints", []),
+        source=r["source"], review_status=r.get("review_status", ""),
+    )
+
+
+@app.post("/admin/exercises", response_model=AdminWriteResult, status_code=201,
+          dependencies=[Depends(adminauth.require_admin)])
+def admin_exercise_create(req: AdminExerciseCreate, db: Session = Depends(get_db)):
+    try:
+        exid = adminstore.create(db, req.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return AdminWriteResult(id=exid, review_status=adminstore.effective_status(exid))
+
+
+@app.put("/admin/exercises/{exercise_id}", response_model=AdminWriteResult,
+         dependencies=[Depends(adminauth.require_admin)])
+def admin_exercise_update(exercise_id: str, req: AdminExercisePatch, db: Session = Depends(get_db)):
+    try:
+        adminstore.patch(db, exercise_id, req.model_dump(exclude_none=True))
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown exercise")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return AdminWriteResult(id=exercise_id, review_status=adminstore.effective_status(exercise_id))
+
+
+@app.delete("/admin/exercises/{exercise_id}", response_model=AdminWriteResult,
+            dependencies=[Depends(adminauth.require_admin)])
+def admin_exercise_delete(exercise_id: str, db: Session = Depends(get_db)):
+    try:
+        adminstore.delete(db, exercise_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown exercise")
+    return AdminWriteResult(id=exercise_id, review_status="deleted")
+
+
+@app.post("/admin/exercises/{exercise_id}/review", response_model=AdminWriteResult,
+          dependencies=[Depends(adminauth.require_admin)])
+def admin_exercise_review(exercise_id: str, req: AdminReviewRequest, db: Session = Depends(get_db)):
+    try:
+        adminstore.set_review(db, exercise_id, req.status, req.note)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="unknown exercise")
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return AdminWriteResult(id=exercise_id, review_status=adminstore.effective_status(exercise_id))
 
 
 # --- concepts (recommendation engine) --------------------------------

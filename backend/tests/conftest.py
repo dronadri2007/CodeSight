@@ -8,11 +8,16 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401  (register the Attempt table on Base)
+from app import adminauth as _adminauth
 from app import ai_review as _ai_review_mod
+from app import db as _db_mod
+from app import exercises as _ex_mod
 from app import gemini as _gemini_mod
 from app import grader as _grader_mod
 from app.db import Base, get_db
 from app.main import app  # NB: `app` here is the FastAPI instance, not the package
+
+TEST_ADMIN_PW = "test-admin-pw"
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -42,8 +47,28 @@ def client():
         finally:
             db.close()
 
+    # Route DI, the admin overlay's own SessionLocal(), and admin auth all at
+    # the fresh in-memory DB; reset the exercise-overlay cache around each test.
     app.dependency_overrides[get_db] = _override
+    _prev_sessionlocal = _db_mod.SessionLocal
+    _db_mod.SessionLocal = TestingSession
+    _prev_pw = _adminauth.ADMIN_PASSWORD
+    _adminauth.ADMIN_PASSWORD = TEST_ADMIN_PW
+    _ex_mod.invalidate()
+
     with TestClient(app) as c:
         yield c
+
     app.dependency_overrides.clear()
+    _db_mod.SessionLocal = _prev_sessionlocal
+    _adminauth.ADMIN_PASSWORD = _prev_pw
+    _ex_mod.invalidate()
     engine.dispose()
+
+
+@pytest.fixture
+def admin_headers(client):
+    """Bearer header for a logged-in admin (ADMIN_PASSWORD patched to TEST_ADMIN_PW)."""
+    r = client.post("/admin/login", json={"password": TEST_ADMIN_PW})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['token']}"}

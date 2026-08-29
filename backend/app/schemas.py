@@ -91,6 +91,71 @@ class SessionIntegrity(BaseModel):
     attempts: list[IntegrityAttempt] # tracked, newest first, after verdict/limit
 
 
+# --- admin auth + write path -----------------------------------
+class AdminLoginRequest(BaseModel):
+    password: str
+
+
+class AdminToken(BaseModel):
+    token: str
+    ttl_hours: int
+
+
+class AdminExerciseFull(BaseModel):
+    """GET /admin/exercises/{id} — the full record, answers included (admin
+    needs them to review)."""
+
+    id: str
+    language: str
+    title: str
+    defect_class: str
+    difficulty: str
+    filename: str
+    code: str
+    real_lines: list[int]
+    fix_diff: str
+    reference: str
+    hints: list[str]
+    source: str
+    review_status: str
+
+
+class AdminExerciseCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    defect_class: str
+    difficulty: str
+    code: str = Field(min_length=1, max_length=8000)
+    filename: str = "snippet.py"
+    real_lines: list[int] = Field(default_factory=list)
+    fix_diff: str = ""
+    reference: str = ""
+    hints: list[str] = Field(default_factory=list)
+    review_status: str = "approved"
+
+
+class AdminExercisePatch(BaseModel):
+    title: str | None = None
+    defect_class: str | None = None
+    difficulty: str | None = None
+    code: str | None = None
+    filename: str | None = None
+    real_lines: list[int] | None = None
+    fix_diff: str | None = None
+    reference: str | None = None
+    hints: list[str] | None = None
+
+
+class AdminReviewRequest(BaseModel):
+    status: Literal["approved", "rejected", "edited", "unreviewed"]
+    note: str = Field(default="", max_length=500)
+
+
+class AdminWriteResult(BaseModel):
+    id: str
+    ok: bool = True
+    review_status: str
+
+
 # --- admin (read-only corpus views) ------------------------------
 class AdminExerciseRow(BaseModel):
     id: str

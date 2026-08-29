@@ -69,3 +69,20 @@ class ExerciseReport(Base):
     session_id: Mapped[str] = mapped_column(String(64))
     reason: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ExerciseOverride(Base):
+    """Admin edits layered on top of the committed exercise JSON. Persisted in
+    Postgres so they survive redeploys (Railway's disk is ephemeral).
+    `op`: patch (merge `data` onto the base record) | create (`data` is the whole
+    new record) | delete (tombstone an existing id)."""
+
+    __tablename__ = "exercise_overrides"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # exercise id
+    op: Mapped[str] = mapped_column(String(16), default="patch")
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    review_status: Mapped[str] = mapped_column(String(16), default="")
+    note: Mapped[str] = mapped_column(String(500), default="")
+    updated_by: Mapped[str] = mapped_column(String(64), default="admin")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

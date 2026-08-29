@@ -411,11 +411,41 @@ Response 200:
 
 ---
 
-## GET /admin/stats · GET /admin/exercises
+## Admin API (`/admin/*`)
 
-Read-only corpus / review-progress views for an admin dashboard. **No auth**
-(the backend has none) and **no mutation** — exercises are committed JSON and
-the review workflow is `scripts/review_exercises.py`.
+Corpus + review-progress views and exercise editing for an admin dashboard.
+
+**Auth:** every `/admin/*` route except `/admin/login` needs
+`Authorization: Bearer <token>`. The whole surface returns **503** when
+`ADMIN_PASSWORD` is unset on the server.
+
+### POST /admin/login
+
+Request `{ "password": "..." }` → `{ "token": "admin.<exp>.<sig>", "ttl_hours": 12 }`.
+`401` on a wrong password, `503` if admin is disabled.
+
+### Writes — the exercise overlay
+
+`POST` / `PUT` / `DELETE /admin/exercises` and `POST /admin/exercises/{id}/review`
+persist to a Postgres table (`exercise_overrides`) that layers on top of the
+committed exercise JSON — `patch` merges fields onto a base record, `create`
+adds a new `adm-NNNN` exercise, `delete` tombstones one. Edits take effect
+immediately across every endpoint (`/exercises`, `/grade`, …) and survive
+redeploys. `scripts/review_exercises.py` + the JSON files still work
+independently; the overlay wins where both touch the same id.
+
+| Route | Body | Result |
+|---|---|---|
+| `GET /admin/exercises/{id}` | — | full record **incl. answers** (`real_lines`, `fix_diff`, `reference`, `hints`) |
+| `POST /admin/exercises` | `{title, defect_class, difficulty, code, filename?, real_lines?, fix_diff?, reference?, hints?, review_status?}` | `201 { id: "adm-0001", ok: true, review_status }` — `422` on bad class/tier or unparseable code |
+| `PUT /admin/exercises/{id}` | any subset of the create fields | `{ id, ok, review_status }` · `404` unknown · `422` invalid |
+| `DELETE /admin/exercises/{id}` | — | `{ id, ok, review_status: "deleted" }` · `404` unknown |
+| `POST /admin/exercises/{id}/review` | `{ status: "approved"\|"rejected"\|"edited"\|"unreviewed", note?: "" }` | `{ id, ok, review_status }` — `rejected` drops it from public listings (still resolvable by id) |
+
+### GET /admin/stats · GET /admin/exercises
+
+Read-only. `/admin/exercises` mutations aside, no exercise *content* API —
+exercises otherwise live in committed JSON.
 
 ### GET /admin/stats
 
