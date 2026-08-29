@@ -12348,5 +12348,397 @@
       "Check which time function is being used and whether it is susceptible to system clock changes.",
       "Verify if the token count can exceed the maximum capacity after a long period of inactivity."
     ]
+  },
+  {
+    "id": "ex-g0627",
+    "language": "python",
+    "title": "Thread-Unsafe Counter in PDF Report Generator",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "import threading\n\nclass ReportGenerator:\n    def __init__(self):\n        self.total_generated = 0\n\n    def generate_report(self, data):\n        self.total_generated += 1\n        return f\"Report #{self.total_generated}: {data}\"\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "@@ -8,1 +8,2 @@\n-        self.total_generated += 1\n+        with threading.Lock():\n+            self.total_generated += 1",
+    "reference": "The code contains a race condition because multiple threads can execute 'self.total_generated += 1' concurrently. This operation is not atomic in Python, leading to lost updates and incorrect report counts. Using a threading.Lock ensures that only one thread can modify the counter at a time.",
+    "hints": [
+      "Consider how this method behaves if called simultaneously by multiple worker threads.",
+      "Look closely at the integer increment operation on shared instance state.",
+      "Use a threading.Lock context manager to protect the critical section where the counter is updated."
+    ]
+  },
+  {
+    "id": "ex-g0628",
+    "language": "python",
+    "title": "Unclosed File Resource in Email Attachment",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "def send_email_with_attachment(filename):\n    file = open(filename, \"rb\")\n    attachment = file.read()\n    print(\"Sending email with attachment of size:\", len(attachment))\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,2 +2,2 @@\n-    file = open(filename, \"rb\")\n+    with open(filename, \"rb\") as file:\n",
+    "reference": "The code opens a file to read its contents for an email attachment, but never closes the file handle. This can lead to resource leaks and locked files in the operating system. Using a context manager via the 'with' statement ensures the file is automatically and safely closed once the block is exited.",
+    "hints": [
+      "Check how external resources like files are acquired in the function.",
+      "Consider what happens to the file handle after it is opened and read.",
+      "Use a context manager ('with' statement) to automatically manage the file's lifecycle."
+    ]
+  },
+  {
+    "id": "ex-g0629",
+    "language": "python",
+    "title": "Cache Expiration Check Bug",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import time\n\nCACHE = {}\n\ndef get_cached_data(key):\n    if key in CACHE:\n        data, timestamp = CACHE[key]\n        if time.time() - timestamp < 60:\n            return data\n    return None\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -7,1 +7,1 \u0d35\u0d3f\u0d26\n-        if time.time() - timestamp < 60:\n+        if time.time() - timestamp > 60:\n",
+    "reference": "The caching layer is intended to expire cached items after 60 seconds. However, the comparison operator checks if the elapsed time is less than 60 seconds to invalidate the cache, which has the exact opposite effect of what was intended. Changing the operator to greater than correctly identifies when the cached entry is older than the expiration threshold.",
+    "hints": [
+      "Look closely at the condition used to determine if the cache is still valid or expired.",
+      "Consider what happens when time.time() minus timestamp results in a large positive number.",
+      "The comparison operator checks if the elapsed time is less than the expiration limit instead of greater than."
+    ]
+  },
+  {
+    "id": "ex-g0630",
+    "language": "python",
+    "title": "SQL Injection in Report Filter",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "import sqlite3\n\ndef get_user_report(username):\n    conn = sqlite3.connect('database.db')\n    cursor = conn.cursor()\n    query = \"SELECT * FROM reports WHERE user = '\" + username + \"'\";\n    cursor.execute(query)\n    return cursor.fetchall()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM reports WHERE user = '\" + username + \"'\";\n+    query = \"SELECT * FROM reports WHERE user = ?\";\n+    cursor.execute(query, (username,))",
+    "reference": "This function suffers from a SQL injection vulnerability because user input is directly concatenated into the SQL query string. An attacker could input malicious SQL commands to bypass logic or extract unauthorized data. The fix uses parameterized queries, which safely separate the SQL code from the user-provided parameters.",
+    "hints": [
+      "Look at how the SQL query is constructed using string concatenation.",
+      "Consider what happens if the 'username' parameter contains single quotes and SQL commands.",
+      "Use parameterized queries with placeholders like '?' instead of direct string manipulation."
+    ]
+  },
+  {
+    "id": "ex-g0631",
+    "language": "python",
+    "title": "SQL Injection in Inventory Search",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import sqlite3\n\ndef search_inventory(db_path: str, item_name: str) -> list:\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"SELECT id, name, quantity FROM items WHERE name = '\" + item_name + \"'\"\n    cursor.execute(query)\n    results = cursor.fetchall()\n    conn.close()\n    return results\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT id, name, quantity FROM items WHERE name = '\" + item_name + \"'\"\n+    query = \"SELECT id, name, quantity FROM items WHERE name = ?\"\n+    cursor.execute(query, (item_name,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string rather than using parameterized queries. An attacker could manipulate the 'item_name' parameter to alter the query logic, potentially bypassing authentication or exfiltrating data. The fix is to use parameterized queries with placeholders (?) and pass the parameters as a tuple to the execute method, allowing the database driver to safely handle the input.",
+    "hints": [
+      "Examine how the SQL query string is constructed using input parameters.",
+      "Look closely at the line where 'item_name' is concatenated directly into the query.",
+      "Replace string concatenation with parameterized queries using question mark placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0632",
+    "language": "python",
+    "title": "Unfiltered Query Parameter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(db_session, query):\n    results = db_session.query(User).filter(User.username.like(f\"%{query}%\")).all()\n    return results\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses SQLAlchemy's ORM query builder. The .like() method combined with parameterized f-strings passing through the ORM abstracts the SQL generation safely, preventing SQL injection. This is a false positive.",
+    "hints": [
+      "Look at how the query parameter is passed into the database method.",
+      "Consider whether SQLAlchemy ORM handles parameterization automatically for the like method."
+    ]
+  },
+  {
+    "id": "ex-g0633",
+    "language": "python",
+    "title": "Log Injection Vulnerability",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\nlogger = logging.getLogger(\"security\")\n\ndef log_user_action(username: str, action: str) -> None:\n    msg = f\"User {username} performed {action}\"\n    logger.info(msg)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    msg = f\"User {username} performed {action}\"\n+    safe_username = username.replace(\"\\n\", \"_\").replace(\"\\r\", \"_\")\n+    safe_action = action.replace(\"\\n\", \"_\").replace(\"\\r\", \"_\")\n+    msg = f\"User {safe_username} performed {safe_action}\"",
+    "reference": "Log injection occurs when untrusted user input is written to log files without prior sanitization. An attacker can supply newline characters in parameters like username or action to forge fake log entries, deceiving administrators or auditing tools. The fix involves sanitizing newline and carriage return characters from the input strings before formatting them into the log message.",
+    "hints": [
+      "Examine how user-supplied inputs are incorporated into the log message string.",
+      "Consider what special control characters could disrupt the expected structure of a plain text log file.",
+      "Sanitize newline and carriage return characters from the variables before passing them to the logger."
+    ]
+  },
+  {
+    "id": "ex-g0634",
+    "language": "python",
+    "title": "Unthreadsafe Webhook Counter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "from flask import Flask, request\n\napp = Flask(__name__)\nrequest_count = 0\n\n@app.route('/webhook', methods=['POST'])\ndef handle_webhook():\n    global request_count\n    request_count += 1\n    return {\"status\": \"received\", \"count\": request_count}, 200\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- webhook_receiver.py\n+++ webhook_receiver.py\n@@ -1,8 +1,8 @@\n from flask import Flask, request\n+import threading\n \n app = Flask(__name__)\n request_count = 0\n+count_lock = threading.Lock()\n \n @app.route('/webhook', methods=['POST'])\n def handle_webhook():\n     global request_count\n-    request_count += 1\n-    return {\"status\": \"received\", \"count\": request_count}, 200\n+    with count_lock:\n+        request_count += 1\n+        return {\"status\": \"received\", \"count\": request_count}, 200",
+    "reference": "The code updates a shared global counter in a multithreaded web server environment without synchronization, creating a race condition. The read-modify-write operation on request_count is not atomic, meaning concurrent webhook requests can result in lost updates and an inaccurate count. Wrapping the critical section in a threading.Lock ensures that only one thread can modify and read the counter at a time.",
+    "hints": [
+      "Consider how the application handles multiple incoming webhook requests simultaneously.",
+      "Look closely at the global variable being modified inside the route handler.",
+      "Use a threading.Lock to make the read-modify-write operation on the counter atomic."
+    ]
+  },
+  {
+    "id": "ex-g0635",
+    "language": "python",
+    "title": "Command Injection in Webhook Git Sync",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import subprocess\n\ndef handle_webhook(payload):\n    branch = payload.get('branch', 'main')\n    cmd = f\"git checkout {branch} && git pull\"\n    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)\n    return result.stdout\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)\n+    result = subprocess.run([\"git\", \"checkout\", branch, \"git\", \"pull\"], capture_output=True, text=True)",
+    "reference": "This code is vulnerable to command injection because untrusted input from the webhook payload is formatted directly into a shell command string with shell=True enabled. An attacker can craft a malicious branch name containing shell metacharacters like semicolons or ampersands to execute arbitrary system commands. To fix this, you should avoid shell=True and pass the command arguments as a list of strings to subprocess.run.",
+    "hints": [
+      "Look closely at how external system commands are being invoked.",
+      "Pay attention to the subprocess.run arguments, especially shell=True.",
+      "Avoid string interpolation for building shell commands and pass arguments as a list instead."
+    ]
+  },
+  {
+    "id": "ex-g0636",
+    "language": "python",
+    "title": "Missing Authorization Check on File Upload",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploads.py",
+    "code": "def upload_file(request, file_obj):\n    if request.method == \"POST\":\n        save_path = f\"/var/www/uploads/{file_obj.name}\"\n        with open(save_path, \"wb+\") as destination:\n            for chunk in file_obj.chunks():\n                destination.write(chunk)\n        return True\n    return False\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "--- uploads.py\n+++ uploads.py\n@@ -1,4 +1,5 @@\n def upload_file(request, file_obj):\n-    if request.method == \"POST\":\n+    if request.method == \"POST\" and request.user.is_authenticated:\n         save_path = f\"/var/www/uploads/{file_obj.name}\"\n         with open(save_path, \"wb+\") as destination:",
+    "reference": "This code allows any user to upload files to the server because it only checks if the HTTP method is POST. It completely lacks an authentication check to verify if the user has permission to perform this action. To fix this, you must ensure that the request comes from an authenticated user by checking the request.user.is_authenticated property before processing the file.",
+    "hints": [
+      "Check all the conditions required to safely process a sensitive operation like a file upload.",
+      "Look closely at the if statement handling the request object beyond just the HTTP method.",
+      "Add a check for user authentication like 'request.user.is_authenticated' to prevent unauthorized uploads."
+    ]
+  },
+  {
+    "id": "ex-g0637",
+    "language": "python",
+    "title": "Uncached Database Session Context Manager",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "from contextlib import contextmanager\n\n@contextmanager\n\ndef acquire_inventory_cursor(db_pool):\n    conn = db_pool.get_connection()\n    try:\n        yield conn.cursor()\n    finally:\n        conn.close()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code looks suspicious to novices because conn.close() is called in the finally block, leading them to worry that conn.cursor() is left open or that the connection is prematurely closed before yield completes. However, this is the standard and correct idiom for contextlib.contextmanager. The code suspended by yield executes inside the try block, and cleanup reliably happens in the finally block only after the caller finishes using the yielded cursor.",
+    "hints": [
+      "Look closely at the execution flow of Python's contextlib.contextmanager generator.",
+      "Check when the finally block actually executes relative to the yielded resource."
+    ]
+  },
+  {
+    "id": "ex-g0638",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Update",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import sqlite3\n\ndef update_job_status(db_path, job_id, status):\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"UPDATE jobs SET status = '%s' WHERE id = %s\" % (status, job_id)\n    cursor.execute(query)\n    conn.commit()\n    conn.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '%s' WHERE id = %s\" % (status, job_id)\n-    cursor.execute(query)\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This function suffers from a classic SQL injection vulnerability because user-controlled inputs (status and job_id) are directly formatted into the SQL query string. An attacker could manipulate the status parameter to execute arbitrary SQL commands against the database. To fix this, parameterization should be used by passing query parameters as a separate tuple to cursor.execute.",
+    "hints": [
+      "Examine how the SQL query string is constructed before it is executed.",
+      "Look closely at the use of string formatting (%) to insert variables into the SQL statement.",
+      "Replace string interpolation with parameterized queries using question mark placeholders (?)."
+    ]
+  },
+  {
+    "id": "ex-g0639",
+    "language": "python",
+    "title": "Unsafe YAML Config Loader",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import yaml\n\ndef load_configuration(file_path):\n    with open(file_path, 'r') as file:\n        raw_data = file.read()\n        config = yaml.load(raw_data)\n        return config\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-        config = yaml.load(raw_data)\n+        config = yaml.safe_load(raw_data)",
+    "reference": "The function uses the standard yaml.load() method, which is capable of instantiating arbitrary Python objects and can lead to remote code execution vulnerabilities if parsing untrusted input. Replacing this with yaml.safe_load() restricts the parser to loading simple Python types like scalars, lists, and dictionaries, neutralizing the injection risk.",
+    "hints": [
+      "Examine how external libraries parse untrusted string data.",
+      "Look closely at the specific function being called from the yaml module.",
+      "Consider using a safer alternative function provided by PyYAML to prevent arbitrary object instantiation."
+    ]
+  },
+  {
+    "id": "ex-g0640",
+    "language": "python",
+    "title": "Email Header Injection",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "def send_email(recipient, subject, message):\n    header = f\"To: {recipient}\\nSubject: {subject}\"\n    payload = f\"{header}\\n\\n{message}\"\n    print(f\"Sending payload:\\n{payload}\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    header = f\"To: {recipient}\\nSubject: {subject}\"\n+    header = f\"To: {recipient}\\nSubject: {subject.strip()}\"",
+    "reference": "This code is vulnerable to email header injection because the subject parameter is embedded directly into the header string without validation or sanitization. An attacker can supply newline characters in the subject to inject arbitrary headers like 'Bcc' or alter the recipient list. To fix this, you should strip or reject newline characters from user-supplied input used in email headers.",
+    "hints": [
+      "Look closely at how the input variables are combined into the header string.",
+      "Consider what happens if the 'subject' string contains newline characters like \\n.",
+      "Use a string method to remove or strip unwanted newline characters from the subject before formatting."
+    ]
+  },
+  {
+    "id": "ex-g0641",
+    "language": "python",
+    "title": "Token revocation check pattern",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_session_hmac(secret_key: bytes, session_id: str, provided_signature: str) -> bool:\n    expected_signature = hmac.new(secret_key, session_id.encode('utf-8'), hashlib.sha256).hexdigest()\n    return hmac.compare_digest(expected_signature, provided_signature)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses hmac.compare_digest to prevent timing attacks, which is the correct and secure way to compare cryptographic signatures in Python. While passing string tokens directly into crypto functions can sometimes look suspicious, here the inputs are properly encoded to bytes and constant-time comparison is enforced.",
+    "hints": [
+      "Check how the two signatures are being compared.",
+      "Verify if the encoding of the string inputs is handled before passing them to the HMAC function."
+    ]
+  },
+  {
+    "id": "ex-g0642",
+    "language": "python",
+    "title": "Log Injection Vulnerability",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(username):\n    message = f\"User login attempt: {username}\"\n    with open(\"app.log\", \"a\") as f:\n        f.write(message + \"\\n\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    message = f\"User login attempt: {username}\"\n+    safe_username = username.replace(\"\\n\", \"_\").replace(\"\\r\", \"_\")\n+    message = f\"User login attempt: {safe_username}\"",
+    "reference": "This code suffers from a log injection vulnerability because user-supplied input is written directly to the log file without sanitization. An attacker can supply newline characters in the username parameter to forge fake log entries, making auditing and log analysis unreliable. To fix this, you must sanitize the input by replacing or stripping newline and carriage return characters before logging.",
+    "hints": [
+      "Consider what happens if a user submits a username containing special control characters.",
+      "Look closely at how the username is interpolated directly into the log message string.",
+      "Sanitize the username by replacing newline characters with underscores or removing them entirely before writing to the log."
+    ]
+  },
+  {
+    "id": "ex-g0643",
+    "language": "python",
+    "title": "Unclosed File Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_storage, destination_path):\n    uploaded_file = open(destination_path, \"wb\")\n    file_data = file_storage.read()\n    uploaded_file.write(file_data)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -1,5 +1,5 @@\n def save_upload(file_storage, destination_path):\n-    uploaded_file = open(destination_path, \"wb\")\n-    file_data = file_storage.read()\n-    uploaded_file.write(file_data)\n-    return True\n+    with open(destination_path, \"wb\") as uploaded_file:\n+        file_data = file_storage.read()\n+        uploaded_file.write(file_data)\n+    return True",
+    "reference": "Opening files manually without using a context manager or explicitly calling close() can lead to resource leaks. In a busy web application handling multiple file uploads, unclosed file descriptors can exhaust the operating system's file limit. Using a 'with' statement ensures the file is safely closed as soon as the block exits, even if exceptions occur during the write operation.",
+    "hints": [
+      "Look closely at how system resources like file descriptors are managed.",
+      "Consider what happens to the opened file if an exception occurs during the read or write process.",
+      "Use a context manager such as the 'with' statement to automatically handle closing the file."
+    ]
+  },
+  {
+    "id": "ex-g0644",
+    "language": "python",
+    "title": "Handling Mail Sending Exceptions",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_welcome_email(recipient, message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.sendmail('from@example.com', recipient, message)\n    server.quit()\n",
+    "real_lines": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "fix_diff": "@@ -4,4 +4,7 @@\n     server = smtplib.SMTP('smtp.example.com', 587)\n+    try:\n         server.starttls()\n         server.sendmail('from@example.com', recipient, message)\n-    server.quit()\n+    finally:\n+        server.quit()",
+    "reference": "Network operations and SMTP connections are prone to unexpected failures such as connection drops or authentication errors. If an exception occurs during the TLS handshake or mail transmission, the server.quit() call will be skipped, leaving network resources dangling. Wrapping the operation in a try-finally block ensures that the connection is properly closed regardless of whether the email sending succeeds or fails.",
+    "hints": [
+      "Consider what happens to the network connection if an error occurs mid-transmission.",
+      "Look closely at the resource lifecycle management for the SMTP server object.",
+      "Use a try-finally block to guarantee that server.quit() is always executed."
+    ]
+  },
+  {
+    "id": "ex-g0645",
+    "language": "python",
+    "title": "Missing Lock Release in Cache Update",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import threading\n\n_cache = {}\n_lock = threading.Lock()\n\ndef get_or_set(key, value_factory):\n    _lock.acquire()\n    if key not in _cache:\n        _cache[key] = value_factory()\n    return _cache[key]\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -7,3 +7,6 @@\n     _lock.acquire()\n     if key not in _cache:\n         _cache[key] = value_factory()\n+    finally:\n+        _lock.release()\n     return _cache[key]",
+    "reference": "When using explicit locking mechanisms like threading.Lock, it is crucial to ensure that the lock is always released, even if an exception occurs during execution. Without a try-finally block, any error raised inside the locked section will leave the lock permanently acquired, causing deadlocks for all future threads trying to access the cache.",
+    "hints": [
+      "Look closely at how the thread synchronization lock is managed throughout the function's execution.",
+      "Consider what happens if the value_factory() function raises an exception while the lock is held.",
+      "Ensure the lock is always released using a try-finally block or a context manager (with statement)."
+    ]
+  },
+  {
+    "id": "ex-g0646",
+    "language": "python",
+    "title": "Pass-through Hash Verification",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef verify_password(stored_hash, provided_password):\n    return hmac.compare_digest(stored_hash, provided_password.encode('utf-8'))\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses hmac.compare_digest, which is specifically designed to prevent timing attacks when comparing sensitive strings like password hashes. The lack of an explicit salt or pepper in this helper function might look suspicious at a glance, but handling salt generation and hashing is expected to be done upstream before calling this comparison utility. This is a false positive.",
+    "hints": [
+      "Check how the string comparison is being performed.",
+      "Verify whether the comparison function is vulnerable to timing attacks."
+    ]
   }
 ]
