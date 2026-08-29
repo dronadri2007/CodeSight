@@ -9986,5 +9986,392 @@
       "Look at the file object lifecycle and whether it is explicitly released.",
       "Use a context manager (the 'with' statement) to handle file closure automatically."
     ]
+  },
+  {
+    "id": "ex-g0507",
+    "language": "python",
+    "title": "CSV Command Injection Vulnerability",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nimport subprocess\n\ndef process_csv_import(file_path):\n    with open(file_path, mode='r') as file:\n        reader = csv.reader(file)\n        for row in reader:\n            username = row[0]\n            subprocess.run(f\"echo Processing user {username}\", shell=True)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-            subprocess.run(f\"echo Processing user {username}\", shell=True)\n+            subprocess.run([\"echo\", f\"Processing user {username}\"])",
+    "reference": "Using shell=True with subprocess allows attackers to inject arbitrary shell commands if the input data from the CSV file is untrusted. By crafting a specific username entry containing shell metacharacters, execution can escape the intended command context. Fixing this requires passing arguments as a list and avoiding the shell execution mode entirely.",
+    "hints": [
+      "Examine how external processes are spawned in this function.",
+      "Look closely at the arguments passed to the subprocess function and the execution mode enabled.",
+      "Avoid using shell=True when processing input data that originates from external files."
+    ]
+  },
+  {
+    "id": "ex-g0508",
+    "language": "python",
+    "title": "Unthreadsafe Balance Update",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import time\nimport threading\n\nuser_balance = 100\n\ndef process_payment(amount):\n    global user_balance\n    current = user_balance\n    time.sleep(0.01)\n    user_balance = current - amount\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -9,1 +9,5 @@\n-    user_balance = current - amount\n+    with threading.Lock():\n+        global user_balance\n+        current = user_balance\n+        user_balance = current - amount",
+    "reference": "This code suffers from a race condition because the global variable user_balance is read and written across a non-atomic operation that includes a time delay. When multiple threads process payments concurrently, they may read the same initial balance before any write occurs, leading to lost updates. To fix this, a threading Lock should be used to ensure that the read-modify-write sequence is executed atomically.",
+    "hints": [
+      "Consider what happens when multiple threads access the same global variable concurrently.",
+      "Look closely at the time.sleep() call and how it affects thread scheduling between reading and writing the balance.",
+      "Use a threading.Lock() context manager to ensure the balance check and update happen atomically."
+    ]
+  },
+  {
+    "id": "ex-g0509",
+    "language": "python",
+    "title": "Mutable Default Argument in Cache Layer",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class SimpleCache:\n    def __init__(self):\n        self.store = {}\n\n    def get_or_set(self, key, factory, ttl_cache=[]):\n        if key not in self.store:\n            self.store[key] = factory()\n        return self.store[key]\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "@@ -5,1 +5,3 @@\n-    def get_or_set(self, key, factory, ttl_cache=[]):\n+    def get_or_set(self, key, factory, ttl_cache=None):\n+        if ttl_cache is None:\n+            ttl_cache = []",
+    "reference": "Using a mutable object like a list as a default argument in Python can lead to unexpected state persistence across function calls because the default value is evaluated only once when the function is defined. In this caching context, subsequent calls that omit the argument will share the exact same list instance. To fix this, use None as the sentinel default value and initialize a new list inside the method body.",
+    "hints": [
+      "Examine how the function handles its parameters.",
+      "Look closely at the default values assigned to the function parameters.",
+      "Replace the mutable default argument with None and instantiate the object inside the method."
+    ]
+  },
+  {
+    "id": "ex-g0510",
+    "language": "python",
+    "title": "Uncaught Exception in Request Logging",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_request(request):\n    try:\n        headers = dict(request.headers)\n        logging.info(f\"Incoming request headers: {headers}\")\n    except Exception:\n        logging.error(\"Failed to log request headers\")\n    return headers\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -7,1 +7,1 @@\n-    return headers\n+    return headers if 'headers' in locals() else {}",
+    "reference": "The function attempts to return the `headers` variable which is defined inside the `try` block. If an exception occurs before `headers` is successfully assigned, execution jumps straight to the `except` block and skips the definition, causing an `UnboundLocalError` when the function tries to return it. To fix this, ensure `headers` is safely initialized or checked before returning.",
+    "hints": [
+      "Examine the scope of variables defined within the try block.",
+      "What happens to the `headers` variable if an exception occurs on line 4?",
+      "Check if `headers` exists in the local scope before attempting to return it."
+    ]
+  },
+  {
+    "id": "ex-g0511",
+    "language": "python",
+    "title": "Unsafe Configuration Execution",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_config(file_path):\n    with open(file_path, \"r\") as f:\n        content = f.read()\n    config = eval(content)\n    return config\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- config_loader.py\n+++ config_loader.py\n@@ -6,1 +6,1 @@\n-    config = eval(content)\n+    config = json.loads(content)",
+    "reference": "The function uses the built-in eval() function to parse configuration content, which executes any arbitrary Python code present in the input file. If an attacker can tamper with the configuration file, they can achieve remote code execution on the host system. Replacing eval() with json.loads() ensures that the input is strictly parsed as data rather than executable code.",
+    "hints": [
+      "Look closely at how the file contents are being evaluated into a Python object.",
+      "Consider the security risks associated with the built-in function used on line 6.",
+      "Replace the dangerous evaluation function with a safer parsing method from the imported json module."
+    ]
+  },
+  {
+    "id": "ex-g0512",
+    "language": "python",
+    "title": "Verify Webhook Signature with Constant-Time Comparison",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_signature(secret: str, payload: bytes, signature: str) -> bool:\n    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()\n    return signature == expected\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    return signature == expected\n+    return hmac.compare_digest(signature, expected)",
+    "reference": "Using the standard equality operator (==) for comparing cryptographic signatures is vulnerable to timing attacks, as it stops comparing at the first mismatched byte. This allows attackers to measure response times to guess the valid signature character by character. The fix is to use hmac.compare_digest(), which performs a constant-time comparison regardless of where the mismatch occurs.",
+    "hints": [
+      "Consider how strings and bytes are compared in Python regarding performance and security.",
+      "Look closely at the comparison operator used on the final line of the function.",
+      "Research Python's hmac module for a built-in function specifically designed for secure signature comparisons."
+    ]
+  },
+  {
+    "id": "ex-g0513",
+    "language": "python",
+    "title": "Unsafe Cache Key Formatting",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_user(user_id, region):\n    cache_key = \"user:{}:{}\".format(region, user_id)\n    return redis_client.get(cache_key)\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    cache_key = \"user:{}:{}\".format(region, user_id)\n+    if not isinstance(user_id, (int, str)) or not isinstance(region, (int, str)):\n+        raise ValueError(\"Invalid type for cache key\")\n+    cache_key = f\"user:{region}:{user_id}\"",
+    "reference": "Constructing cache keys using raw string formatting with unvalidated user input allows attackers to manipulate key structures. If user_id contains delimiter characters like colons, it can cause cache key collisions or namespace poisoning. The fix validates the input types and ensures proper sanitization before building the key string.",
+    "hints": [
+      "Look closely at how the cache key is constructed from input parameters.",
+      "Consider what happens if the user_id argument contains special characters like colons.",
+      "Validate the types or sanitize the inputs for the cache key to prevent key injection attacks."
+    ]
+  },
+  {
+    "id": "ex-g0514",
+    "language": "python",
+    "title": "Uninitialized Cache Lookups",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_from_cache(key, cache_store):\n    if key not in cache_store:\n        cache_store[key] = None\n    return cache_store[key]\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and handles missing cache keys by explicitly setting them to None before returning. While setting a value to None might look like a missing initialization bug at first glance, it is actually a valid pattern for caching negative results (i.e., remembering that a key does not exist to prevent repeated expensive lookups). This is a false positive.",
+    "hints": [
+      "Check what happens if the key is already present in the cache store versus when it is missing.",
+      "Consider whether explicitly storing a 'None' value is an intentional design choice for caching negative results rather than an omission."
+    ]
+  },
+  {
+    "id": "ex-g0515",
+    "language": "python",
+    "title": "Config file default parser",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_config(filepath: str, default_config: dict = None) -> dict:\n    if default_config is None:\n        default_config = {}\n    try:\n        with open(filepath, 'r') as f:\n            user_config = json.load(f)\n            default_config.update(user_config)\n    except FileNotFoundError:\n        pass\n    return default_config\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely safe and correct. While mutating the default_config dictionary inside the function might look like a mutation of default arguments at first glance, the function explicitly checks if default_config is None and instantiates a new empty dictionary if so. Therefore, it does not suffer from the mutable default argument trap.",
+    "hints": [
+      "Look closely at the first few lines of the function body.",
+      "Check how the default_config parameter is handled when it is not provided."
+    ]
+  },
+  {
+    "id": "ex-g0516",
+    "language": "python",
+    "title": "Missing Default Value for Search Parameters",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(query: str, filters: dict = None) -> list:\n    active_filters = {}\n    for k, v in filters.items():\n        if v is not None:\n            active_filters[k] = v\n    return db.query(Users).filter_by(**active_filters).all()\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -3,1 +3,1 @@\n-    for k, v in filters.items():\n+    for k, v in (filters or {}).items():",
+    "reference": "When the filters parameter is omitted, it defaults to None because mutable default arguments should be avoided. However, calling items() on a NoneType object raises an AttributeError. Guarding the iteration by coalescing the dictionary with an empty dictionary prevents this crash.",
+    "hints": [
+      "Look closely at the default value of the optional parameter.",
+      "Consider what happens to the function execution when the caller does not provide any filters.",
+      "Calling a method on a None object will cause a runtime exception."
+    ]
+  },
+  {
+    "id": "ex-g0517",
+    "language": "python",
+    "title": "Missing Authorization Check in Payment Refund",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def process_refund(request, payment_id):\n    payment = Payment.objects.get(id=payment_id)\n    if request.method == \"POST\":\n        amount = request.POST.get(\"amount\")\n        payment.refund(amount)\n        return JsonResponse({\"status\": \"success\"})\n    return JsonResponse({\"status\": \"invalid_method\"})\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-        payment.refund(amount)\n+        if payment.user != request.user:\n+            return JsonResponse({\"status\": \"unauthorized\"}, status=403)\n+        payment.refund(amount)",
+    "reference": "This code contains a broken access control vulnerability because it fails to verify whether the authenticated user actually owns the payment being refunded. Any logged-in user who guesses or knows a valid payment ID can initiate a refund on behalf of another user. The fix ensures that the payment record belongs to the requesting user before executing the transaction.",
+    "hints": [
+      "Examine how the payment object is retrieved and whether its ownership is verified.",
+      "Check if the user making the request has permission to modify the target payment.",
+      "Compare payment.user with request.user before calling payment.refund(amount)."
+    ]
+  },
+  {
+    "id": "ex-g0518",
+    "language": "python",
+    "title": "Uncached Data Aggregation in Report Generator",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def generate_summary_report(data_source):\n    totals = {}\n    for record in data_source:\n        category = record.get(\"category\", \"Uncategorized\")\n        amount = record.get(\"amount\", 0.0)\n        totals[category] = totals.get(category, 0.0) + amount\n    return totals\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code iterates directly over the data_source and accumulates totals in a dictionary. While it lacks caching, the implementation is efficient, correct, and memory-safe for streaming iterables. Flagging this as a performance defect is a false positive.",
+    "hints": [
+      "Check if the data_source parameter is expected to be a memory-efficient iterable or a fully loaded list.",
+      "Verify whether the dictionary accumulation properly handles missing categories."
+    ]
+  },
+  {
+    "id": "ex-g0519",
+    "language": "python",
+    "title": "Missing Admin Authorization in Job Cancellation",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "jobs.py",
+    "code": "def cancel_job(request, job_id):\n    job = JobQueue.get_job(job_id)\n    if not job:\n        return {\"error\": \"Job not found\"}, 404\n    \n    job.status = \"cancelled\"\n    job.save()\n    return {\"status\": \"success\"}, 200\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "@@ -5,2 +5,4 @@\n+    if request.user.role != \"admin\" and request.user.id != job.user_id:\n+        return {\"error\": \"Unauthorized\"}, 403\n     job.status = \"cancelled\"",
+    "reference": "The original code allowed any authenticated user to cancel any job in the queue by simply knowing its ID, introducing an Insecure Direct Object Reference (IDOR) vulnerability. To fix this, we must verify that the requesting user either owns the job or possesses sufficient administrative privileges before mutating its state. Always validate user authorization against the specific resource being modified in background job handlers.",
+    "hints": [
+      "Examine what checks are performed on the user making the request.",
+      "Look at how the function ensures the user has permission to modify this specific job.",
+      "Compare the request user against the job owner or an admin role before updating the status."
+    ]
+  },
+  {
+    "id": "ex-g0520",
+    "language": "python",
+    "title": "Uncaught Stripe Card Error",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import stripe\n\ndef charge_customer(amount, payment_method_id, customer_id):\n    try:\n        intent = stripe.PaymentIntent.create(\n            amount=amount,\n            currency=\"usd\",\n            payment_method=payment_method_id,\n            customer=customer_id,\n            confirm=True\n        )\n        return intent[\"id\"]\n    except stripe.error.StripeError as e:\n        logger.error(f\"Payment failed: {e}\")\n        return None\n",
+    "real_lines": [
+      14
+    ],
+    "fix_diff": "-        logger.error(f\"Payment failed: {e}\")\n+        import logging\n+        logging.error(f\"Payment failed: {e}\")",
+    "reference": "The code attempts to log an error using an undefined 'logger' variable, which will raise a NameError during execution. To fix this, you should either define a module-level logger using the standard logging library or use a properly imported logging instance. Relying on undefined variables inside exception blocks can mask the original error and crash the fallback flow.",
+    "hints": [
+      "Look closely at the logging mechanism inside the except block.",
+      "Check if the variable used for logging has been defined or imported in the module.",
+      "The code calls 'logger.error', but 'logger' is never instantiated or imported."
+    ]
+  },
+  {
+    "id": "ex-g0521",
+    "language": "python",
+    "title": "SMTP Exception Handling Defect",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_alert(message):\n    try:\n        server = smtplib.SMTP('smtp.example.com', 587)\n        server.sendmail('admin@example.com', 'user@example.com', message)\n        server.quit()\n    except smtplib.SMTPException as e:\n        print(f\"Failed to send email: {e}\")\n        raise\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-        raise\n+        raise RuntimeError(f\"Email delivery failed: {e}\") from e",
+    "reference": "Bare raise statements inside exception blocks re-raise the exact current exception without context, which can obscure root causes when integrating with higher-level error management systems. By chaining the exception using 'raise ... from e', we preserve the original traceback while adding domain-specific context. This practice ensures that debugging distributed system failures remains efficient and informative.",
+    "hints": [
+      "Examine how exceptions are propagated out of the except block.",
+      "Consider what happens to the original stack trace when an exception is re-raised.",
+      "Use exception chaining with 'from' to provide better context for the caller."
+    ]
+  },
+  {
+    "id": "ex-g0522",
+    "language": "python",
+    "title": "False Positive in Cache Expiration Check",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import time\n\nclass SimpleCache:\n    def __init__(self):\n        self._store = {}\n\n    def get(self, key):\n        if key not in self._store:\n            return None\n        value, expiry = self._store[key]\n        if expiry and time.time() >= expiry:\n            del self._store[key]\n            return None\n        return value\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code looks like it might have a race condition or a time-of-check to time-of-use (TOCTOU) issue because time.time() is called separately from the deletion and return. However, in a single-threaded Python environment (or when protected by an external GIL lock for basic dictionary operations), checking the expiry and subsequently deleting the expired key is completely safe and standard practice. This is a false positive.",
+    "hints": [
+      "Consider the execution model of Python regarding standard dictionary operations and single-threaded execution.",
+      "Verify whether the dictionary deletion affects correctness or merely reclaims memory for an already expired item."
+    ]
+  },
+  {
+    "id": "ex-g0523",
+    "language": "python",
+    "title": "Uncached function execution inside cache check",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache_layer.py",
+    "code": "def get_user_data(user_id: int, fetch_func, cache_client) -> dict:\n    cached_data = cache_client.get(f\"user:{user_id}\")\n    if cached_data is not None:\n        return cached_data\n    \n    fresh_data = fetch_func(user_id)\n    cache_client.set(f\"user:{user_id}\", fresh_data, ttl=300)\n    return fresh_data\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This implementation is completely correct. While it might look slightly suspicious that fetch_func is executed outside the cache client itself, this is a standard Cache-Aside (Lazy Loading) pattern where the application layer manages fetching and populating the cache explicitly.",
+    "hints": [
+      "Check how cache misses are handled and if the fetched data is correctly saved back to the cache.",
+      "Verify if the function adheres to the standard Cache-Aside architectural pattern."
+    ]
+  },
+  {
+    "id": "ex-g0524",
+    "language": "python",
+    "title": "Unsafe Config Eval",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import os\n\ndef load_config(filepath):\n    if not os.path.exists(filepath):\n        return {}\n    with open(filepath, 'r') as f:\n        content = f.read()\n    return eval(content)\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "-    return eval(content)\n+    import json\n+    return json.loads(content)",
+    "reference": "Using the built-in eval() function to parse configuration files is dangerous because it executes arbitrary Python code found within the file. If an attacker can modify the config file, they can achieve remote code execution on the server. The fix is to use a safe data serialization format like JSON with json.loads() instead of executing code directly.",
+    "hints": [
+      "Look closely at how the file contents are being evaluated and converted into data.",
+      "Consider the security implications of built-in Python functions that execute strings as code.",
+      "Replace the dangerous execution function with a safe parsing module like json."
+    ]
+  },
+  {
+    "id": "ex-g0525",
+    "language": "python",
+    "title": "Unsynchronized Inventory Decrement",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import threading\n\nstock_count = 100\n\ndef purchase_item():\n    global stock_count\n    if stock_count > 0:\n        stock_count -= 1\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -7,2 +7,4 @@\n     if stock_count > 0:\n-        stock_count -= 1\n+        with lock:\n+            stock_count -= 1",
+    "reference": "The function checks the stock count and decrements it as two separate steps without synchronization. In a multithreaded environment, two threads could pass the check simultaneously and cause a race condition, leading to an incorrect inventory count. Using a threading lock ensures that the check and decrement operations happen atomically.",
+    "hints": [
+      "Look closely at how the global variable is accessed and modified.",
+      "Consider what happens if multiple threads execute this function at the exact same time.",
+      "You need to use a threading.Lock to protect the critical section where stock is updated."
+    ]
+  },
+  {
+    "id": "ex-g0526",
+    "language": "python",
+    "title": "Shared Counter Race Condition",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import time\n\nstock = 10\n\ndef purchase_item():\n    global stock\n    current = stock\n    time.sleep(0.1)\n    stock = current - 1\n",
+    "real_lines": [
+      7,
+      9
+    ],
+    "fix_diff": "@@ -7,3 +7,3 @@\n-    current = stock\n-    time.sleep(0.1)\n-    stock = current - 1\n+    global stock\n+    stock -= 1",
+    "reference": "This function suffers from a race condition because multiple threads can read the shared 'stock' value before any thread updates it. Introducing a time delay allows context switching to occur, overwriting updates made concurrently by other threads. To fix this, operations on shared mutable state should be atomic or protected by a threading lock.",
+    "hints": [
+      "Look closely at how the global variable is read and modified.",
+      "Consider what happens if another thread runs during the time.sleep call.",
+      "Reading a shared value and writing it back later without synchronization causes lost updates."
+    ]
   }
 ]
