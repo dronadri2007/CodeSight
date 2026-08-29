@@ -14194,5 +14194,401 @@
       "Check if the stream reading method respects the pre-checked content length.",
       "Pass the content_length integer as an argument to the read method."
     ]
+  },
+  {
+    "id": "ex-g0720",
+    "language": "python",
+    "title": "Email Subject Header Injection",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, subject, message):\n    msg = EmailMessage()\n    msg['Subject'] = subject\n    msg['From'] = \"alert@example.com\"\n    msg['To'] = recipient\n    msg.set_content(message)\n    smtplib.SMTP('localhost').send_message(msg)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- mailer.py\n+++ mailer.py\n@@ -6,1 +6,1 @@\n-    msg['Subject'] = subject\n+    msg['Subject'] = subject.replace('\\n', '').replace('\\r', '')\n",
+    "reference": "Allowing unvalidated user input directly into email header fields like Subject can lead to email header injection. An attacker can insert carriage return and newline characters (\\r\\n) to introduce arbitrary headers or manipulate the recipient list and body. To fix this, you should sanitize the input by stripping newline characters before assigning it to the header.",
+    "hints": [
+      "Examine how external variables are assigned to email attributes.",
+      "Look closely at the 'Subject' header assignment.",
+      "Consider what happens if the 'subject' string contains newline characters."
+    ]
+  },
+  {
+    "id": "ex-g0721",
+    "language": "python",
+    "title": "Unused Balance Check in Refund Processing",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "refunds.py",
+    "code": "def process_refund(transaction_id, amount, account_balance):\n    if amount <= 0:\n        raise ValueError(\"Refund amount must be positive\")\n    \n    current_balance = account_balance\n    new_balance = current_balance + amount\n    return new_balance\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct. While 'current_balance = account_balance' appears redundant since account_balance is already available, it is simply a local variable assignment to mirror the incoming state before applying the refund. No defects exist here, and flagging it is a false positive.",
+    "hints": [
+      "Check if the variable current_balance actually affects the final calculation.",
+      "Verify if the addition logic correctly increases the balance by the refund amount."
+    ]
+  },
+  {
+    "id": "ex-g0722",
+    "language": "python",
+    "title": "Rate Limit Timestamp Comparison",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\ndef is_allowed(request_time, last_request_time, limit_seconds):\n    if request_time - last_request_time < limit_seconds:\n        return False\n    return True\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- ratelimit.py\n+++ ratelimit.py\n@@ -4,1 +4,1px\n-    if request_time - last_request_time < limit_seconds:\n+    if request_time - last_request_time <= limit_seconds:",
+    "reference": "This rate-limiting function checks if the time elapsed between requests is less than the required limit. However, using a strict less-than operator allows a user to make another request at the exact boundary of the limit_seconds window. Changing the condition to less-than-or-equal ensures that requests made right on the boundary are correctly blocked.",
+    "hints": [
+      "Look closely at the comparison operator used in the if statement.",
+      "Consider what happens when the time difference is exactly equal to limit_seconds.",
+      "Change the strict inequality to include the boundary case."
+    ]
+  },
+  {
+    "id": "ex-g0723",
+    "language": "python",
+    "title": "Unthreadsafe Global Cache Mutation",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "import time\n\nSEARCH_CACHE = {}\n\ndef search_endpoint(query):\n    if query in SEARCH_CACHE:\n        return SEARCH_CACHE[query]\n    results = db_query(query)\n    SEARCH_CACHE[query] = results\n    return results\n",
+    "real_lines": [
+      6,
+      9
+    ],
+    "fix_diff": "import threading\n\nSEARCH_CACHE = {}\ncache_lock = threading.Lock()\n\ndef search_endpoint(query):\n    with cache_lock:\n        if query in SEARCH_CACHE:\n            return SEARCH_CACHE[query]\n    results = db_query(query)\n    with cache_lock:\n        SEARCH_CACHE[query] = results\n    return results",
+    "reference": "This code suffers from a race condition due to unsynchronized concurrent modifications to a shared global dictionary in a multi-threaded environment. Python dictionaries are not thread-safe for write operations, and checking existence followed by assignment without a lock can lead to inconsistent state or lost updates. Using a threading.Lock around the cache access ensures that reads and writes are mutually exclusive.",
+    "hints": [
+      "Examine how the shared resource is accessed and modified across requests.",
+      "Consider what happens if two threads execute the function with the same query simultaneously.",
+      "Use a synchronization primitive like a threading.Lock to protect reads and writes to the global cache."
+    ]
+  },
+  {
+    "id": "ex-g0724",
+    "language": "python",
+    "title": "Unclosed Database Connection in Search Endpoint",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search_api.py",
+    "code": "import sqlite3\n\ndef search_users(query):\n    conn = sqlite3.connect('users.db')\n    cursor = conn.cursor()\n    sql = \"SELECT id, username FROM users WHERE username LIKE ?\"\n    cursor.execute(sql, ('%' + query + '%',))\n    results = cursor.fetchall()\n    return results\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    conn = sqlite3.connect('users.db')\n+    with sqlite3.connect('users.db') as conn:\n+        cursor = conn.cursor()",
+    "reference": "Opening a database connection without properly closing it or using a context manager leads to connection leaks. Over time, accumulated open connections can exhaust the database server limits and degrade performance. Using a context manager ensures the connection is safely closed even if exceptions occur.",
+    "hints": [
+      "Examine how external resources like files and connections are managed throughout their lifecycle.",
+      "Consider what happens to the database connection if an exception occurs during cursor execution.",
+      "Wrap the database connection in a context manager (with statement) to guarantee automatic cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0725",
+    "language": "python",
+    "title": "File Resource Leak in Job Processor",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "def process_job(job_id):\n    f = open(f\"job_{job_id}.log\", \"w\")\n    f.write(\"Starting job execution...\")\n    raise RuntimeError(\"Job failed unexpectedly\")\n    f.close()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    f.close()\n+    try:\n+        f.write(\"Starting job execution...\")\n+        raise RuntimeError(\"Job failed unexpectedly\")\n+    finally:\n+        f.close()",
+    "reference": "When opening files in Python, it is crucial to ensure they are properly closed even if an exception occurs during processing. In this code, if the RuntimeError is raised, execution jumps immediately out of the function, leaving f.close() unreachable and causing a file descriptor leak. Using a try-finally block or a context manager ('with' statement) guarantees that the resource is cleaned up regardless of whether errors occur.",
+    "hints": [
+      "Look at how the file resource is managed throughout its lifecycle.",
+      "Trace what happens to the execution flow when the RuntimeError is raised.",
+      "Consider using a try-finally block or a context manager to ensure the file is closed even when exceptions happen."
+    ]
+  },
+  {
+    "id": "ex-g0726",
+    "language": "python",
+    "title": "Suspicious Mutable Default Argument in Session Helper",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session_utils.py",
+    "code": "import time\n\nSESSION_CACHE = {}\n\ndef get_or_create_session(user_id, default_data={}):\n    if user_id not in SESSION_CACHE:\n        SESSION_CACHE[user_id] = {\n            \"data\": default_data,\n            \"created_at\": time.time()\n        }\n    return SESSION_CACHE[user_id]\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although using a mutable default argument like `default_data={}` is a well-known anti-pattern in Python when mutating the argument inside the function, here `default_data` is only ever read and assigned as a reference to the cache dictionary without in-place mutation (e.g., no `default_data.update(...)`). Therefore, the same dictionary instance is shared read-only across cache misses, which is harmless and logically correct in this context. This is a false positive.",
+    "hints": [
+      "Look closely at how `default_data` is used inside the function body. Is it being mutated anywhere?",
+      "Check if assigning a shared dictionary reference to the cache causes state pollution if the caller treats it as read-only."
+    ]
+  },
+  {
+    "id": "ex-g0727",
+    "language": "python",
+    "title": "Uncaught Exception in CSV Row Processing",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef process_csv(file_path):\n    with open(file_path, mode='r') as file:\n        reader = csv.reader(file)\n        for row in reader:\n            try:\n                user_id = int(row[0])\n                print(f\"Processing user {user_id}\")\n            except ValueError:\n                print(\"Invalid integer format\")\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,1 +6,1 @@\n-        for row in reader:\n+        for row in csv.reader(file):\n",
+    "reference": "The code attempts to iterate over the 'reader' object inside the 'with' block, but if the CSV file contains rows that raise other critical errors or if the iterator is consumed improperly, it can fail. More importantly, missing an IndexError handler means malformed rows with missing columns will crash the application despite having a ValueError handler. Adding robust exception handling for IndexError ensures that rows with unexpected lengths do not halt the entire file processing.",
+    "hints": [
+      "Examine what happens if a row in the CSV file is completely empty or missing the first column.",
+      "Look closely at the try-except block and the exceptions that can be raised when accessing list indices.",
+      "Add an except IndexError clause alongside ValueError to handle rows with missing data gracefully."
+    ]
+  },
+  {
+    "id": "ex-g0728",
+    "language": "python",
+    "title": "Suspicious CSV Delimiter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef count_rows(filepath):\n    with open(filepath, mode='r', encoding='utf-8') as file:\n        reader = csv.reader(file, delimiter=',')\n        return sum(1 for row in reader)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code explicitly sets the delimiter to a comma, which is the default for csv.reader anyway. While some reviewers might flag this as redundant or suspect it should be parameterized, it is completely valid, correct, and safe Python code. This is a false positive.",
+    "hints": [
+      "Check the csv.reader documentation regarding the default delimiter value.",
+      "Consider whether explicitly defining default parameters affects the correctness of the function."
+    ]
+  },
+  {
+    "id": "ex-g0729",
+    "language": "python",
+    "title": "Unclosed File Object in Context Manager",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "reporter.py",
+    "code": "def generate_summary_report(data: dict, filepath: str) -> None:\n    with open(filepath, 'w', encoding='utf-8') as f:\n        for key, value in data.items():\n            f.write(f\"{key}: {value}\\n\")\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and robust. Novice reviewers sometimes panic when they see file I/O operations without an explicit .close() call, but the 'with' statement guarantees that the file resource is properly and automatically cleaned up upon exiting the context block, even if exceptions are raised.",
+    "hints": [
+      "Check how the file resource is acquired and scoped in this function.",
+      "Verify whether Python's context managers handle cleanup automatically upon block exit."
+    ]
+  },
+  {
+    "id": "ex-g0730",
+    "language": "python",
+    "title": "SQL Injection in Search Endpoint",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "import sqlite3\n\ndef search_users(username):\n    conn = sqlite3.connect('database.db')\n    cursor = conn.cursor()\n    query = \"SELECT id, username, email FROM users WHERE username = '\" + username + \"'\"\n    cursor.execute(query)\n    results = cursor.fetchall()\n    conn.close()\n    return results\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT id, username, email FROM users WHERE username = '\" + username + \"'\"\n+    query = \"SELECT id, username, email FROM users WHERE username = ?\"\n+    cursor.execute(query, (username,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could input malicious SQL syntax to manipulate the query logic and access unauthorized data. The vulnerability is resolved by using parameterized queries, which safely separate the SQL code from the user input.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the way the `username` variable is incorporated into the query.",
+      "Consider using parameterized queries with placeholders instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0731",
+    "language": "python",
+    "title": "Swallowing Unexpected Exceptions in Email Dispatch",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_alert_email(server, msg):\n    try:\n        server.send_message(msg)\n    except smtplib.SMTPException as e:\n        print(f\"Delivery failed: {e}\")\n        return False\n    return True\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    except smtplib.SMTPException as e:\n+    except (smtplib.SMTPException, OSError) as e:",
+    "reference": "The function attempts to send an email using an SMTP server connection, catching smtplib.SMTPException to handle delivery failures gracefully. However, network-level issues such as socket timeouts or connection refusals raise an OSError instead of an SMTPException, causing the program to crash unhandled. Catching both exception types ensures robust error handling for all potential communication failures.",
+    "hints": [
+      "Look closely at the types of exceptions that network operations can throw.",
+      "Consider what happens if the network connection drops entirely rather than returning an SMTP protocol error.",
+      "You need to catch both SMTP-specific errors and low-level operating system socket errors."
+    ]
+  },
+  {
+    "id": "ex-g0732",
+    "language": "python",
+    "title": "Fix Inventory Stock Validation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def check_stock(current_stock, requested_quantity):\n    if current_stock < requested_quantity:\n        return False\n    else:\n        return True\n    return current_stock - requested_quantity\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,1 +6,0 @@\n-    return current_stock - requested_quantity",
+    "reference": "The function contains unreachable code because return statements terminate execution immediately. Once the function returns a boolean value inside the conditional blocks, the final subtraction line is never reached. Removing the dead code ensures the function behaves predictably.",
+    "hints": [
+      "Look at the control flow paths of the function.",
+      "Examine what happens immediately after a return statement is executed.",
+      "The last line of the function is completely unreachable and should be removed or refactored."
+    ]
+  },
+  {
+    "id": "ex-g0733",
+    "language": "python",
+    "title": "Swallowing Generic Exception in Payment Retry",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import requests\n\ndef process_payment(payment_id, payload):\n    url = f\"https://api.payments.com/v1/charges/{payment_id}\"\n    try:\n        response = requests.post(url, json=payload, timeout=5)\n        response.raise_for_status()\n        return response.json()\n    except:\n        return {\"status\": \"failed\", \"reason\": \"network_error\"}\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -7,2 +7,2 @@\n-    except:\n+    except requests.RequestException as e:\n         return {\"status\": \"failed\", \"reason\": \"network_error\"}",
+    "reference": "Using a bare 'except:' clause catches all exceptions, including system-exiting ones like SystemExit and KeyboardInterrupt, as well as unexpected programming bugs like NameError or TypeError. This masks real errors and makes debugging the payment flow extremely difficult. By catching specifically requests.RequestException, we ensure that only expected network and HTTP errors are handled while letting critical runtime issues propagate correctly.",
+    "hints": [
+      "Look closely at the exception handling block.",
+      "Consider what types of exceptions are being caught by the current try-except structure.",
+      "Specify the exact exception class you expect from the requests library instead of using a bare except."
+    ]
+  },
+  {
+    "id": "ex-g0734",
+    "language": "python",
+    "title": "Missing Exception Type in Thumbnail Generation",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(image_path, output_path, size=(128, 128)):\n    try:\n        img = Image.open(image_path)\n        img.thumbnail(size)\n        img.save(output_path)\n    except:\n        print(\"Failed to create thumbnail.\")\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    except:\n+    except Exception as e:\n+        print(f\"Failed to create thumbnail: {e}\")",
+    "reference": "Using a bare `except:` clause catches all exceptions, including system-exiting ones like `KeyboardInterrupt` and `SystemExit`, making debugging extremely difficult. It is best practice to catch specific exceptions or at least inherit from `Exception` to avoid intercepting critical system signals. Additionally, logging or printing the actual exception message helps diagnose the root cause of failures.",
+    "hints": [
+      "Look closely at the error-handling block.",
+      "What kind of exceptions are being caught by the current try-except structure?",
+      "Add a specific exception class like `Exception` to the except statement to avoid catching unintended system events."
+    ]
+  },
+  {
+    "id": "ex-g0735",
+    "language": "python",
+    "title": "Uncaught Exception in Search Endpoint",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_items(query):\n    try:\n        results = database.query(query)\n        return results\n    except:\n        return None\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "-    except:\n+    except DatabaseError:\n+        return None",
+    "reference": "Catching bare 'except:' clauses is considered an anti-pattern because it intercepts all exceptions, including system exits, keyboard interrupts, and programming errors like NameError. This makes debugging difficult and can mask unexpected bugs in the search logic. To fix this, always specify the exact exception class you intend to handle, such as DatabaseError.",
+    "hints": [
+      "Look closely at the exception handling block.",
+      "Think about what exceptions might be thrown by a database query.",
+      "Avoid catching all exceptions blindly; specify the exact error type."
+    ]
+  },
+  {
+    "id": "ex-g0736",
+    "language": "python",
+    "title": "Fix Inventory Stock Check",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def check_stock(inventory, item, requested_quantity):\n    if item in inventory:\n        current_stock = inventory[item]\n        if current_stock > requested_quantity:\n            return True\n    return False\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- inventory.py\n+++ inventory.py\n@@ -4,1 +4,1 g\n-        if current_stock > requested_quantity:\n+        if current_stock >= requested_quantity:",
+    "reference": "The bug in the function is the use of the strict greater-than operator (>) instead of the greater-than-or-equal operator (>=) when checking available stock. If a customer requests the exact amount of stock currently available, the function incorrectly returns False. Changing the condition to '>=' ensures that orders matching the exact inventory level are correctly fulfilled.",
+    "hints": [
+      "Look closely at the comparison operator used to check the quantity.",
+      "Consider what happens when the requested quantity is exactly equal to the current stock.",
+      "Change the strict inequality to an inclusive inequality."
+    ]
+  },
+  {
+    "id": "ex-g0737",
+    "language": "python",
+    "title": "SQL Injection in Webhook Log",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import sqlite3\n\ndef log_webhook(conn, payload):\n    event_type = payload.get(\"type\")\n    data = payload.get(\"data\")\n    query = f\"INSERT INTO webhook_logs (event_type, payload) VALUES ('{event_type}', '{data}')\"\n    conn.execute(query)\n    conn.commit()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = f\"INSERT INTO webhook_logs (event_type, payload) VALUES ('{event_type}', '{data}')\"\n-    conn.execute(query)\n+    query = \"INSERT INTO webhook_logs (event_type, payload) VALUES (?, ?)\"\n+    conn.execute(query, (event_type, data))",
+    "reference": "This code is vulnerable to SQL injection because untrusted webhook payload data is directly interpolated into the SQL string using f-strings. An attacker could craft a malicious payload containing SQL commands to manipulate the database. The fix uses parameterized queries, which safely separate the SQL code from the data parameters.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the use of f-strings with database operations.",
+      "Replace string interpolation with query parameters using question marks."
+    ]
+  },
+  {
+    "id": "ex-g0738",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_obj, destination_path):\n    dest = open(destination_path, 'wb')\n    chunk = file_obj.read(1024)\n    while chunk:\n        dest.write(chunk)\n        chunk = file_obj.read(1024)\n    dest.close()\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -1,7 +1,7 @@\n def save_upload(file_obj, destination_path):\n-    dest = open(destination_path, 'wb')\n-    chunk = file_obj.read(1024)\n-    while chunk:\n-        dest.write(chunk)\n-        chunk = file_obj.read(1024)\n-    dest.close()\n+    with open(destination_path, 'wb') as dest:\n+        chunk = file_obj.read(1024)\n+        while chunk:\n+            dest.write(chunk)\n+            chunk = file_obj.read(1024)\n     return True",
+    "reference": "When dealing with file I/O, resources must be properly managed to prevent file descriptor leaks, especially if an exception occurs during the write loop. While `dest.close()` is present at the end of the function, any exception raised during the `while` loop will bypass the close call, leaving the file open. Using a context manager via the `with` statement guarantees that the file resource is reliably cleaned up regardless of execution flow.",
+    "hints": [
+      "Look closely at how file handles are opened and whether exceptions are taken into account.",
+      "Consider what happens if an error occurs inside the while loop before `dest.close()` is reached.",
+      "Refactor the file opening to use a context manager (the `with` statement) to ensure automatic cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0739",
+    "language": "python",
+    "title": "Unclosed Session in Database Helper",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "session_helper.py",
+    "code": "from sqlalchemy.orm import sessionmaker\n\ndef get_user_email(SessionClass, user_id):\n    session = SessionClass()\n    user = session.query(User).filter_by(id=user_id).first()\n    if not user:\n        return None\n    return user.email\n",
+    "real_lines": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "fix_diff": "--- session_helper.py\n+++ session_helper.py\n@@ -3,6 +3,7 @@\n def get_user_email(SessionClass, user_id):\n-    session = SessionClass()\n-    user = session.query(User).filter_by(id=user_id).first()\n-    if not user:\n-        return None\n-    return user.email\n+    with SessionClass() as session:\n+        user = session.query(User).filter_by(id=user_id).first()\n+        if not user:\n+            return None\n+        return user.email",
+    "reference": "Database sessions represent active connections and transactions that must be properly closed to release database resources back to the pool. When an early return happens or the function exits without closing the session, connections can leak and exhaust the database connection limit. Using a context manager like 'with SessionClass() as session:' ensures the session is automatically closed regardless of how the function terminates.",
+    "hints": [
+      "Check how database or network connections are being acquired and whether their lifecycle is properly managed.",
+      "Look closely at the control flow, specifically what happens to the acquired session when the user is not found.",
+      "Wrap the session initialization in a context manager (using the 'with' statement) to ensure automatic cleanup upon exit."
+    ]
   }
 ]
