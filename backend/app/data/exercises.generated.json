@@ -13400,5 +13400,405 @@
       "Look closely at the use of client.execute_command with a formatted string.",
       "Replace the raw command execution with the specific client method designed for retrieving keys."
     ]
+  },
+  {
+    "id": "ex-g0680",
+    "language": "python",
+    "title": "Unclosed SMTP Connection",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(recipient, message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.login('user@example.com', 'secret')\n    server.sendmail('user@example.com', recipient, message)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    server = smtplib.SMTP('smtp.example.com', 587)\n+    with smtplib.SMTP('smtp.example.com', 587) as server:",
+    "reference": "The code opens an SMTP network connection but never closes it, leading to a resource leak of network sockets and potential server-side resource exhaustion. Using a context manager ('with' statement) ensures that the connection is cleanly terminated and resources are released automatically even if exceptions occur during transmission.",
+    "hints": [
+      "Check how external network connections and file-like resources are managed in Python.",
+      "Look at how the SMTP object is instantiated and whether its lifecycle is properly handled.",
+      "Use a context manager ('with' statement) around the SMTP client initialization to ensure proper cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0681",
+    "language": "python",
+    "title": "Global State Race Condition in Login Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "failed_attempts = 0\n\ndef login(username, password):\n    global failed_attempts\n    if failed_attempts >= 3:\n        return \"Locked out\"\n    if not verify_credentials(username, password):\n        failed_attempts += 1\n        return \"Invalid credentials\"\n    failed_attempts = 0\n    return \"Success\"\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "-        failed_attempts += 1\n+        with threading.Lock():\n+            failed_attempts += 1",
+    "reference": "The function uses a global mutable variable to track failed login attempts across multiple concurrent requests without synchronization. When two threads fail simultaneously, the read-modify-write operation on 'failed_attempts += 1' can lead to a lost update, allowing brute-force attackers to bypass the lockout threshold. Wrapping the increment operation inside a threading lock ensures atomic updates.",
+    "hints": [
+      "Look closely at how global state is modified inside the function.",
+      "Consider what happens when multiple users or threads attempt to log in simultaneously.",
+      "The increment operator is not atomic and can suffer from race conditions under concurrency."
+    ]
+  },
+  {
+    "id": "ex-g0682",
+    "language": "python",
+    "title": "Mutable Default Argument in Job Retry Queue",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "queue_worker.py",
+    "code": "def process_jobs(job_id, retry_queue=[]):\n    try:\n        execute_job(job_id)\n    except Exception:\n        retry_queue.append(job_id)\n        logger.warning(f\"Job {job_id} failed, queued for retry\")\n    return retry_queue\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def process_jobs(job_id, retry_queue=[]):\n+ def process_jobs(job_id, retry_queue=None):\n+     if retry_queue is None:\n+         retry_queue = []",
+    "reference": "Python evaluates default argument values only once at the time the function is defined, rather than each time it is called. This means that any modifications to the mutable 'retry_queue' list accumulate across function calls, potentially causing jobs from previous executions to persist unexpectedly. Using 'None' as the default value and instantiating a new list inside the function body ensures each invocation gets its own independent queue.",
+    "hints": [
+      "Examine how default function arguments are evaluated in Python.",
+      "Look closely at the 'retry_queue' parameter in the function signature.",
+      "Consider what happens to the list object across multiple function calls when no argument is explicitly provided."
+    ]
+  },
+  {
+    "id": "ex-g0683",
+    "language": "python",
+    "title": "Rate Limiter Bypass",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "def check_rate_limit(request):\n    client_ip = request.headers.get('X-Forwarded-For')\n    if not client_ip:\n        client_ip = request.remote_addr\n    \n    current_count = cache.get(client_ip)\n    if current_count and current_count > 100:\n        return False\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    client_ip = request.headers.get('X-Forwarded-For')\n+    client_ip = request.remote_addr",
+    "reference": "Trusting the X-Forwarded-For header blindly introduces an authentication and security defect because this header can be easily spoofed by any client. An attacker can rotate arbitrary IP addresses in this header to completely bypass the rate limiting mechanism. To fix this, always rely on the secure, server-determined remote address instead of client-supplied headers.",
+    "hints": [
+      "Examine how the client's identifier is being retrieved.",
+      "Look closely at where the value of client_ip originates from.",
+      "Avoid trusting HTTP headers supplied directly by the client for security checks."
+    ]
+  },
+  {
+    "id": "ex-g0684",
+    "language": "python",
+    "title": "Incorrect Currency Conversion Order",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_final_amount(base_amount: int, tax_rate: float, discount: int) -> int:\n    subtotal = base_amount - discount\n    tax_amount = subtotal * tax_rate\n    total = subtotal + tax_amount\n    return total\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    total = subtotal + tax_amount\n+    total = int(subtotal + tax_amount)",
+    "reference": "Financial calculations in Python should avoid floating-point inaccuracies and ensure the return type matches the expected integer representation of cents. Without casting the final float result to an integer, the function returns a float instead of the expected integer type, which can lead to type mismatch errors in downstream payment gateways. The fix ensures the amount is explicitly cast to an integer before returning.",
+    "hints": [
+      "Look closely at the return type annotation of the function.",
+      "Check the data types of the variables involved in the addition on line 3.",
+      "Multiplying an integer by a float results in a float, which propagates through addition and changes the return type."
+    ]
+  },
+  {
+    "id": "ex-g0685",
+    "language": "python",
+    "title": "Missing Authorization Check in Cache Lookup",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "CACHE = {\"user_1_profile\": \"sensitive_data_1\", \"user_2_profile\": \"sensitive_data_2\"}\n\ndef get_cached_profile(current_user_id, target_user_id):\n    key = f\"user_{target_user_id}_profile\"\n    return CACHE.get(key, \"Not found\")\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    return CACHE.get(key, \"Not found\")\n+    if current_user_id != target_user_id:\n+        return \"Unauthorized\"\n+    return CACHE.get(key, \"Not found\")",
+    "reference": "This function retrieves profile data from a global cache based on the target user ID. However, it fails to verify whether the currently authenticated user is permitted to access the requested target profile. This allows any user to read another user's cached data simply by passing a different target ID.",
+    "hints": [
+      "Examine what arguments are passed into the function.",
+      "Check if the function verifies who is making the request against who the data belongs to.",
+      "Add a condition to compare current_user_id with target_user_id before returning the cache."
+    ]
+  },
+  {
+    "id": "ex-g0686",
+    "language": "python",
+    "title": "SQL Injection in User Authentication",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef authenticate_user(username, password):\n    conn = sqlite3.connect('users.db')\n    cursor = conn.cursor()\n    query = \"SELECT * FROM users WHERE username = '\" + username + \"' AND password = '\" + password + \"'\"\n    cursor.execute(query)\n    user = cursor.fetchone()\n    conn.close()\n    return user is not None\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM users WHERE username = '\" + username + \"' AND password = '\" + password + \"'\"\n-    cursor.execute(query)\n+    query = \"SELECT * FROM users WHERE username = ? AND password = ?\"\n+    cursor.execute(query, (username, password))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker can manipulate the username or password parameters to alter the query logic and bypass authentication. The vulnerability is fixed by using parameterized queries, which ensure that user input is treated strictly as data rather than executable code.",
+    "hints": [
+      "Examine how the SQL query string is constructed before it is executed.",
+      "Look closely at the use of string concatenation to combine variables into the query.",
+      "Replace string concatenation with parameterized queries using question mark placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0687",
+    "language": "python",
+    "title": "Unverified Token Cache Lookup",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import jwt\n\nclass TokenCache:\n    def __init__(self, redis_client):\n        self.redis = redis_client\n\n    def get_user_data(self, auth_header: str):\n        token = auth_header.split(\" \")[1]\n        cached = self.redis.get(token)\n        if cached:\n            return cached\n        return None\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-        cached = self.redis.get(token)\n+        payload = jwt.decode(token, options={\"verify_signature\": False})\n+        cached = self.redis.get(payload[\"sub\"])",
+    "reference": "Using the raw, unverified token string directly as a cache key or relying on it without cryptographic validation can lead to security bypasses if untrusted inputs are used. The fix decodes the token first to extract a validated subject identifier (sub) before querying the cache, ensuring the operation is bound to a verified user claim.",
+    "hints": [
+      "Examine how the cache key is constructed from the input.",
+      "Consider what happens if an attacker supplies a forged or modified token string.",
+      "Extract a verified claim from the token to use as the cache key instead of the raw token."
+    ]
+  },
+  {
+    "id": "ex-g0688",
+    "language": "python",
+    "title": "Unsafe Shared File Write in CSV Import",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nimport threading\n\ndef log_import(filename):\n    with open(\"import.log\", \"a\") as f:\n        writer = csv.writer(f)\n        writer.writerow([filename, \"SUCCESS\"])\n\ndef process_files(files):\n    threads = [threading.Thread(target=log_import, args=(f,)) for f in files]\n    for t in threads: t.start()\n    for t in threads: t.join()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -5,3 +5,3 @@\n def log_import(filename):\n-    with open(\"import.log\", \"a\") as f:\n+    with lock, open(\"import.log\", \"a\") as f:\n         writer = csv.writer(f)",
+    "reference": "When multiple threads write to the same file simultaneously without synchronization, their output can become interleaved or corrupted. Even though the file is opened in append mode, writing CSV rows involves multiple underlying operations that are not atomic. Adding a threading Lock ensures that only one thread can write to the log file at a time.",
+    "hints": [
+      "Look at how the log file is being accessed across different threads.",
+      "Consider what happens when multiple threads execute the write operation concurrently.",
+      "Introduce a threading.Lock() to synchronize access to the file write operation."
+    ]
+  },
+  {
+    "id": "ex-g0689",
+    "language": "python",
+    "title": "Unsanitized Log Injection",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request_path):\n    user_ip = \"192.168.1.50\"\n    log_entry = f\"IP: {user_ip} - Accessed: {request_path}\\n\"\n    with open(\"access.log\", \"a\") as f:\n        f.write(log_entry)\n    print(\"Logged request successfully.\")\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    log_entry = f\"IP: {user_ip} - Accessed: {request_path}\\n\"\n+    safe_path = request_path.replace(\"\\n\", \"_\").replace(\"\\r\", \"_\")\n+    log_entry = f\"IP: {user_ip} - Accessed: {safe_path}\\n\"",
+    "reference": "Log injection occurs when untrusted input is directly written to log files without sanitization. An attacker can supply newline characters in the request path to forge fake log entries, making auditing and log analysis unreliable. The fix is to sanitize or encode newline characters from the input before appending it to the log string.",
+    "hints": [
+      "Look at how the input parameter is integrated into the log string.",
+      "Consider what happens if the input string contains special control characters like newlines.",
+      "Sanitize the input by replacing newline characters before formatting the log entry."
+    ]
+  },
+  {
+    "id": "ex-g0690",
+    "language": "python",
+    "title": "Uncaught Exception in Search Query Parameter Parsing",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "from fastapi import FastAPI, HTTPException, status\n\napp = FastAPI()\n\n@app.get(\"/search\")\ndef search(q: str, limit: str):\n    try:\n        parsed_limit = int(limit)\n    except ValueError:\n        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)\n    return {\"query\": q, \"limit\": parsed_limit}\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)\n+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=\"Invalid limit parameter\")",
+    "reference": "When raising an HTTPException in FastAPI, it is best practice to include a meaningful detail message so the client understands why the request failed. Raising the exception without a detail parameter results in a generic or empty error response, which makes API debugging difficult for consumers. Adding a descriptive detail string resolves this issue and adheres to API design standards.",
+    "hints": [
+      "Look closely at how the HTTPException is instantiated in the except block.",
+      "Consider what information is typically returned to API clients when a 400 Bad Request occurs.",
+      "Add a descriptive detail parameter to the HTTPException constructor."
+    ]
+  },
+  {
+    "id": "ex-g0691",
+    "language": "python",
+    "title": "Hardcoded SMTP Credentials",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, message):\n    msg = EmailMessage()\n    msg.set_content(message)\n    msg['Subject'] = 'System Alert'\n    msg['From'] = 'admin@company.com'\n    msg['To'] = recipient\n    with smtplib.SMTP_SSL('smtp.company.com', 465) as server:\n        server.login('admin@company.com', 'SuperSecretPass123!')\n        server.send_message(msg)\n",
+    "real_lines": [
+      11
+    ],
+    "fix_diff": "-        server.login('admin@company.com', 'SuperSecretPass123!')\n+        server.login(os.environ.get('SMTP_USER'), os.environ.get('SMTP_PASS'))",
+    "reference": "Embedding sensitive authentication credentials directly into source code is a major security risk that can lead to credential exposure if the repository is compromised. Authentication secrets like passwords and API keys should always be externalized using environment variables or a secure vault service. The fix replaces the plaintext credentials with lookups to the process environment.",
+    "hints": [
+      "Look closely at how the application authenticates with the SMTP server.",
+      "Examine the parameters passed to the login method.",
+      "Check whether sensitive credentials are appropriately externalized from the source code."
+    ]
+  },
+  {
+    "id": "ex-g0692",
+    "language": "python",
+    "title": "Unsynchronized Token Bucket Rate Limiter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass RateLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.tokens = capacity\n        self.refill_rate = refill_rate\n        self.last_refill = time.time()\n\n    def acquire(self) -> bool:\n        now = time.time()\n        elapsed = now - self.last_refill\n        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n        self.last_refill = now\n        if self.tokens >= 1:\n            self.tokens -= 1\n            return True\n        return False\n",
+    "real_lines": [
+      12,
+      13,
+      14
+    ],
+    "fix_diff": "@@ -10,5 +10,6 @@\n     def acquire(self) -> bool:\n+        with self.lock:\n             now = time.time()\n             elapsed = now - self.last_refill\n             self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n             self.last_refill = now\n             if self.tokens >= 1:\n                 self.tokens -= 1\n                 return True\n             return False",
+    "reference": "This code suffers from a race condition because multiple threads can concurrently read and update the shared 'self.tokens' and 'self.last_refill' variables without synchronization. Interleaving read-and-write operations can lead to incorrect token counts and allow clients to bypass the rate limit. Adding a threading.Lock around the critical section ensures that token updates and checks are performed atomically.",
+    "hints": [
+      "Consider how multiple threads calling acquire simultaneously will interact with shared instance variables.",
+      "Look closely at read-modify-write sequences involving self.tokens and self.last_refill.",
+      "Introduce a threading.Lock in __init__ and use a with-statement context manager inside the acquire method."
+    ]
+  },
+  {
+    "id": "ex-g0693",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Update",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "queue.py",
+    "code": "import sqlite3\n\ndef update_job_status(db_path: str, job_id: int, status: str) -> None:\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"UPDATE jobs SET status = '%s' WHERE id = %d\" % (status, job_id)\n    cursor.execute(query)\n    conn.commit()\n    conn.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '%s' WHERE id = %d\" % (status, job_id)\n-    cursor.execute(query)\n+    cursor.execute(\"UPDATE jobs SET status = ? WHERE id = ?\", (status, job_id))",
+    "reference": "This function suffers from a SQL injection vulnerability because the 'status' parameter is directly interpolated into the query string using Python string formatting. An attacker could supply a malicious string for the status argument that breaks out of the intended syntax and executes arbitrary SQL commands. To fix this, always use parameterized queries with placeholders (?) so the database engine safely treats user input strictly as data.",
+    "hints": [
+      "Examine how the SQL query string is constructed before it is passed to the cursor.",
+      "Look closely at the use of string formatting (%) for inserting variables into the query.",
+      "Replace the string interpolation and direct variable formatting with parameterized query placeholders (?)."
+    ]
+  },
+  {
+    "id": "ex-g0694",
+    "language": "python",
+    "title": "Unclosed Image Resource in Thumbnailer",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(input_path, output_path):\n    img = Image.open(input_path)\n    img.thumbnail((128, 128))\n    img.save(output_path)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    img = Image.open(input_path)\n+    with Image.open(input_path) as img:",
+    "reference": "The function opens an image file using Pillow's Image.open, but never explicitly closes it or uses a context manager. This can lead to file descriptor leaks, locking the file on disk and causing resource exhaustion in high-throughput applications. Wrapping the open call in a 'with' statement ensures the file resource is properly released as soon as processing finishes.",
+    "hints": [
+      "Look at how external resources like files are managed in Python.",
+      "Consider what happens to the file handle opened by Image.open after the function finishes.",
+      "Use a context manager such as a 'with' statement to ensure the image file is automatically closed."
+    ]
+  },
+  {
+    "id": "ex-g0695",
+    "language": "python",
+    "title": "SQL Injection in User Session Lookup",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "import sqlite3\n\ndef get_user_session(db_conn, username):\n    cursor = db_conn.cursor()\n    query = \"SELECT * FROM sessions WHERE username = '\" + username + \"'\"\n    cursor.execute(query)\n    return cursor.fetchone()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM sessions WHERE username = '\" + username + \"'\"\n+    query = \"SELECT * FROM sessions WHERE username = ?\"\n+    cursor.execute(query, (username,))",
+    "reference": "This code is vulnerable to SQL injection because user input is directly concatenated into the SQL query string. An attacker could supply malicious input to alter the structure of the query and bypass authentication or access unauthorized session data. To fix this, use parameterized queries by passing the user input as a tuple to the execute method.",
+    "hints": [
+      "Look at how the SQL query string is constructed using string concatenation.",
+      "Consider what happens if the 'username' parameter contains single quotes or SQL commands.",
+      "Use parameterized queries (placeholders like '?') instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0696",
+    "language": "python",
+    "title": "Mutable Default Argument in Job Queue Retry",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "queue.py",
+    "code": "def enqueue_job(job_id, queue=[]) -> list:\n    if job_id not in queue:\n        queue.append(job_id)\n    return queue\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def enqueue_job(job_id, queue=[]) -> list:\n+ def enqueue_job(job_id, queue=None) -> list:\n+     if queue is None:\n+         queue = []",
+    "reference": "Python evaluates default argument values at function definition time, not at call time. This means that using a mutable object like a list as a default argument will retain its state across multiple function calls, leading to unintended side effects in background job queues. By setting the default to None and initializing a new list inside the function, each call gets its own independent queue.",
+    "hints": [
+      "Look closely at how the function parameters are initialized.",
+      "Consider what happens to the default value of the queue argument when the function is called multiple times without providing a queue.",
+      "Replace the mutable default argument with None and instantiate the list inside the function body."
+    ]
+  },
+  {
+    "id": "ex-g0697",
+    "language": "python",
+    "title": "Background Job Retry Mechanism",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "def process_jobs(queue, max_retries=3):\n    while not queue.empty():\n        job = queue.get()\n        attempts = 0\n        success = False\n        while attempts < max_retries and not success:\n            try:\n                job.execute()\n                success = True\n            except Exception:\n                attempts += 1\n                if attempts >= max_retries:\n                    job.move_to_dead_letter_queue()\n            finally:\n                queue.task_done()\n    return True\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct. While catching a bare 'Exception' is generally discouraged, here it is used intentionally as a catch-all safety net for arbitrary user-defined job executions to ensure the queue worker thread never crashes and always properly decrements the task counter via queue.task_done() in the finally block.",
+    "hints": [
+      "Check how exceptions during job execution are handled and whether the worker thread will survive failures.",
+      "Verify if the queue's task_done() method is guaranteed to be called even when a job repeatedly fails."
+    ]
+  },
+  {
+    "id": "ex-g0698",
+    "language": "python",
+    "title": "Unclosed File Descriptor in Webhook Stream Processing",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request):\n    payload = request.get_json()\n    event_type = payload.get(\"type\")\n    log_file = open(\"/var/log/webhooks.log\", \"a\")\n    log_file.write(f\"Received {event_type}\\n\")\n    if event_type == \"critical\":\n        raise ValueError(\"Critical event encountered\")\n    log_file.close()\n    return {\"status\": \"success\"}, 200\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,4 +4,4 @@\n-    log_file = open(\"/var/log/webhooks.log\", \"a\")\n+    with open(\"/var/log/webhooks.log\", \"a\") as log_file:",
+    "reference": "Opening a file without a context manager or a try-finally block leaves the file descriptor open if an exception occurs before reaching the close() call. In high-throughput webhook receivers, this causes file descriptor leaks that eventually exhaust system resources and crash the application. Using a context manager (with statement) guarantees proper resource cleanup even when exceptions are raised.",
+    "hints": [
+      "Examine how system resources are acquired and released.",
+      "Look at the control flow when an exception is raised inside the function.",
+      "Use a context manager (the 'with' statement) to automatically manage the file lifecycle."
+    ]
+  },
+  {
+    "id": "ex-g0699",
+    "language": "python",
+    "title": "Thread-Unsafe Global Config Mutation",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\n_config = {}\n\ndef load_config(filepath):\n    global _config\n    with open(filepath, 'r') as f:\n        _config = json.load(f)\n    return _config\n",
+    "real_lines": [
+      3,
+      7
+    ],
+    "fix_diff": "@@ -1,3 +1,5 @@\n import json\n+import threading\n \n _config = {}\n+_lock = threading.Lock()\n@@ -5,4 +7,5 @@\n     global _config\n-    with open(filepath, 'r') as f:\n-        _config = json.load(f)\n-    return _config\n+    with _lock:\n+        with open(filepath, 'r') as f:\n+            _config = json.load(f)\n+        return _config",
+    "reference": "The function modifies a shared global dictionary (_config) across threads without synchronization, leading to race conditions where one thread might read a partially updated configuration. Introducing a threading.Lock and wrapping the critical section in a context manager ensures exclusive access during the load operation. This prevents memory inconsistency and unpredictable behavior in multi-threaded environments.",
+    "hints": [
+      "Look at how the global state is accessed and modified.",
+      "Consider what happens if two threads call this function at the exact same time.",
+      "Use a threading.Lock to synchronize access to the critical section."
+    ]
   }
 ]
