@@ -16159,5 +16159,406 @@
       "Consider what happens if the persistence layer fails while trying to save the updated retry count.",
       "Ensure that job.save() includes error handling or correct parameters to prevent unhandled exceptions during failure states."
     ]
+  },
+  {
+    "id": "ex-g0820",
+    "language": "python",
+    "title": "SQL Injection in Session Lookup",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef get_user_session(db_conn, session_id):\n    cursor = db_conn.cursor()\n    query = \"SELECT user_id, expires_at FROM sessions WHERE session_id = '\" + session_id + \"'\"\n    cursor.execute(query)\n    return cursor.fetchone()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT user_id, expires_at FROM sessions WHERE session_id = '\" + session_id + \"'\"\n+    query = \"SELECT user_id, expires_at FROM sessions WHERE session_id = ?\"\n+    cursor.execute(query, (session_id,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied session data is directly concatenated into the SQL query string. An attacker could manipulate the session_id input to bypass authentication checks or extract sensitive database contents. The fix uses parameterized queries, which safely separate the SQL structure from the user-supplied parameters.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the use of string concatenation with the session_id parameter.",
+      "Consider using database parameterization instead of direct variable insertion to make the query safe."
+    ]
+  },
+  {
+    "id": "ex-g0821",
+    "language": "python",
+    "title": "Thread-Unsafe Request Counter in Middleware",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import time\nfrom threading import local\n\n_request_count = 0\n\ndef log_request(path: str) -> None:\n    global _request_count\n    _request_count += 1\n    time.sleep(0.001)\n    print(f\"{path} - Total: {_request_count}\")\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -4,3 +4,3 @@\n-_request_count = 0\n+_request_count = 0\n+_lock = threading.Lock()\n \n@@ -7,3 +7,4 @@\n     global _request_count\n-    _request_count += 1\n+    with _lock:\n+        _request_count += 1\n     time.sleep(0.001)",
+    "reference": "The function increments a global request counter without synchronization, causing a race condition in multi-threaded environments. Because the read-modify-write operation on the integer is not atomic, concurrent requests can overwrite each other's increments, resulting in inaccurate logs. Wrapping the critical section in a threading.Lock ensures that only one thread can modify the counter at a time.",
+    "hints": [
+      "Examine how shared state is modified across multiple threads.",
+      "Look closely at the integer increment operation and consider whether it is atomic in Python.",
+      "Use a threading.Lock to synchronize access to the global counter."
+    ]
+  },
+  {
+    "id": "ex-g0822",
+    "language": "python",
+    "title": "Unrestricted Report Access",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_user_report(user_id, current_user):\n    report = fetch_report_from_db(user_id)\n    if report:\n        return format_report(report)\n    return \"Report not found\"\n",
+    "real_lines": [
+      1,
+      2
+    ],
+    "fix_diff": "- def generate_user_report(user_id, current_user):\n+ def generate_user_report(user_id, current_user):\n+     if user_id != current_user.id and not current_user.is_admin:\n+         raise PermissionError(\"Unauthorized access\")\n      report = fetch_report_from_db(user_id)",
+    "reference": "This function suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it accepts a user_id parameter without verifying whether the requesting user has permission to view that specific report. Any authenticated user can supply another user's ID and access sensitive data. The fix introduces an authorization check to ensure the requesting user matches the target user or holds administrative privileges.",
+    "hints": [
+      "Look closely at the parameters accepted by the function.",
+      "Consider what happens if one user passes another user's ID into the function.",
+      "Verify if the current_user is actually authorized to access the requested user_id's report before fetching it."
+    ]
+  },
+  {
+    "id": "ex-g0823",
+    "language": "python",
+    "title": "Exception Masking in Inventory Service",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import logging\n\ndef update_stock(item_id: str, quantity: int) -> bool:\n    try:\n        database.execute_update(item_id, quantity)\n        return True\n    except Exception as e:\n        logging.error(f\"Failed to update stock: {e}\")\n        return False\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-        return False\n+        raise DatabaseError(f\"Failed to update stock for {item_id}\") from e",
+    "reference": "Returning a boolean flag upon catching a generic exception masks the underlying failure, making it indistinguishable from a business logic rejection (such as insufficient stock). Callers of this function will interpret False as a handled failure and continue execution, potentially leading to silent data inconsistency. Instead, you should either re-raise the exception or raise a custom domain-specific exception to ensure proper error propagation.",
+    "hints": [
+      "Examine how errors are handled after they are logged.",
+      "Consider what the return value of False communicates to the caller.",
+      "Returning False on an unexpected exception hides the failure from upstream callers. Re-raise or raise a custom exception instead."
+    ]
+  },
+  {
+    "id": "ex-g0824",
+    "language": "python",
+    "title": "Thread-Unsafe Cache Miss Check",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import time\n\nclass SimpleCache:\n    def __init__(self):\n        self._store = {}\n\n    def get_or_set(self, key, factory):\n        if key not in self._store:\n            self._store[key] = factory()\n        return self._store[key]\n",
+    "real_lines": [
+      8,
+      9
+    ],
+    "fix_diff": "@@ -8,2 +8,2 @@\n-        if key not in self._store:\n-            self._store[key] = factory()\n+        if key not in self._store:\n+            self._store[key] = factory()",
+    "reference": "This code suffers from a classic check-then-act race condition in a multi-threaded environment. If two threads simultaneously request a missing key, both may evaluate the 'if' condition as True and execute the factory function, leading to redundant computation and potential overwrites. To fix this, a threading Lock must be acquired before checking and mutating the internal store.",
+    "hints": [
+      "Consider what happens if multiple threads invoke this method at the exact same time.",
+      "Look closely at the check for the key's existence and the subsequent assignment.",
+      "You need to use a synchronization primitive like a threading.Lock to protect the critical section."
+    ]
+  },
+  {
+    "id": "ex-g0825",
+    "language": "python",
+    "title": "Unsafe Shared State in File Upload Counter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import threading\n\nactive_uploads = 0\n\ndef handle_upload(file_obj):\n    global active_uploads\n    active_uploads += 1\n    try:\n        save_to_disk(file_obj)\n    finally:\n        active_uploads -= 1\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,1 +6,1 @@\n-    active_uploads += 1\n+    with upload_lock:\n+        active_uploads += 1",
+    "reference": "This code suffers from a race condition because multiple threads can increment the global active_uploads variable simultaneously. The augmented assignment operation active_uploads += 1 is not atomic in Python, meaning it can be interrupted between the read, increment, and write steps. Using a threading.Lock ensures that only one thread can modify the shared counter at any given time.",
+    "hints": [
+      "Look closely at how global state is being modified inside the function.",
+      "Consider what happens when multiple threads execute the function concurrently.",
+      "Are non-atomic operations on global variables thread-safe in Python without synchronization primitives?"
+    ]
+  },
+  {
+    "id": "ex-g0826",
+    "language": "python",
+    "title": "Unsynchronized Thumbnail Cache",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import threading\n\nthumbnail_cache = {}\n\ndef get_thumbnail(image_path):\n    if image_path not in thumbnail_cache:\n        thumbnail = image_path.lower()\n        thumbnail_cache[image_path] = thumbnail\n    return thumbnail_cache[image_path]\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -5,3 +5,4 @@\n     if image_path not in thumbnail_cache:\n+        lock = threading.Lock()\n         thumbnail = image_path.lower()\n         thumbnail_cache[image_path] = thumbnail",
+    "reference": "When multiple threads access a shared dictionary simultaneously without synchronization, it can lead to race conditions and unpredictable state corruption. In Python, standard dictionaries are not thread-safe for write operations. Using a threading lock ensures that only one thread can check and modify the cache at a time.",
+    "hints": [
+      "Consider what happens if two threads call this function with the same image path at the exact same time.",
+      "The shared variable 'thumbnail_cache' is being modified across potentially multiple threads without protection.",
+      "You need to introduce a threading.Lock() to make the check-and-update block atomic."
+    ]
+  },
+  {
+    "id": "ex-g0827",
+    "language": "python",
+    "title": "Handling Missing Inventory Keys",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def get_item_price(inventory, item_name):\n    try:\n        return inventory[item_name]\n    except ValueError:\n        return 0.0\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    except ValueError:\n+    except KeyError:",
+    "reference": "When attempting to access a missing key in a Python dictionary using bracket notation, Python raises a KeyError, not a ValueError. Because the exception type in the except clause does not match the exception being raised, the error is unhandled and crashes the function. Changing the caught exception to KeyError ensures the function gracefully catches the missing key and returns the default value.",
+    "hints": [
+      "Look closely at the exception type being caught in the except block.",
+      "Think about what exception Python raises when a dictionary key does not exist.",
+      "Change ValueError to KeyError to properly catch dictionary lookup failures."
+    ]
+  },
+  {
+    "id": "ex-g0828",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "upload_handler.py",
+    "code": "def save_uploaded_file(upload_file, destination_path):\n    dest = open(destination_path, \"wb+\")\n    for chunk in upload_file.chunks():\n        dest.write(chunk)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- upload_handler.py\n+++ upload_handler.py\n@@ -1,5 +1,5 @@\n def save_uploaded_file(upload_file, destination_path):\n-    dest = open(destination_path, \"wb+\")\n-    for chunk in upload_file.chunks():\n-        dest.write(chunk)\n-    return True\n+    with open(destination_path, \"wb+\") as dest:\n+        for chunk in upload_file.chunks():\n+            dest.write(chunk)\n+        return True",
+    "reference": "Opening a file manually without a context manager leaves the file descriptor open until garbage collection reclaims it, which can exhaust system file descriptors under high load. Using a 'with' statement ensures that the file is safely and promptly closed as soon as the block exits, even if an exception occurs during the write process.",
+    "hints": [
+      "Examine how system resources are acquired at the beginning of the function.",
+      "Consider what happens to the file descriptor if an exception occurs during the write loop.",
+      "Refactor the file opening logic to use a context manager ('with' statement) to guarantee proper cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0829",
+    "language": "python",
+    "title": "Global Config Cache Race Condition",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\n_config_cache = {}\n\ndef get_config(path):\n    if path not in _config_cache:\n        with open(path, 'r') as f:\n            _config_cache[path] = json.load(f)\n    return _config_cache[path]\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,2 +6,3 @@\n+    import threading\n     if path not in _config_cache:\n+        with threading.Lock():\n             with open(path, 'r') as f:",
+    "reference": "This code suffers from a race condition when multiple threads attempt to access a configuration path that is not yet in the cache. Since the check and the subsequent write are not atomic, two threads might simultaneously read the file and overwrite each other's cache entries. Wrapping the critical section in a threading.Lock ensures that only one thread can load and cache the configuration for a given path at a time.",
+    "hints": [
+      "Consider what happens when multiple threads call this function simultaneously with a new path.",
+      "The dictionary check and the file read/write operations are not executed atomically.",
+      "Use a threading.Lock around the dictionary check and cache assignment to synchronize access."
+    ]
+  },
+  {
+    "id": "ex-g0830",
+    "language": "python",
+    "title": "Config Debug Mode Bug",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "def load_config(user_input):\n    default_config = {\"debug\": False, \"timeout\": 30}\n    if user_input.get(\"debug\") == \"true\":\n        default_config[\"debug\"] = True\n    return default_config\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    if user_input.get(\"debug\") == \"true\":\n+    if str(user_input.get(\"debug\")).lower() == \"true\":",
+    "reference": "The original code strictly checked if the 'debug' value equals the string \"true\". However, configuration inputs often pass actual boolean values like True instead of strings, causing this exact check to fail. By converting the input to a lowercase string before comparison, the function becomes robust enough to handle both string and boolean representations.",
+    "hints": [
+      "Look closely at the condition checking the user input.",
+      "What data type might 'debug' be if it is passed directly as a boolean instead of a string?",
+      "Consider normalizing the input value to a string and lowercasing it before making the comparison."
+    ]
+  },
+  {
+    "id": "ex-g0831",
+    "language": "python",
+    "title": "Unsafe Cache Key Injection in Redis Fetch",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\nclass CacheLayer:\n    def __init__(self, redis_client: redis.Redis):\n        self.redis = redis_client\n\n    def get_user_data(self, tenant_id: str, user_id: str) -> str:\n        cache_key = f\"tenant:{tenant_id}:user:{user_id}\"\n        return self.redis.get(cache_key)\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "-        cache_key = f\"tenant:{tenant_id}:user:{user_id}\"\n+        cache_key = f\"tenant:{quote(tenant_id, safe='')}:user:{quote(user_id, safe='')}\"",
+    "reference": "Constructing cache keys directly from unvalidated user inputs can allow attackers to manipulate the key structure, leading to cache poisoning or unauthorized data access. If an attacker injects delimiter characters or traversal patterns into variables like tenant_id, they might hijack the namespace. Mitigate this by sanitizing or encoding all dynamic components before interpolation.",
+    "hints": [
+      "Examine how the cache key is constructed using string formatting.",
+      "Consider what happens if the `tenant_id` or `user_id` contains special characters or Redis command delimiters.",
+      "Use a sanitization or quoting function to neutralize untrusted input before using it in key generation."
+    ]
+  },
+  {
+    "id": "ex-g0832",
+    "language": "python",
+    "title": "Missing JSON Content Type Check in Webhook",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "from flask import Flask, request, jsonify\n\napp = Flask(__name__)\n\n@app.route('/webhook', methods=['POST'])\ndef handle_webhook():\n    data = request.json\n    event_id = data.get('id')\n    return jsonify({\"status\": \"success\", \"id\": event_id}), 200\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -7,1 +7,3 @@\n-    data = request.json\n+    if not request.is_json:\n+        return jsonify({\"error\": \"Content-Type must be application/json\"}), 400\n+    data = request.get_json()",
+    "reference": "The original code assumes the incoming webhook request is always properly formatted JSON without verifying the Content-Type header. If a client sends a request with a different content type, request.json may return None or raise an exception, causing the application to crash or behave unexpectedly. By checking request.is_json and safely retrieving the payload, the application gracefully handles malformed requests and returns an appropriate HTTP 400 error.",
+    "hints": [
+      "Consider what happens if the incoming HTTP request does not contain a JSON body or proper headers.",
+      "Look closely at how Flask parses the incoming request data and whether it validates the Content-Type.",
+      "Use request.is_json to validate the request payload type before attempting to extract data from it."
+    ]
+  },
+  {
+    "id": "ex-g0833",
+    "language": "python",
+    "title": "Secure File Upload Path Handling",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "upload_utils.py",
+    "code": "import os\nfrom werkzeug.utils import secure_filename\n\ndef save_uploaded_file(file_storage, upload_directory):\n    original_filename = file_storage.filename\n    safe_name = secure_filename(original_filename)\n    destination_path = os.path.join(upload_directory, safe_name)\n    \n    if not destination_path.startswith(os.path.abspath(upload_directory)):\n        raise ValueError(\"Path traversal attempt detected\")\n        \n    file_storage.save(destination_path)\n    return destination_path\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely secure. A novice reviewer might spot os.path.join combined with user input and suspect a path traversal vulnerability. However, the code correctly uses werkzeug's secure_filename to strip directory components and dangerous characters, and additionally validates that the resolved destination path strictly starts with the absolute path of the upload directory, neutralizing any potential bypasses.",
+    "hints": [
+      "Check what the secure_filename function does to path separators and special characters like '..'.",
+      "Examine the check performed right after os.path.join to see how the final destination path is validated against the upload directory."
+    ]
+  },
+  {
+    "id": "ex-g0834",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in Thumbnail Retriever",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\nfrom flask import Flask, send_file, request\n\napp = Flask(__name__)\n\n@app.route(\"/thumbnail\")\ndef get_thumbnail():\n    filename = request.args.get(\"file\")\n    thumb_path = os.path.join(\"/var/www/thumbnails\", filename)\n    return send_file(thumb_path)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-    thumb_path = os.path.join(\"/var/www/thumbnails\", filename)\n+    if not current_user.can_access(filename):\n+        return \"Unauthorized\", 403\n+    thumb_path = os.path.join(\"/var/www/thumbnails\", filename)",
+    "reference": "The code suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it serves requested files without verifying if the currently authenticated user has permission to access them. An attacker can manipulate the file parameter to download arbitrary files from the server. The fix involves implementing an authorization check to ensure the user is allowed to access the specific resource before serving it.",
+    "hints": [
+      "Look closely at how user permissions are handled when a request comes in.",
+      "The application accepts a filename parameter directly from the query string without checking who is asking for it.",
+      "You need to validate the user's authorization to access the specific file before calling send_file."
+    ]
+  },
+  {
+    "id": "ex-g0835",
+    "language": "python",
+    "title": "Uncaught FileNotFoundError in CSV Importer",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_csv_data(filepath):\n    with open(filepath, mode=\"r\", encoding=\"utf-8\") as file:\n        reader = csv.DictReader(file)\n        return [row for row in reader]\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    with open(filepath, mode=\"r\", encoding=\"utf-8\") as file:\n+    try:\n+        with open(filepath, mode=\"r\", encoding=\"utf-8\") as file:\n+            reader = csv.DictReader(file)\n+            return [row for row in reader]\n+    except FileNotFoundError:\n+        return []",
+    "reference": "The function attempts to open and read a CSV file without handling potential file system errors. If the specified file path does not exist, a FileNotFoundError will be raised and crash the caller. Wrapping the file operation in a try-except block allows the function to gracefully handle missing files by returning an empty list.",
+    "hints": [
+      "Consider what happens if the file path passed to the function does not exist.",
+      "The function lacks exception handling around the file I/O operations.",
+      "Add a try-except block catching FileNotFoundError to return an empty list when the file is missing."
+    ]
+  },
+  {
+    "id": "ex-g0836",
+    "language": "python",
+    "title": "CSV Injection via Formula Execution",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_users(file_path):\n    with open(file_path, mode='r') as f:\n        reader = csv.reader(f)\n        for row in reader:\n            username = row[0]\n            email = row[1]\n            print(f\"Inserting {username} with email {email}\")\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -7,2 +7,2 @@\n-            username = row[0]\n-            email = row[1]\n+            username = row[0].lstrip('=+-@')\n+            email = row[1].lstrip('=+-@')",
+    "reference": "When importing external CSV data into spreadsheet applications, cells starting with characters like `=`, `+`, `-`, or `@` can be interpreted as executable formulas. If an attacker injects a malicious formula into the CSV, it could execute arbitrary commands or exfiltrate data when the file is opened in software like Excel. The fix sanitizes the input by stripping these leading special characters to prevent formula execution.",
+    "hints": [
+      "Consider what happens when a CSV file is opened in spreadsheet software.",
+      "Look closely at the first characters of string inputs derived from untrusted files.",
+      "Sanitize the extracted fields to strip dangerous leading characters like '=', '+', '-', or '@'."
+    ]
+  },
+  {
+    "id": "ex-g0837",
+    "language": "python",
+    "title": "Unsafe File Upload Overwrite",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "import os\n\ndef save_uploaded_file(file_obj, upload_dir):\n    filename = file_obj.filename\n    destination = os.path.join(upload_dir, filename)\n    if not os.path.exists(destination):\n        with open(destination, \"wb\") as f:\n            f.write(file_obj.read())\n    return destination\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- upload.py\n+++ upload.py\n@@ -5,3 +5,3 @@\n-    if not os.path.exists(destination):\n+    try:\n+        fd = os.open(destination, os.O_CREAT | os.O_EXCL | os.O_WRONLY)\n+        with os.fdopen(fd, \"wb\") as f:\n+            f.write(file_obj.read())\n+    except FileExistsError:\n+        raise FileExistsError(\"File already exists\")",
+    "reference": "This code suffers from a Time-of-Check to Time-of-Use (TOCTOU) race condition. Checking if a file exists using os.path.exists before opening it leaves a window where another thread or process could create the file, leading to unintended overwrites or race vulnerabilities. The fix is to use atomic file creation flags like os.O_CREAT combined with os.O_EXCL to ensure the operation fails if the file already exists.",
+    "hints": [
+      "Look at how the existence of the file is verified before it is saved.",
+      "Consider what happens if two concurrent requests attempt to upload a file with the exact same name at the exact same millisecond.",
+      "Replace the check-then-act pattern with an atomic file creation mechanism using low-level file flags."
+    ]
+  },
+  {
+    "id": "ex-g0838",
+    "language": "python",
+    "title": "Unmasked Authorization Header Logging",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "middleware.py",
+    "code": "def log_request(request):\n    headers = dict(request.headers)\n    if \"Authorization\" in headers:\n        print(f\"Auth Header: {headers['Authorization']}\")\n    print(f\"Incoming {request.method} request to {request.path}\")\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,1 @@\n-        print(f\"Auth Header: {headers['Authorization']}\")\n+        print(\"Auth Header: [REDACTED]\")",
+    "reference": "Logging sensitive credentials such as Authorization headers directly to standard output or log files creates a severe security risk if log management systems are compromised or accessible to unauthorized personnel. Attackers with read access to logs can easily extract plaintext bearer tokens or API keys to impersonate legitimate users. The fix involves redacting the sensitive value before logging.",
+    "hints": [
+      "Examine what data is being written to the logs for every incoming request.",
+      "Look closely at the information extracted from the request headers dictionary.",
+      "Avoid logging raw secrets like the Authorization header in plaintext."
+    ]
+  },
+  {
+    "id": "ex-g0839",
+    "language": "python",
+    "title": "Database Connection Rollback Defect",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def process_inventory_shipment(db_session, item_id, quantity):\n    try:\n        item = db_session.query(Item).filter_by(id=item_id).with_for_update().one()\n        if item.stock < quantity:\n            raise ValueError(\"Insufficient stock available\")\n        item.stock -= quantity\n        db_session.commit()\n    except SQLAlchemyError as e:\n        db_session.rollback()\n        raise ServiceError(\"Database error during shipment\") from e\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n         if item.stock < quantity:\n-            raise ValueError(\"Insufficient stock available\")\n+            db_session.rollback(); raise ValueError(\"Insufficient stock available\")",
+    "reference": "When a business logic exception like ValueError is raised inside a try block, it bypasses the except SQLAlchemyError handler entirely. This leaves the active database transaction open and uncommitted or unrolled back, which can cause connection pooling issues and lock contention. Explicitly calling rollback before raising the business exception ensures proper cleanup of the database session state.",
+    "hints": [
+      "Examine what happens to the database transaction when business validation fails.",
+      "Trace the exception flow between ValueError and SQLAlchemyError in the try-except block.",
+      "Add a session rollback before raising the ValueError to release any held locks."
+    ]
   }
 ]
