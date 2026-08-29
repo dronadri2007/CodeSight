@@ -376,5 +376,326 @@
     ],
     "difficulty": "pro",
     "source": "curated"
+  },
+  {
+    "id": "ex-020",
+    "language": "python",
+    "title": "Render a personalized welcome banner",
+    "defect_class": "injection",
+    "filename": "views.py",
+    "code": "from flask import request\n\ndef greeting():\n    name = request.args.get(\"name\", \"friend\")\n    html = \"<p>Welcome back, \" + name + \"!</p>\"\n    return html\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-from flask import request\n+from flask import request\n+from markupsafe import escape\n@@\n-    html = \"<p>Welcome back, \" + name + \"!</p>\"\n+    html = \"<p>Welcome back, \" + str(escape(name)) + \"!</p>\"\n",
+    "reference": "The value of the name query parameter is concatenated straight into the HTML that is sent back, so a value like <script>steal()</script> runs in the visitor's browser (reflected cross-site scripting). Fix: HTML-escape user-controlled text before putting it in the response, e.g. with markupsafe.escape, or render it through a template with autoescaping enabled.",
+    "hints": [
+      "Follow the `name` value from where it enters the function to where it leaves.",
+      "It comes from the query string and is placed into the HTML response untouched.",
+      "Line 5 splices raw user input into the page, so `?name=<script>...` executes in the visitor's browser."
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
+  },
+  {
+    "id": "ex-021",
+    "language": "python",
+    "title": "Verify a login against MongoDB",
+    "defect_class": "injection",
+    "filename": "login.py",
+    "code": "def login(db):\n    creds = request.get_json()\n    user = db.users.find_one({\n        \"username\": creds[\"username\"],\n        \"password\": creds[\"password\"],\n    })\n    return user is not None\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "-        \"username\": creds[\"username\"],\n-        \"password\": creds[\"password\"],\n+        \"username\": str(creds[\"username\"]),\n+        \"password\": str(creds[\"password\"]),\n",
+    "reference": "request.get_json() returns whatever JSON the client sent, so the credential values can be nested objects rather than strings. Sending {\"username\": \"admin\", \"password\": {\"$ne\": null}} builds a query with a MongoDB operator that matches the admin document regardless of password, bypassing authentication (NoSQL operator injection). Fix: coerce the credentials to str (or validate that they are strings) before building the filter.",
+    "hints": [
+      "What guarantees do you have about the shape of the values in `creds`?",
+      "`request.get_json()` can hand you nested objects, not just strings.",
+      "A password of `{\"$ne\": null}` makes the filter match any account - lines 4-5 trust the JSON types."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-022",
+    "language": "python",
+    "title": "Admin dashboard checks login only",
+    "defect_class": "auth",
+    "filename": "dashboard.py",
+    "code": "def show_admin_dashboard(request):\n    user = request.user\n    if not user.is_authenticated:\n        raise PermissionError(\"please log in\")\n    return render(\"admin/dashboard.html\", stats=load_stats())\n",
+    "real_lines": [
+      3,
+      4
+    ],
+    "fix_diff": "     user = request.user\n-    if not user.is_authenticated:\n-        raise PermissionError(\"please log in\")\n+    if not user.is_authenticated or not user.is_admin:\n+        raise PermissionError(\"forbidden\")\n     return render(\"admin/dashboard.html\", stats=load_stats())\n",
+    "reference": "The guard only confirms the caller is logged in; it never checks that the caller is an administrator, so any authenticated user can open the admin dashboard (missing authorization / privilege escalation). Authentication establishes who you are but does not by itself grant admin access. Fix: also require user.is_admin (or the appropriate role) before rendering the page.",
+    "hints": [
+      "Think about which users this page is meant for, and which users actually get past the check.",
+      "The guard confirms someone is logged in. Does being logged in make you an admin?",
+      "Line 3 never inspects a role or admin flag, so every authenticated user reaches the dashboard."
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
+  },
+  {
+    "id": "ex-023",
+    "language": "python",
+    "title": "Profile update copies every form field",
+    "defect_class": "auth",
+    "filename": "profile.py",
+    "code": "def update_profile(current_user, form):\n    for field, value in form.items():\n        setattr(current_user, field, value)\n    db.session.commit()\n    return {\"updated\": list(form.keys())}\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "-    for field, value in form.items():\n-        setattr(current_user, field, value)\n+    allowed = {\"display_name\", \"bio\", \"avatar_url\"}\n+    for field, value in form.items():\n+        if field in allowed:\n+            setattr(current_user, field, value)\n     db.session.commit()\n",
+    "reference": "The loop writes every key from the client-supplied form onto the user record, so a request that also sends role or is_admin overwrites those attributes and hands the caller admin rights (mass assignment / privilege escalation). Fix: copy only an explicit allow-list of user-editable fields and ignore any other keys in the payload.",
+    "hints": [
+      "Look at where the field names come from and where they are written.",
+      "The caller controls every key in `form`. What happens if one of those keys is `is_admin`?",
+      "Lines 2-3 set whatever attribute the client names on `current_user`, including privilege fields."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-024",
+    "language": "python",
+    "title": "Password reset token never expires",
+    "defect_class": "auth",
+    "filename": "password_reset.py",
+    "code": "def reset_password(token, new_password):\n    row = db.query(ResetToken).filter_by(token=token).one_or_none()\n    if row is None:\n        raise ValueError(\"invalid or expired token\")\n    row.user.set_password(new_password)\n    db.delete(row)\n    db.commit()\n    return {\"status\": \"ok\"}\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "     row = db.query(ResetToken).filter_by(token=token).one_or_none()\n-    if row is None:\n+    if row is None or row.expires_at < datetime.utcnow():\n         raise ValueError(\"invalid or expired token\")\n     row.user.set_password(new_password)\n",
+    "reference": "The token is accepted solely because its string matches a stored row; row.expires_at is never compared against the current time, so a reset link captured from an old email, a proxy log, or browser history keeps working indefinitely (missing token expiry validation). Because the row is deleted after a successful reset, single-use is already enforced - only the lifetime check is absent. The fix rejects the token when row.expires_at is in the past.",
+    "hints": [
+      "The error message talks about an expired token. Is that condition actually enforced anywhere?",
+      "A `ResetToken` row almost certainly carries an `expires_at`. Where does the code read it?",
+      "Line 3 accepts any matching token regardless of age; nothing compares it to the current time."
+    ],
+    "difficulty": "pro",
+    "source": "curated"
+  },
+  {
+    "id": "ex-025",
+    "language": "python",
+    "title": "Parse quantity catches the wrong exception",
+    "defect_class": "error-handling",
+    "filename": "quantity.py",
+    "code": "def parse_quantity(raw):\n    try:\n        return int(raw)\n    except KeyError:\n        return 1\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    except KeyError:\n+    except ValueError:\n         return 1\n",
+    "reference": "int() raises ValueError on a non-numeric string (and TypeError on None), never KeyError, so the handler never fires and a bad input like \"abc\" propagates as an unhandled ValueError that crashes the caller. The except clause names an exception this code cannot produce. Fix: catch ValueError (add TypeError if None is possible).",
+    "hints": [
+      "Call this with raw = \"abc\" and follow what happens.",
+      "Which exception does int() actually raise when the text is not a number?",
+      "int(\"abc\") raises ValueError, but line 4 only catches KeyError, so nothing handles it."
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
+  },
+  {
+    "id": "ex-026",
+    "language": "python",
+    "title": "Broad except shadows the specific handler",
+    "defect_class": "error-handling",
+    "filename": "configparse.py",
+    "code": "class ParseError(Exception):\n    pass\n\n\ndef parse_line(line):\n    try:\n        name, value = line.split(\"=\", 1)\n        return name.strip(), int(value)\n    except Exception:\n        return None\n    except ValueError:\n        raise ParseError(f\"bad number in: {line!r}\")\n",
+    "real_lines": [
+      9,
+      11
+    ],
+    "fix_diff": "-    except Exception:\n-        return None\n-    except ValueError:\n-        raise ParseError(f\"bad number in: {line!r}\")\n+    except ValueError:\n+        raise ParseError(f\"bad number in: {line!r}\")\n+    except Exception:\n+        return None\n",
+    "reference": "Python tests except clauses top to bottom and runs the first whose type matches; Exception is a base class of ValueError, so the except ValueError block below it is unreachable. A malformed number is therefore swallowed as None instead of raising ParseError, and every other error is hidden too. Fix: order handlers most-specific first, placing except ValueError above the broad fallback.",
+    "hints": [
+      "Feed in a line like \"port=xyz\" and trace which except block runs.",
+      "Both handlers can match a ValueError. Which one does Python pick?",
+      "except Exception on line 9 matches first, so the except ValueError branch is dead code and ParseError is never raised."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-027",
+    "language": "python",
+    "title": "Timer context manager swallows exceptions",
+    "defect_class": "error-handling",
+    "filename": "timing.py",
+    "code": "import logging\nimport time\n\nlog = logging.getLogger(__name__)\n\n\nclass timer:\n    def __enter__(self):\n        self.t0 = time.monotonic()\n        return self\n\n    def __exit__(self, exc_type, exc, tb):\n        self.elapsed = time.monotonic() - self.t0\n        log.info(\"block took %.3fs\", self.elapsed)\n        return True\n",
+    "real_lines": [
+      15
+    ],
+    "fix_diff": "         self.elapsed = time.monotonic() - self.t0\n         log.info(\"block took %.3fs\", self.elapsed)\n-        return True\n+        return False\n",
+    "reference": "If a context manager's __exit__ returns a truthy value, Python treats any exception raised inside the with block as handled and suppresses it. This class only means to measure elapsed time, but return True silently discards every exception from the guarded code, so failures vanish without a trace. Fix: return False (or nothing, which is None) so exceptions propagate normally.",
+    "hints": [
+      "Wrap a statement that raises, like 1 / 0, in a with timer(): block and see whether it actually raises.",
+      "What does the value returned by __exit__ tell Python to do about an in-flight exception?",
+      "Line 15 returns True, which signals \"exception handled\" and suppresses it; it should return False."
+    ],
+    "difficulty": "pro",
+    "source": "curated"
+  },
+  {
+    "id": "ex-028",
+    "language": "python",
+    "title": "Token bucket leaks its lock",
+    "defect_class": "concurrency",
+    "filename": "ratelimit.py",
+    "code": "import threading\n\n_lock = threading.Lock()\n_tokens = 10\n\ndef take_token():\n    global _tokens\n    _lock.acquire()\n    if _tokens == 0:\n        return False\n    _tokens -= 1\n    _lock.release()\n    return True\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "     _lock.acquire()\n     if _tokens == 0:\n+        _lock.release()\n         return False\n     _tokens -= 1\n     _lock.release()\n",
+    "reference": "take_token() calls _lock.acquire() on every call, but the `return False` branch that runs when tokens are exhausted never reaches _lock.release(). The lock stays held, so the next thread to call take_token() blocks on acquire() forever (deadlock). Fix: release the lock on every exit path - add the release before the early return, or better, hold it in a `with _lock:` block so it is freed automatically.",
+    "hints": [
+      "Trace every way this function can return. Is whatever was acquired at the top released before each `return`?",
+      "`_lock.acquire()` runs on every call, but `_lock.release()` sits on only one path.",
+      "The `return False` branch skips `release()`; guard the body with `with _lock:` instead."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-029",
+    "language": "python",
+    "title": "Buses needed for a group",
+    "defect_class": "logic",
+    "filename": "transport.py",
+    "code": "def buses_needed(people, seats_per_bus):\n    buses = people // seats_per_bus\n    return buses\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    buses = people // seats_per_bus\n+    buses = -(-people // seats_per_bus)\n",
+    "reference": "Floor division discards the remainder, so any leftover people who do not fill a whole bus get no seat (45 people, 40 seats returns 1 bus). The count must round up, not down. Fix: -(-people // seats_per_bus), which rounds up using only integer arithmetic (no import needed); equivalently math.ceil(people / seats_per_bus) if `import math` is added.",
+    "hints": [
+      "What happens to the people who do not fill a whole bus?",
+      "`//` throws the remainder away, so the last, partly full bus is never counted.",
+      "Line 2 needs to round up: `-(-people // seats_per_bus)` does it with integer math."
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
+  },
+  {
+    "id": "ex-030",
+    "language": "python",
+    "title": "Strip a file extension",
+    "defect_class": "logic",
+    "filename": "files.py",
+    "code": "def strip_ext(filename):\n    if filename.endswith(\".csv\"):\n        return filename.strip(\".csv\")\n    return filename\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-        return filename.strip(\".csv\")\n+        return filename.removesuffix(\".csv\")\n",
+    "reference": "str.strip(chars) removes any leading and trailing characters that appear in the argument, which is treated as a set of characters ('.', 'c', 's', 'v'), not as the substring \".csv\". So \"scores.csv\" also loses the leading \"sc\" and the trailing \".\", \"c\", \"s\", \"v\", becoming \"ore\" instead of \"scores\". The fix is filename.removesuffix(\".csv\") (Python 3.9+), or the slice filename[:-4].",
+    "hints": [
+      "Call this with \"scores.csv\" and look at exactly what comes back.",
+      "`strip` does not take a substring; it takes a set of characters to trim from both ends.",
+      "Line 3's `.strip(\".csv\")` also eats the leading `s` and `c`, not just the trailing extension."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-031",
+    "language": "python",
+    "title": "Cache key from concatenated arguments",
+    "defect_class": "logic",
+    "filename": "memo.py",
+    "code": "_results = {}\n\ndef memoized_area(width, height):\n    key = str(width) + str(height)\n    if key not in _results:\n        _results[key] = compute_area(width, height)\n    return _results[key]\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    key = str(width) + str(height)\n+    key = (width, height)\n",
+    "reference": "Concatenating the stringified arguments with nothing between them produces the same key for different argument pairs whenever the digits line up: (1, 23) and (12, 3) both yield \"123\". The second call then returns the first call's cached result instead of computing its own area. Fix: use the tuple (width, height) as the key, or join with a separator that cannot appear in the values.",
+    "hints": [
+      "Try width=1, height=23, then width=12, height=3.",
+      "Those two calls compute the same `key`.",
+      "Line 4 glues the stringified arguments together with no delimiter, so distinct pairs collide."
+    ],
+    "difficulty": "pro",
+    "source": "curated"
+  },
+  {
+    "id": "ex-032",
+    "language": "python",
+    "title": "Write a CSV report to disk",
+    "defect_class": "resource",
+    "filename": "export.py",
+    "code": "def save_report(path, rows):\n    f = open(path, \"w\")\n    for row in rows:\n        f.write(\",\".join(row) + \"\\n\")\n    return path\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(path, \"w\")\n-    for row in rows:\n-        f.write(\",\".join(row) + \"\\n\")\n-    return path\n+    with open(path, \"w\") as f:\n+        for row in rows:\n+            f.write(\",\".join(row) + \"\\n\")\n+    return path\n",
+    "reference": "open(path, \"w\") returns a file object that is never closed. Buffered writes are not guaranteed to reach disk until close() runs, and every call leaks a file descriptor until the garbage collector happens to finalise the object. Fix: use open as a context manager so the file is flushed and closed when the block exits.",
+    "hints": [
+      "What happens to `f` after the last row is written?",
+      "The file is opened but nothing ever closes it, so the buffered data may never be flushed.",
+      "Line 2 opens a file with no matching close; wrap lines 2-4 in a `with open(...) as f:` block."
+    ],
+    "difficulty": "beginner",
+    "source": "curated"
+  },
+  {
+    "id": "ex-033",
+    "language": "python",
+    "title": "Count ERROR lines in a log file",
+    "defect_class": "resource",
+    "filename": "logscan.py",
+    "code": "def count_errors(path):\n    with open(path) as f:\n        lines = f.readlines()\n    total = 0\n    for line in lines:\n        if \"ERROR\" in line:\n            total += 1\n    return total\n",
+    "real_lines": [
+      3,
+      5
+    ],
+    "fix_diff": "-    with open(path) as f:\n-        lines = f.readlines()\n-    total = 0\n-    for line in lines:\n-        if \"ERROR\" in line:\n-            total += 1\n+    total = 0\n+    with open(path) as f:\n+        for line in f:\n+            if \"ERROR\" in line:\n+                total += 1\n     return total\n",
+    "reference": "f.readlines() pulls the entire file into a list, so a multi-gigabyte log is held in memory all at once even though only one line is needed at a time. A file object is already a lazy iterator of lines. Fix: loop directly over f inside the with block so memory stays flat regardless of file size.",
+    "hints": [
+      "Picture this running against a log file that is several gigabytes. How much of it is resident at once?",
+      "`readlines()` materialises every line into a list before the loop starts.",
+      "Iterate over the file object directly instead of building the `lines` list."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-034",
+    "language": "python",
+    "title": "Drop expired sessions from a dict",
+    "defect_class": "clean",
+    "filename": "sessions.py",
+    "code": "def drop_expired(sessions):\n    for sid in list(sessions):\n        if sessions[sid].expired:\n            del sessions[sid]\n    return sessions\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This is correct. The loop iterates over list(sessions), a snapshot of the keys taken before any deletion, so del sessions[sid] never mutates the collection currently being iterated. Iterating the dict directly would raise RuntimeError: dictionary changed size during iteration, but the list(...) copy prevents that. Flagging the deletion inside the loop is a false positive.",
+    "hints": [
+      "Look closely at what the for statement actually iterates over.",
+      "Deleting from a dict while looping over it normally raises a RuntimeError - does that happen here?",
+      "list(sessions) copies the keys first, so the loop and the del touch different objects. The file is clean."
+    ],
+    "difficulty": "intermediate",
+    "source": "curated"
+  },
+  {
+    "id": "ex-035",
+    "language": "python",
+    "title": "Verify an incoming webhook signature",
+    "defect_class": "clean",
+    "filename": "webhooks.py",
+    "code": "import hmac\nimport hashlib\n\ndef is_valid_signature(payload, signature, secret):\n    mac = hmac.new(secret, payload, hashlib.sha256)\n    return hmac.compare_digest(mac.hexdigest(), signature)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This is correct. hmac.compare_digest performs a constant-time comparison designed precisely to avoid the timing side channel that a plain == on a secret would leak, so comparing the two hex digests here is safe. There is no need to length-check signature first, since compare_digest handles unequal-length inputs without leaking which bytes matched. Flagging this comparison as a timing vulnerability is a false positive.",
+    "hints": [
+      "Think about what an attacker could infer from how long this function takes to return.",
+      "A naive == on a computed MAC would leak timing information - but is that the comparison being used here?",
+      "hmac.compare_digest is the constant-time primitive built for exactly this check. The file is clean."
+    ],
+    "difficulty": "pro",
+    "source": "curated"
   }
 ]
