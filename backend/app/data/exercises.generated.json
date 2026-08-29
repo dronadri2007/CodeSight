@@ -16959,5 +16959,390 @@
       "Check how many bytes are being read from the rfile stream.",
       "Verify whether the Content-Length header is properly cast and used as a strict boundary."
     ]
+  },
+  {
+    "id": "ex-g0860",
+    "language": "python",
+    "title": "Search Offset Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def paginate_results(results, page, per_page):\n    if page < 1 or per_page < 1:\n        return []\n    start = (page - 1) * per_page\n    end = start + per_page\n    return results[start:end]\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    end = start + per_page\n+    end = start + per_page",
+    "reference": "The slicing mechanism in Python takes an exclusive upper bound. When calculating the slice end index, we mistakenly added per_page twice instead of adding it to the start index correctly. Fixing this requires ensuring end equals start plus per_page.",
+    "hints": [
+      "Look closely at how the slice end index is computed.",
+      "Check the variables involved in calculating the range boundaries.",
+      "The slice end should be the start index plus the number of items per page."
+    ]
+  },
+  {
+    "id": "ex-g0861",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_obj, destination_path):\n    dest = open(destination_path, \"wb+\")\n    chunk = file_obj.read(1024)\n    while chunk:\n        dest.write(chunk)\n        chunk = file_obj.read(1024)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    dest = open(destination_path, \"wb+\")\n+    with open(destination_path, \"wb+\") as dest:",
+    "reference": "Opening a file without a context manager or explicit close statement can lead to file descriptor leaks if an exception occurs during the write operations. Over time, accumulating open files will exhaust the operating system's available file descriptors, causing subsequent I/O operations to fail. Using the 'with' statement ensures the file resource is safely and automatically closed regardless of whether the block succeeds or raises an exception.",
+    "hints": [
+      "Examine how external system resources like files are acquired.",
+      "Consider what happens to the file handle if an error occurs midway through the read or write loops.",
+      "Replace the direct assignment with a context manager using the 'with' keyword."
+    ]
+  },
+  {
+    "id": "ex-g0862",
+    "language": "python",
+    "title": "Suspicious looking timestamp check in rate limiter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "import time\n\n# Global dictionary to store request timestamps\n_request_history = {}\n\ndef is_rate_limited(user_id: str, limit_window: int = 60) -> bool:\n    current_time = time.time()\n    \n    if user_id not in _request_history:\n        _request_history[user_id] = current_time\n        return False\n        \n    elapsed = current_time - _request_history[user_id]\n    \n    if elapsed < limit_window:\n        return True\n        \n    _request_history[user_id] = current_time\n    return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of a global dictionary might look concerning regarding thread safety or memory leaks at a glance, but for a beginner-level script or single-threaded application, this implementation is entirely correct and effectively rate limits user requests by tracking the last seen timestamp.",
+    "hints": [
+      "Look closely at how the global dictionary is accessed and whether the function mutates state safely.",
+      "Consider the scope of the function and whether resetting the timestamp on a successful request correctly implements a sliding or fixed window approach."
+    ]
+  },
+  {
+    "id": "ex-g0863",
+    "language": "python",
+    "title": "Unclosed File Resource in Cache Loader",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def load_cache_from_disk(filepath):\n    f = open(filepath, \"r\")\n    data = f.read()\n    if not data:\n        return None\n    return data\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(filepath, \"r\")\n+    with open(filepath, \"r\") as f:\n         data = f.read()",
+    "reference": "Opening a file without a context manager or an explicit close() call can lead to resource leaks if the function terminates early or garbage collection is delayed. Using the 'with' statement ensures the file is automatically and safely closed once the block is exited, regardless of whether an exception occurs or a return statement is executed.",
+    "hints": [
+      "Look closely at how external system resources like files are acquired.",
+      "Consider what happens to the file descriptor if the function returns early.",
+      "Use a context manager (the 'with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0864",
+    "language": "python",
+    "title": "Missing Authorization Check on Search Query",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "from fastapi import FastAPI, Depends, HTTPException\nfrom typing import List\n\napp = FastAPI()\n\n@app.get(\"/api/search\")\ndef search_endpoint(query: str, current_user: str = Depends(get_current_user)) -> List[dict]:\n    results = database.search(query)\n    return results\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -9,2 +9,2 @@\n-    results = database.search(query)\n+    results = database.search(query, tenant_id=current_user.tenant_id)\n",
+    "reference": "The search endpoint correctly authenticates the user via the dependency injection, but fails to restrict the search results to the user's authorized scope or tenant. This leads to an Insecure Direct Object Reference (IDOR) or data leakage vulnerability where any authenticated user can query and view records belonging to other tenants. To fix this, the search query must incorporate the tenant identifier obtained from the verified current_user object.",
+    "hints": [
+      "Examine how the parameters from the authentication dependency are utilized within the function.",
+      "Check if the search operation queries global data without scoping it to the authenticated user.",
+      "Pass a tenant or user identifier from the 'current_user' directly into the 'database.search()' method."
+    ]
+  },
+  {
+    "id": "ex-g0865",
+    "language": "python",
+    "title": "Unused Import or Redundant Variable in Thumbnail Generator",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def generate_thumbnail(image_path, size=(128, 128)):\n    from PIL import Image\n    img = Image.open(image_path)\n    img.thumbnail(size)\n    target_size = size\n    return img\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The variable target_size is assigned the value of size but never explicitly used again. While it appears redundant, it does not cause any bugs, memory leaks, or incorrect behavior. It is completely harmless and simply serves as a descriptive alias in this context, making this a false positive.",
+    "hints": [
+      "Check if the variable target_size affects the return value or any subsequent operations.",
+      "Consider whether an unused local variable causes a runtime exception in Python."
+    ]
+  },
+  {
+    "id": "ex-g0866",
+    "language": "python",
+    "title": "SQL Injection in Payment Lookup",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import sqlite3\n\ndef get_payment_details(db_path, transaction_id):\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"SELECT * FROM payments WHERE transaction_id = '\" + transaction_id + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    conn.close()\n    return result\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM payments WHERE transaction_id = '\" + transaction_id + \"'\"\n+    query = \"SELECT * FROM payments WHERE transaction_id = ?\"\n+    cursor.execute(query, (transaction_id,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could manipulate the transaction_id parameter to bypass authentication or extract unauthorized database contents. The vulnerability is fixed by using parameterized queries, which safely separate SQL commands from user data.",
+    "hints": [
+      "Look closely at how the SQL query string is constructed.",
+      "Consider what happens if the transaction_id input contains malicious SQL syntax.",
+      "Replace string concatenation with parameterized queries using question mark placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0867",
+    "language": "python",
+    "title": "Uncaught Exception in Password Reset",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import jwt\n\ndef verify_reset_token(token: str, secret_key: str) -> dict:\n    try:\n        payload = jwt.decode(token, secret_key, algorithms=[\"HS256\"])\n        return payload\n    except jwt.PyJWTError:\n        return None\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    except jwt.PyJWTError:\n+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):",
+    "reference": "The function attempts to decode a JWT token and catches generic PyJWTError to handle failures gracefully. However, catching the broad base exception can mask configuration errors or unexpected runtime issues, and it is better to explicitly handle specific token exceptions like ExpiredSignatureError and InvalidTokenError. The fix refines the except clause to catch only the expected token validation failures.",
+    "hints": [
+      "Look closely at the exception being caught in the try-except block.",
+      "PyJWT provides several specific subclasses for different validation failures rather than a generic base error.",
+      "Catching specific exceptions like ExpiredSignatureError and InvalidTokenError prevents masking unexpected errors."
+    ]
+  },
+  {
+    "id": "ex-g0868",
+    "language": "python",
+    "title": "Swallowing Unexpected Exceptions in Cache Fallback",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_user(cache_client, user_id, fetch_func):\n    try:\n        return cache_client.get(user_id)\n    except KeyError:\n        user_data = fetch_func(user_id)\n        cache_client.set(user_id, user_data)\n        return user_data\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -3,1 +3,1 f\n-    except KeyError:\n+    except (KeyError, ConnectionError, TimeoutError):",
+    "reference": "The function attempts to retrieve a user from the cache and falls back to fetching and storing the data if a cache miss occurs. However, it only catches KeyError, whereas typical cache clients might raise connection timeouts, network errors, or other client-specific exceptions when unreachable. To make the fallback robust, the except clause must catch these infrastructure failures alongside the cache miss.",
+    "hints": [
+      "Look closely at the exceptions that caching backends can throw during network operations.",
+      "Consider what happens if the cache server goes down and raises a ConnectionError instead of a cache-miss exception.",
+      "Expand the caught exception tuple to include common network and timeout errors."
+    ]
+  },
+  {
+    "id": "ex-g0869",
+    "language": "python",
+    "title": "Email Sender SSL Context False Positive",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\nimport ssl\n\ndef send_welcome_email(recipient_email, message):\n    port = 465\n    smtp_server = \"smtp.example.com\"\n    sender_email = \"noreply@example.com\"\n    password = \"secret_app_password\"\n\n    context = ssl.create_default_context()\n    \n    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:\n        server.login(sender_email, password)\n        server.sendmail(sender_email, recipient_email, message)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely secure and correct. The use of ssl.create_default_context() with SMTP_SSL properly enforces certificate verification and modern TLS protocols, despite looking superficially like a disabled verification warning due to the inclusion of an explicit context object.",
+    "hints": [
+      "Check how the SSL context is generated; does it disable certificate checks?",
+      "Verify the port being used in conjunction with SMTP_SSL."
+    ]
+  },
+  {
+    "id": "ex-g0870",
+    "language": "python",
+    "title": "Unsynchronized Global Config Cache",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\n_config_cache = {}\n\ndef get_config(key, default=None):\n    if key not in _config_cache:\n        with open(\"config.json\") as f:\n            data = json.load(f)\n            _config_cache[key] = data.get(key, default)\n    return _config_cache[key]\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -6,3 +6,3 @@\n-    if key not in _config_cache:\n+    if key not in _config_cache and not _lock.locked():\n+        # with threading.Lock():",
+    "reference": "This code suffers from a race condition because multiple threads can check the cache simultaneously, find the key missing, and concurrently execute file I/O and dictionary writes. While Python's Global Interpreter Lock (GIL) makes dictionary operations atomic, the multi-step check-then-act pattern here can lead to redundant work or overwritten updates. To fix this, a threading lock should be used around the cache check and population block.",
+    "hints": [
+      "Look closely at how shared state is accessed and modified across multiple function calls.",
+      "Consider what happens if two threads call `get_config` at the exact same time with a new key.",
+      "Use a threading.Lock to synchronize access to the cache check and update section."
+    ]
+  },
+  {
+    "id": "ex-g0871",
+    "language": "python",
+    "title": "Background Job Queue Status Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "def is_queue_empty(job_queue):\n    if len(job_queue) == 0:\n        return True\n    return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although checking 'len(job_queue) == 0' is sometimes considered less Pythonic than 'not job_queue', it is entirely correct and functionally equivalent. Furthermore, it explicitly handles standard list-based queues without relying on truthiness evaluation quirks, making this a false positive.",
+    "hints": [
+      "Check if the function logic correctly handles an empty list versus a populated list.",
+      "Consider whether explicit boolean returns are valid even if a simpler truthiness check exists."
+    ]
+  },
+  {
+    "id": "ex-g0872",
+    "language": "python",
+    "title": "Missing Authorization Check in Cache Lookup",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_user_profile(cache, request, user_id):\n    cache_key = \"profile:\" + user_id\n    cached_data = cache.get(cache_key)\n    if cached_data:\n        return cached_data\n    if not request.user.is_authenticated or request.user.id != user_id:\n        raise PermissionError(\"Unauthorized\")\n    profile = fetch_from_db(user_id)\n    cache.set(cache_key, profile)\n    return profile\n",
+    "real_lines": [
+      3,
+      4,
+      5
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -1,5 +1,5 @@\n def get_user_profile(cache, request, user_id):\n     cache_key = \"profile:\" + user_id\n+    if not request.user.is_authenticated or request.user.id != user_id:\n+        raise PermissionError(\"Unauthorized\")\n     cached_data = cache.get(cache_key)\n     if cached_data:\n         return cached_data\n-    if not request.user.is_authenticated or request.user.id != user_id:\n-        raise PermissionError(\"Unauthorized\")\n     profile = fetch_from_db(user_id)\n     cache.set(cache_key, profile)\n     return profile",
+    "reference": "This code contains an authorization bypass vulnerability because it returns cached profile data before verifying whether the requesting user is permitted to view it. An attacker can request another user's ID and immediately receive the cached data without authentication checks. To fix this, authorization validation must occur prior to any cache lookup or database query.",
+    "hints": [
+      "Look at the order of operations between validation and data retrieval.",
+      "Consider what happens if sensitive data is already stored in the cache.",
+      "Move the authorization check above the cache lookup to ensure access is always verified."
+    ]
+  },
+  {
+    "id": "ex-g0873",
+    "language": "python",
+    "title": "Unused Import or Alias in Thumbnail Generation",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\nfrom PIL import Image as PILImage\n\ndef create_thumbnail(input_path, output_path, size=(128, 128)):\n    with PILImage.open(input_path) as img:\n        img.thumbnail(size)\n        img.save(output_path)\n    return output_path\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The import 'os' appears unused at a glance, leading novices to suspect dead code or missing logic. However, it is a harmless import often used as a placeholder in this module or referenced elsewhere during module-level configuration, and it causes no bugs or performance issues here.",
+    "hints": [
+      "Check if the imported module is actually referenced anywhere within the function scope.",
+      "Consider whether an unused import at the module level impacts the correctness of this specific function."
+    ]
+  },
+  {
+    "id": "ex-g0874",
+    "language": "python",
+    "title": "Log Sensitive Authorization Header",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request):\n    client_ip = request.headers.get('X-Forwarded-For', 'unknown')\n    auth_header = request.headers.get('Authorization')\n    path = request.path\n    print(f\"Access from {client_ip} to {path} with token {auth_header}\")\n    return True\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    print(f\"Access from {client_ip} to {path} with token {auth_header}\")\n+    print(f\"Access from {client_ip} to {path} with token [REDACTED]\")",
+    "reference": "Logging raw authentication headers exposes sensitive tokens and credentials in log files, which can lead to unauthorized access if logs are compromised. Credentials should always be masked, redacted, or omitted entirely before writing them to any logging destination. By replacing the actual token with a placeholder like '[REDACTED]', you preserve audit trails without risking credential theft.",
+    "hints": [
+      "Examine what data is being printed to the console or log output.",
+      "Look closely at the variables being interpolated inside the print statement string.",
+      "Avoid logging raw authentication credentials or tokens directly."
+    ]
+  },
+  {
+    "id": "ex-g0875",
+    "language": "python",
+    "title": "SQL Injection in Job Status Update",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import sqlite3\n\ndef update_job_status(connection, job_id, status):\n    cursor = connection.cursor()\n    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n    cursor.execute(query)\n    connection.commit()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n-    cursor.execute(query)\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This function suffers from an SQL injection vulnerability because user-controlled input (status) is directly concatenated into the SQL command string. If a malicious user supplies specially crafted input for the status parameter, they could manipulate the query logic or execute arbitrary SQL commands. The vulnerability is resolved by using parameterized queries, which safely separate the SQL structure from the dynamic data values.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at string concatenation used with the status variable.",
+      "Use parameterized queries with placeholders (?) instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0876",
+    "language": "python",
+    "title": "Uncaught Connection Error in Cache Layer",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\ndef get_cached_user(user_id):\n    client = redis.Redis(host=\"localhost\", port=6379)\n    try:\n        data = client.get(f\"user:{user_id}\")\n        return data.decode(\"utf-8\") if data else None\n    except redis.ConnectionError:\n        return None\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -7,2 +7,2 @@\n-    except redis.ConnectionError:\n+    except redis.RedisError:\n         return None",
+    "reference": "The function attempts to gracefully handle Redis errors by catching redis.ConnectionError, but Redis operations can fail due to other exceptions like TimeoutError or ResponseError. By catching only ConnectionError, other potential Redis exceptions will bubble up and crash the application. Replacing the specific exception with the broader redis.RedisError ensures all Redis-related failures are safely handled and return None.",
+    "hints": [
+      "Look closely at the exception being caught in the try-except block.",
+      "Consider what happens if Redis times out or throws a general client error instead of a pure connection drop.",
+      "Change the caught exception to a more comprehensive base class provided by the redis library."
+    ]
+  },
+  {
+    "id": "ex-g0877",
+    "language": "python",
+    "title": "Unclosed File Resource in Report Writer",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def write_csv_report(data, filepath):\n    f = open(filepath, 'w')\n    header = \",\".join(data[0].keys()) + \"\\n\"\n    f.write(header)\n    for row in data:\n        line = \",\".join(str(val) for val in row.values()) + \"\\n\"\n    f.write(line)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- report.py\n+++ report.py\n@@ -6,2 +6,2 @@\n-    f.write(line)\n+        f.write(line)",
+    "reference": "The code opens a file handle manually but fails to ensure it is closed properly after writing, and the loop indentation bug prevents most rows from being written anyway. Using a context manager via the 'with' statement guarantees that the file resource is safely closed as soon as the block exits, even if exceptions occur. Additionally, fixing the indentation ensures all rows are processed correctly inside the loop.",
+    "hints": [
+      "Check how file resources are managed and whether they are guaranteed to be closed.",
+      "Examine the loop structure and indentation carefully to see which statements execute iteratively versus after the loop.",
+      "Use a 'with' statement context manager for the file and fix the write statement indentation."
+    ]
+  },
+  {
+    "id": "ex-g0878",
+    "language": "python",
+    "title": "Inventory Allocation Short-Circuit",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def allocate_stock(requested: dict, warehouse: dict) -> bool:\n    for item, qty in requested.items():\n        if warehouse.get(item, 0) < qty:\n            return False\n        warehouse[item] -= qty\n    return True\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "@@ -5,1 +5,1 @@\n-        warehouse[item] -= qty\n+        warehouse.update({item: warehouse[item] - qty})\n",
+    "reference": "The function attempts to mutate the input warehouse dictionary directly within the iteration loop. Modifying a shared dictionary or input parameter without a copy can cause side effects across concurrent requests. The fix ensures immutability or proper state management before the allocation is fully committed.",
+    "hints": [
+      "Look closely at how state is being modified during the validation loop.",
+      "Consider the side effects of mutating function arguments directly.",
+      "The warehouse dictionary is updated iteratively before all items are validated, which can lead to partial state corruption if validation fails later (though validation happens first here, mutation of inputs is an anti-pattern)."
+    ]
+  },
+  {
+    "id": "ex-g0879",
+    "language": "python",
+    "title": "Uncached Report Data Concatenation",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reporter.py",
+    "code": "def generate_summary(metrics):\n    total = 0\n    for value in metrics:\n        total += value\n    return \"Total Score: \" + str(total)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The function correctly iterates through the metrics list, calculates the sum, and converts the integer to a string for concatenation. While manual summation can look verbose compared to the built-in sum() function, it is completely correct and safe. Flagging this for a defect is a false positive.",
+    "hints": [
+      "Check if the loop properly accumulates the values into the 'total' variable.",
+      "Verify the final return statement handles types correctly by converting 'total' to a string."
+    ]
   }
 ]
