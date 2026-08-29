@@ -16560,5 +16560,404 @@
       "Trace the exception flow between ValueError and SQLAlchemyError in the try-except block.",
       "Add a session rollback before raising the ValueError to release any held locks."
     ]
+  },
+  {
+    "id": "ex-g0840",
+    "language": "python",
+    "title": "Missing Authorization Check on File Upload",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploads.py",
+    "code": "def handle_upload(request):\n    uploaded_file = request.FILES.get('document')\n    if not uploaded_file:\n        return {'error': 'No file provided'}\n    destination = open(f'/var/www/uploads/{uploaded_file.name}', 'wb+')\n    for chunk in uploaded_file.chunks():\n        destination.write(chunk)\n    destination.close()\n    return {'status': 'success'}\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- uploads.py\n+++ uploads.py\n@@ -5,1 +5,3 @@\n+    if not request.user.is_authenticated:\n+        return {'error': 'Unauthorized'},\n     destination = open(f'/var/www/uploads/{uploaded_file.name}', 'wb+')",
+    "reference": "The function accepts and saves uploaded files directly to the server filesystem without verifying whether the requesting user is authenticated or authorized to perform this action. This creates a severe Broken Object Level Authorization (BOLA) or unauthenticated upload vulnerability, allowing arbitrary users to clutter or overwrite server storage. The fix introduces an explicit authorization guard to ensure only authenticated users can execute the file write operation.",
+    "hints": [
+      "Check if the function verifies who is making the request.",
+      "Examine whether authentication or permission checks are performed before processing the file.",
+      "Add a check for request.user.is_authenticated prior to saving the file to the destination."
+    ]
+  },
+  {
+    "id": "ex-g0841",
+    "language": "python",
+    "title": "Unsalted Webhook Secret Comparison",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\n\ndef verify_signature(request_signature: str, actual_secret: str) -> bool:\n    return hmac.compare_digest(request_signature, actual_secret)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses hmac.compare_digest, which is the standard, secure way to compare secrets in Python to prevent timing attacks. Although it does not explicitly salt the strings, string comparison via hmac.compare_digest handles constant-time evaluation natively, making this implementation correct and safe.",
+    "hints": [
+      "Check how the string comparison is actually being performed.",
+      "Look up the documentation for the hmac module's comparison functions."
+    ]
+  },
+  {
+    "id": "ex-g0842",
+    "language": "python",
+    "title": "Missing Admin Authorization Check",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def process_refund(user, transaction_id, amount):\n    if not user:\n        return \"Unauthorized\", 401\n    \n    # Process the refund logic\n    return f\"Refund of {amount} processed for {transaction_id}\", 200\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "@@ -1,3 +1,3 @@\n-def process_refund(user, transaction_id, amount):\n+def process_refund(user, transaction_id, amount):\n+    if not user.get(\"is_admin\"):\n+        return \"Forbidden\", 403",
+    "reference": "The original function only checks if a user object exists, which allows any standard authenticated user to trigger high-privilege actions like refunds. By failing to verify if the user possesses the required administrative role, the application suffers from broken function-level authorization. The fix introduces a check to ensure the user has administrative privileges before proceeding with the sensitive transaction.",
+    "hints": [
+      "Look closely at what permissions are required for financial operations.",
+      "Authentication verifies who the user is, but authorization checks what they are allowed to do.",
+      "Check if the user object is validated for a specific role or permission flag."
+    ]
+  },
+  {
+    "id": "ex-g0843",
+    "language": "python",
+    "title": "Unclosed CSV File Handle",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(filepath):\n    f = open(filepath, mode='r', encoding='utf-8')\n    reader = csv.reader(f)\n    header = next(reader)\n    rows = list(reader)\n    return header, rows\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    f = open(filepath, mode='r', encoding='utf-8')\n+    with open(filepath, mode='r', encoding='utf-8') as f:",
+    "reference": "Opening a file without a context manager or explicit close call leaves the file handle open until garbage collection reclaims it, which can cause resource leaks and lock files on disk. Using a 'with' statement ensures the file is automatically and safely closed as soon as the block exits, even if exceptions occur during CSV parsing.",
+    "hints": [
+      "Look closely at how external resources are acquired inside the function.",
+      "Consider what happens to the file handle after the data has been read and returned.",
+      "Use a context manager ('with' statement) to guarantee proper cleanup of the file resource."
+    ]
+  },
+  {
+    "id": "ex-g0844",
+    "language": "python",
+    "title": "Missing Request Content Length Default",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request):\n    client_ip = request.headers.get(\"X-Forwarded-For\", request.remote_addr)\n    path = request.path\n    method = request.method\n    content_length = int(request.headers.get(\"Content-Length\"))\n    print(f\"{client_ip} - - [{method}] {path} - {content_length} bytes\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-     content_length = int(request.headers.get(\"Content-Length\"))\n+     content_length = int(request.headers.get(\n+         \"Content-Length\", 0\n+     ))",
+    "reference": "HTTP requests do not always include a Content-Length header, such as standard GET or DELETE requests. Directly calling int() on the result of request.headers.get() without a default value causes a TypeError when the header is absent. Providing a default fallback value of zero resolves the issue safely.",
+    "hints": [
+      "Examine how HTTP headers are retrieved and parsed in the code.",
+      "Consider what happens when a client sends a request without a body.",
+      "What does int() return if the header key is missing entirely?"
+    ]
+  },
+  {
+    "id": "ex-g0845",
+    "language": "python",
+    "title": "Unsynchronized Job Counter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "queue.py",
+    "code": "import threading\n\nclass BackgroundQueue:\n    def __init__(self):\n        self.queue = []\n        self.active_jobs = 0\n\n    def increment(self):\n        self.active_jobs += 1\n\n    def decrement(self):\n        self.active_jobs -= 1\n",
+    "real_lines": [
+      9,
+      12
+    ],
+    "fix_diff": "--- queue.py\n+++ queue.py\n@@ -3,2 +3,4 @@\n         self.queue = []\n         self.active_jobs = 0\n+        self._lock = threading.Lock()\n \n     def increment(self):\n-        self.active_jobs += 1\n+        with self._lock:\n+            self.active_jobs += 1\n \n     def decrement(self):\n-        self.active_jobs -= 1\n+        with self._lock:\n+            self.active_jobs -= 1",
+    "reference": "The code modifies a shared counter across multiple threads without synchronization, which leads to race conditions and incorrect metric tracking. In Python, augmented assignment operators like += and -= are not atomic at the bytecode level. Adding a threading.Lock and wrapping the mutations in a context manager ensures thread-safe updates to the active job count.",
+    "hints": [
+      "Consider how multiple threads might interact with shared object state.",
+      "Look closely at the operations performed on the active_jobs attribute.",
+      "Use a threading.Lock to make the increments and decrements atomic."
+    ]
+  },
+  {
+    "id": "ex-g0846",
+    "language": "python",
+    "title": "Log Injection Vulnerability",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request):\n    client_ip = request.headers.get(\"X-Forwarded-For\", \"unknown\")\n    user_agent = request.headers.get(\"User-Agent\", \"\")\n    log_message = f\"IP: {client_ip} accessed {request.path} using {user_agent}\"\n    logging.info(log_message)\n    return True\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -4,1 +4,1px\n-    log_message = f\"IP: {client_ip} accessed {request.path} using {user_agent}\"\n+    log_message = f\"IP: {client_ip} accessed {request.path} using {json.dumps(user_agent)}\"",
+    "reference": "This code is vulnerable to log injection because untrusted user input from the User-Agent header is directly interpolated into the log message without sanitization. An attacker can supply newline characters in the header to forge log entries, potentially misleading administrators or hiding malicious activity. The fix is to sanitize or encode the input, such as by using JSON serialization, to neutralize control characters.",
+    "hints": [
+      "Examine how external data sources are incorporated into output strings.",
+      "Look closely at the HTTP headers being logged and consider their format.",
+      "User-controlled headers can contain newline characters that corrupt log files."
+    ]
+  },
+  {
+    "id": "ex-g0847",
+    "language": "python",
+    "title": "Unsynchronized Session Dictionary",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "from threading import Lock\n\nclass SessionManager:\n    def __init__(self):\n        self._sessions = {}\n        self._lock = Lock()\n\n    def get_or_create(self, session_id: str, factory) -> dict:\n        if session_id not in self._sessions:\n            with self._lock:\n                self._sessions[session_id] = factory()\n        return self._sessions[session_id]\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- session_manager.py\n+++ session_manager.py\n@@ -9,3 +9,3 @@\n-        if session_id not in self._sessions:\n-            with self._lock:\n+        with self._lock:\n+            if session_id not in self._sessions:\n                 self._sessions[session_id] = factory()",
+    "reference": "This code suffers from a check-then-act race condition where the initial dictionary lookup is performed outside the critical section. Multiple threads could evaluate session_id not in self._sessions as true simultaneously, leading to redundant factory calls and potential overwrites. Wrapping the entire check and insertion inside the lock guarantees atomic execution.",
+    "hints": [
+      "Examine how thread synchronization primitives are applied in the method.",
+      "Look closely at the boundary between where the lock is acquired and where state is read.",
+      "The dictionary lookup happens before acquiring the lock, leaving a window for concurrent modifications."
+    ]
+  },
+  {
+    "id": "ex-g0848",
+    "language": "python",
+    "title": "Missing Pagination Offset",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_items(query, page=1, per_page=20):\n    items = Database.query(query)\n    start = (page - 1) * per_page\n    end = start + per_page\n    return items[start:end]\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    return items[start:end]\n+    return items[start:end] if items else []",
+    "reference": "When dealing with dynamic database queries or slicing operations, an empty dataset combined with index slicing usually returns an empty list safely in Python. However, if the underlying object is a custom database cursor or a restricted sequence wrapper rather than a built-in list, slicing an out-of-bounds index can raise IndexError or yield unexpected results. Ensuring a null check or safe boundary fallback prevents unhandled exceptions on empty search results.",
+    "hints": [
+      "Look closely at the return statement and how the sequence is sliced.",
+      "Consider what happens if the query returns None instead of an iterable collection.",
+      "Add a conditional check to ensure safe slicing when the query result is empty or uninitialized."
+    ]
+  },
+  {
+    "id": "ex-g0849",
+    "language": "python",
+    "title": "Missing Authorization Check in Thumbnail Generation",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def generate_thumbnail(request, image_id):\n    image = ImageRepository.get_by_id(image_id)\n    if not image:\n        raise Http404(\"Image not found\")\n    thumbnail = process_thumbnail(image.filepath)\n    return FileResponse(thumbnail)\n",
+    "real_lines": [
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -2,4 +2,6 @@\n     image = ImageRepository.get_by_id(image_id)\n     if not image:\n         raise Http404(\n+    if not request.user.has_perm('view_image', image):\n+        raise PermissionDenied\n     thumbnail = process_thumbnail(image.filepath)",
+    "reference": "This function suffers from an Insecure Direct Object Reference (IDOR) vulnerability. It correctly verifies that the requested image exists in the database, but it fails to check whether the current user has permission to view it. Attackers can iterate through sequential image IDs to download private thumbnails without authorization.",
+    "hints": [
+      "Examine what metadata from the request is currently being ignored.",
+      "Consider who is allowed to view a specific image once it is found.",
+      "Add an explicit permission check using request.user before processing the thumbnail."
+    ]
+  },
+  {
+    "id": "ex-g0850",
+    "language": "python",
+    "title": "Unclosed Database Connection in Inventory Restock",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def restock_item(db_pool, item_id, quantity):\n    conn = db_pool.get_connection()\n    cursor = conn.cursor()\n    cursor.execute(\"UPDATE inventory SET stock = stock + %s WHERE id = %s\", (quantity, item_id))\n    conn.commit()\n    cursor.close()\n    return True\n",
+    "real_lines": [
+      2,
+      7
+    ],
+    "fix_diff": "@@ -2,6 +2,7 @@\n     conn = db_pool.get_connection()\n+    try:\n         cursor = conn.cursor()\n         cursor.execute(\"UPDATE inventory SET stock = stock + %s WHERE id = %s\", (quantity, item_id))\n         conn.commit()\n         cursor.close()\n+    finally:\n+        db_pool.release_connection(conn)",
+    "reference": "The database connection acquired from the connection pool is never returned to the pool after the transaction completes or if an exception is raised. Over time, this leads to connection leakage, eventually exhausting the pool and causing the service to hang or reject new requests. Wrapping the database operations in a try-finally block ensures that the connection is always properly released back to the pool regardless of success or failure.",
+    "hints": [
+      "Examine how external resources like database connections are managed throughout their lifecycle.",
+      "Look at what happens to the acquired connection if an exception occurs during the database query or commit.",
+      "Ensure the connection is always released back to the pool using a try-finally construct."
+    ]
+  },
+  {
+    "id": "ex-g0851",
+    "language": "python",
+    "title": "Insecure Cache Bypass in User Session Lookup",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_user_data(user_id, token):\n    cached_data = cache.get(user_id)\n    if cached_data:\n        return cached_data\n    if not verify_token(user_id, token):\n        raise PermissionError(\"Invalid token\")\n    data = fetch_from_db(user_id)\n    cache.set(user_id, data)\n    return data\n",
+    "real_lines": [
+      2,
+      3,
+      4
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -1,4 +1,4 @@\n def get_user_data(user_id, token):\n-    cached_data = cache.get(user_id)\n-    if cached_data:\n-        return cached_data\n     if not verify_token(user_id, token):\n         raise PermissionError(\"Invalid token\")\n+    cached_data = cache.get(user_id)\n+    if cached_data:\n+        return cached_data\n     data = fetch_from_db(user_id)\n     cache.set(user_id, data)\n     return data",
+    "reference": "The function checks the cache before verifying the authorization token, allowing any unauthenticated user to retrieve cached data for a given user ID if it exists. To fix this, token verification must occur before interacting with the cache to ensure the requester has proper permissions. Placing the cache lookup after authentication guarantees that private user data is never leaked prematurely.",
+    "hints": [
+      "Examine the order of operations in the function.",
+      "Look at when the authentication check happens relative to the cache retrieval.",
+      "Verify token should happen before returning any data from the cache."
+    ]
+  },
+  {
+    "id": "ex-g0852",
+    "language": "python",
+    "title": "Unclosed CSV File Resource",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(filepath):\n    lines = list(csv.reader(open(filepath, 'r', encoding='utf-8')))\n    headers = lines[0]\n    records = [dict(zip(headers, row)) for row in lines[1:]]\n    return records\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    lines = list(csv.reader(open(filepath, 'r', encoding='utf-8')))\n+    with open(filepath, 'r', encoding='utf-8') as f:\n+        lines = list(csv.reader(f))",
+    "reference": "The original code opens a file using the built-in open function without using a context manager or explicitly closing the file handle. This can lead to resource leaks and unreleased file descriptors until the garbage collector eventually runs. Using a context manager via the with statement ensures the file is safely and promptly closed immediately after its contents are read.",
+    "hints": [
+      "Examine how external system resources like files are acquired and released.",
+      "Look closely at the line where the file is opened for the csv reader.",
+      "Wrap the file opening operation in a context manager using the 'with' statement."
+    ]
+  },
+  {
+    "id": "ex-g0853",
+    "language": "python",
+    "title": "SQL Injection in Rate Limiter",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import sqlite3\n\ndef check_rate_limit(db_conn, user_ip):\n    cursor = db_conn.cursor()\n    query = \"SELECT count FROM rate_limits WHERE ip = '\" + user_ip + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    return result[0] if result else 0\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT count FROM rate_limits WHERE ip = '\" + user_ip + \"'\"\n+    query = \"SELECT count FROM rate_limits WHERE ip = ?\"\n+    cursor.execute(query, (user_ip,))",
+    "reference": "This function suffers from a SQL injection vulnerability because the user_ip string is directly concatenated into the SQL query string. An attacker could supply malicious input to manipulate the query logic and bypass rate limiting. The fix is to use parameterized queries by passing the user input as a tuple argument to cursor.execute.",
+    "hints": [
+      "Look closely at how the SQL query string is constructed.",
+      "Examine how user input is incorporated into database operations.",
+      "Replace string concatenation with parameterized queries using placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0854",
+    "language": "python",
+    "title": "Global State in Email Sender",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import time\nimport threading\n\nlast_recipient = \"\"\n\ndef send_email(recipient, message):\n    global last_recipient\n    last_recipient = recipient\n    time.sleep(1)\n    print(f\"Sending '{message}' to {last_recipient}\")\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "@@ -9,1 +9,1 @@\n-    print(f\"Sending '{message}' to {last_recipient}\")\n+    print(f\"Sending '{message}' to {recipient}\")",
+    "reference": "The function uses a global variable to track the current recipient before a delay, which causes a race condition when called concurrently from multiple threads. Because threads share the global scope, one thread can overwrite 'last_recipient' while another thread is sleeping, resulting in the wrong recipient receiving the message. To fix this, the function should use the local function parameter 'recipient' directly instead of reading from the shared global state.",
+    "hints": [
+      "Look at how the recipient information is stored and accessed.",
+      "Consider what happens when multiple threads execute this function at the same time.",
+      "Avoid relying on global variables for data that is specific to a single function call."
+    ]
+  },
+  {
+    "id": "ex-g0855",
+    "language": "python",
+    "title": "Missing File Exception Handling",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def generate_report(file_path):\n    try:\n        with open(file_path, 'r') as file:\n            data = file.read()\n            return f\"Report: {data[:100]}\"\n    except IOError:\n        print(\"Error reading file\")\n    return \"Report generation failed\"\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,2 +6,2 @@\n-        print(\"Error reading file\")\n+        return \"Error reading file\"",
+    "reference": "The function catches an IOError when a file operation fails, but instead of returning an error message, it only prints to the console and then continues executing to the outer return statement. This causes the function to implicitly return None instead of the intended failure message string. To fix this, replace the print statement with a return statement so the function consistently returns a string.",
+    "hints": [
+      "Look closely at what the function returns on success versus on failure.",
+      "Trace the execution flow when an IOError actually occurs inside the try block.",
+      "Change the print statement in the except block to a return statement."
+    ]
+  },
+  {
+    "id": "ex-g0856",
+    "language": "python",
+    "title": "Suspicious Closure Variable in Rate Limiter",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\nfrom functools import wraps\n\ndef rate_limit(max_calls: int, period: float):\n    def decorator(func):\n        history = []\n        @wraps(func)\n        def wrapper(*args, **kwargs):\n            now = time.monotonic()\n            # Prune old timestamps\n            while history and history[0] <= now - period:\n                history.pop(0)\n            if len(history) >= max_calls:\n                raise RuntimeError(\"Rate limit exceeded\")\n            history.append(now)\n            return func(*args, **kwargs)\n        return wrapper\n    return decorator\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Novice reviewers often flag the mutable 'history' list inside the closure scope as a bug or thread-safety issue, fearing it might leak state improperly or fail under concurrent loads. However, in Python, each decoration of a function creates a distinct closure frame with its own isolated 'history' list instance. Furthermore, since CPython's GIL protects simple list mutations and this is a standard per-function rate limiter, this implementation is entirely correct and safe for synchronous use.",
+    "hints": [
+      "Check how and when the 'history' list is instantiated relative to the decorator factory and the wrapper execution.",
+      "Consider whether closures in Python maintain separate state for each decorated function."
+    ]
+  },
+  {
+    "id": "ex-g0857",
+    "language": "python",
+    "title": "Unclosed File Resource in Inventory Export",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def export_inventory_data(data, filepath):\n    f = open(filepath, \"w\")\n    f.write(data)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -1,3 +1,3 @@\n def export_inventory_data(data, filepath):\n-    f = open(filepath, \"w\")\n+    with open(filepath, \"w\") as f:\n         f.write(data)\n         return True",
+    "reference": "The original code opens a file using the builtin open() function but never explicitly closes it, which can lead to file descriptor leaks under heavy load. By utilizing a context manager via the 'with' statement, Python guarantees that the file resource is properly cleaned up and closed as soon as the block exits, even if an exception occurs during the write operation.",
+    "hints": [
+      "Check how external system resources are being acquired inside the function.",
+      "Consider what happens to the file handle if the write operation completes or fails.",
+      "Use a context manager (the 'with' statement) to ensure proper resource management and cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0858",
+    "language": "python",
+    "title": "Unclosed Redis Connection in Rate Limiter",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import redis\n\nclient = redis.Redis(host='localhost', port=6379)\n\ndef check_rate_limit(user_id: str, limit: int) -> bool:\n    key = f\"rate:{user_id}\"\n    current = client.incr(key)\n    if current == 1:\n        client.expire(key, 60)\n    return current <= limit\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "- client = redis.Redis(host='localhost', port=6379)\n+ def check_rate_limit(user_id: str, limit: int) -> bool:\n+     client = redis.Redis(host='localhost', port=6379)\n+     try:\n+         key = f\"rate:{user_id}\"\n+         current = client.incr(key)\n+         if current == 1:\n+             client.expire(key, 60)\n+         return current <= limit\n+     finally:\n+         client.close()",
+    "reference": "This function instantiates a new Redis client connection globally on every module load or invocation pattern without properly closing it, leading to socket and connection leaks under high traffic. By instantiating the client locally within a try-finally block or using a connection pool, we ensure network resources are safely returned to the OS. Rate limiters process a high volume of requests, making connection hygiene critical for application stability.",
+    "hints": [
+      "Look closely at where external resources and connections are initialized in relation to the function scope.",
+      "Consider what happens to network sockets if this function is called millions of times.",
+      "The Redis client should be instantiated locally or managed via a context manager/close call to prevent resource leaks."
+    ]
+  },
+  {
+    "id": "ex-g0859",
+    "language": "python",
+    "title": "Unbounded Request Body Stream Reading",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "from http.server import BaseHTTPRequestHandler, HTTPServer\n\nclass WebhookHandler(BaseHTTPRequestHandler):\n    def do_POST(self):\n        content_length = int(self.headers.get('Content-Length', 0))\n        payload = self.rfile.read(content_length)\n        self.send_response(200)\n        self.end_headers()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although reading from self.rfile based on Content-Length might look like a potential memory exhaustion vector to a novice reviewer, this implementation correctly limits the read size to the exact integer value parsed from the Content-Length header. Furthermore, BaseHTTPRequestHandler manages the underlying socket timeout and limits max_headers/request sizes in modern Python versions, making this code safe against standard body-reading vulnerabilities.",
+    "hints": [
+      "Check how many bytes are being read from the rfile stream.",
+      "Verify whether the Content-Length header is properly cast and used as a strict boundary."
+    ]
   }
 ]
