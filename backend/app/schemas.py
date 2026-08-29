@@ -89,6 +89,24 @@ class SessionIntegrity(BaseModel):
     attempts: list[IntegrityAttempt] # tracked, newest first, after verdict/limit
 
 
+# --- GET /profile/{id}/card (shareable review-skill card) ---------
+class SkillCard(BaseModel):
+    session_id: str
+    generated_at: str
+    tier: Tier
+    total_attempts: int
+    classes_covered: int                       # of the 6 named defect classes
+    catch_rate: float                          # mean localisation_score, all attempts
+    avg_explanation: float                     # mean explanation_score, all attempts
+    skill_score: float                         # 0.7*catch_rate + 0.3*avg_explanation
+    headline: str                              # derived label for the card
+    strongest_class: str | None
+    weakest_class: str | None
+    false_positive_discipline: float | None    # catch_rate on clean-file traps; null if none seen
+    leaderboard_rank: int | None               # null when not ranked (too few attempts)
+    ranked_out_of: int
+
+
 class LocalisationResult(BaseModel):
     score: float
     verdict: str

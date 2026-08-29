@@ -59,6 +59,7 @@ demo or on a CI schedule.
 | `app/hints.py` | progressive-hint score decay (1.0 / 0.9 / 0.75 / 0.5) |
 | `app/integrity.py` | optional `/grade` telemetry → integrity score + flags (advisory, never rescores); mentor view for `GET /session/{id}/integrity` |
 | `app/profile.py` | aggregate a session's attempts → weakest class + next step |
+| `app/skillcard.py` | shareable review-skill card (skill score + headline, strongest/weakest, FP discipline, rank) |
 | `app/progress.py` | attempt timeline + running catch-rate + per-class first-vs-latest |
 | `app/leaderboard.py` | rank sessions by `0.7*catch_rate + 0.3*avg_explanation` (min attempts, tier filter, `you` row) |
 | `app/concepts.py` | recommendation engine — `data/concepts.json` (6 defect-class concepts + videos + a 3-question micro-check quiz) |
@@ -101,7 +102,8 @@ fields never leave the server — only `/grade` reads them.
 
 `GET /health` · `GET /exercises[?tier=&source=]` · `GET /exercises/{id}` ·
 `GET /exercises/{id}/hints/{n}` · `POST /grade` · `POST /ai-review` ·
-`GET /profile/{session_id}` · `GET /progress/{session_id}` · `GET /leaderboard` ·
+`GET /profile/{session_id}` · `GET /profile/{session_id}/card` ·
+`GET /progress/{session_id}` · `GET /leaderboard` ·
 `GET /concepts` · `GET /concept/{id}` ·
 `GET /concept/{id}/micro-check` · `POST /concept/{id}/micro-check` ·
 `GET /session/{id}` · `GET /session/{id}/integrity` ·

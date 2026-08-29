@@ -4,7 +4,7 @@ Endpoints (see CONTRACT.md):
   GET  /health · GET /debug
   GET  /exercises [?tier= &source=] · GET /exercises/{id} · GET /exercises/{id}/hints/{n}
   POST /grade · POST /ai-review · POST /exercises/{id}/report
-  GET  /profile/{session_id} · GET /progress/{session_id} · GET /leaderboard
+  GET  /profile/{session_id} [+/card] · GET /progress/{session_id} · GET /leaderboard
   GET  /session/{session_id} · GET /session/{session_id}/integrity
   GET  /concepts · GET /concept/{id}
   GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
@@ -33,6 +33,7 @@ from app.localisation import score_localisation
 from app.models import Attempt
 from app.profile import build_profile
 from app.progress import build_progress
+from app.skillcard import build_skill_card
 from app.schemas import (
     AiReviewRequest,
     AiReviewResponse,
@@ -49,6 +50,7 @@ from app.schemas import (
     MicroCheckResult,
     ProgressReport,
     SessionIntegrity,
+    SkillCard,
     PromotionResult,
     PromotionTest,
     ReportRequest,
@@ -225,6 +227,13 @@ def ai_review_endpoint(req: AiReviewRequest):
 @app.get("/profile/{session_id}", response_model=WeaknessProfile)
 def profile(session_id: str, db: Session = Depends(get_db)):
     return build_profile(db, session_id)
+
+
+@app.get("/profile/{session_id}/card", response_model=SkillCard)
+def profile_card(session_id: str, db: Session = Depends(get_db)):
+    """Compact shareable summary: tier, catch rate, skill score + headline,
+    strongest/weakest class, false-positive discipline, leaderboard rank."""
+    return build_skill_card(db, session_id)
 
 
 @app.get("/progress/{session_id}", response_model=ProgressReport)

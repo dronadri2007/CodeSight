@@ -268,6 +268,49 @@ Response 200:
 
 ---
 
+## GET /profile/{session_id}/card
+
+A compact, shareable "review-skill card" for a session — meant to be
+rendered as an image / social card by the frontend. No params.
+
+Response 200:
+
+    {
+      "session_id": "web-8f3a2c",
+      "generated_at": "2026-08-29T18:55:00+00:00",
+      "tier": "intermediate",
+      "total_attempts": 24,
+      "classes_covered": 5,
+      "catch_rate": 0.83,
+      "avg_explanation": 0.66,
+      "skill_score": 0.779,
+      "headline": "Solid Reviewer",
+      "strongest_class": "injection",
+      "weakest_class": "concurrency",
+      "false_positive_discipline": 0.9,
+      "leaderboard_rank": 12,
+      "ranked_out_of": 47
+    }
+
+- `skill_score` = `0.7 * catch_rate + 0.3 * avg_explanation` (same as the
+  leaderboard), averaged over all the session's attempts.
+- `headline`: `Just Started` (< 3 attempts, or score < 0.25) · `Warming Up`
+  (≥ 0.25) · `Developing Reviewer` (≥ 0.50) · `Solid Reviewer` (≥ 0.70) ·
+  `Sharp Reviewer` (≥ 0.85).
+- `classes_covered` counts the 6 named defect classes attempted (not `clean`).
+- `strongest_class` / `weakest_class` are chosen among named classes with 2+
+  attempts; both `null` with none, and `weakest_class` is `null` when only
+  one class qualifies.
+- `false_positive_discipline` is the catch rate on `clean` exercises
+  (1.0 = always correctly flagged nothing), `null` if the session never saw
+  a clean file.
+- `leaderboard_rank` / `ranked_out_of` mirror `GET /leaderboard`
+  (`min_attempts: 3`); `leaderboard_rank` is `null` when the session is not
+  ranked.
+- Unknown session → zeros, `headline: "Just Started"`, `tier: "beginner"`.
+
+---
+
 ## GET /progress/{session_id}
 
 Attempts over time, for a trend line.

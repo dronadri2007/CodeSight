@@ -503,6 +503,58 @@ def test_session_integrity_limit_caps_rows_not_counts(client):
     assert d["tracked"] == 4
 
 
+# --- GET /profile/{id}/card ------------------------------------
+def test_skill_card_empty_session(client):
+    d = client.get("/profile/ghost/card").json()
+    assert d["total_attempts"] == 0
+    assert d["catch_rate"] == 0.0
+    assert d["skill_score"] == 0.0
+    assert d["headline"] == "Just Started"
+    assert d["strongest_class"] is None and d["weakest_class"] is None
+    assert d["false_positive_discipline"] is None
+    assert d["leaderboard_rank"] is None
+    assert d["tier"] == "beginner"
+
+
+def test_skill_card_summarises_play(client):
+    # strong on injection, weak on logic
+    for _ in range(3):
+        client.post("/grade", json={"session_id": "p", "exercise_id": "ex-001",
+                                    "selected_lines": [2], "explanation": "sql string interpolation"})
+    for _ in range(3):
+        client.post("/grade", json={"session_id": "p", "exercise_id": "ex-014",
+                                    "selected_lines": [9], "explanation": "x"})
+    d = client.get("/profile/p/card").json()
+    assert d["total_attempts"] == 6
+    assert d["classes_covered"] == 2
+    assert d["strongest_class"] == "injection"
+    assert d["weakest_class"] == "logic"
+    assert 0.0 < d["skill_score"] <= 1.0
+    assert d["headline"] in {"Warming Up", "Developing Reviewer", "Solid Reviewer", "Sharp Reviewer"}
+
+
+def test_skill_card_false_positive_discipline(client):
+    # ex-003 is a clean file: selecting nothing is correct (1.0), flagging is a FP (0.0)
+    client.post("/grade", json={"session_id": "clean1", "exercise_id": "ex-003",
+                                "selected_lines": [], "explanation": "looks correct"})
+    assert client.get("/profile/clean1/card").json()["false_positive_discipline"] == 1.0
+
+    client.post("/grade", json={"session_id": "clean2", "exercise_id": "ex-003",
+                                "selected_lines": [4], "explanation": "possible div by zero"})
+    assert client.get("/profile/clean2/card").json()["false_positive_discipline"] == 0.0
+
+
+def test_skill_card_leaderboard_rank(client):
+    _play(client, "rival", correct=4)
+    _play(client, "me", correct=3)
+    d = client.get("/profile/me/card").json()
+    assert d["leaderboard_rank"] is not None
+    assert d["ranked_out_of"] >= 2
+    # a 1-attempt session is below the leaderboard's min_attempts -> unranked
+    _play(client, "rookie", correct=1)
+    assert client.get("/profile/rookie/card").json()["leaderboard_rank"] is None
+
+
 # --- concepts (recommendation engine) --------------------------------
 def test_concepts_list(client):
     ids = {c["id"] for c in client.get("/concepts").json()}
