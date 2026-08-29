@@ -5248,5 +5248,407 @@
       "Look at the comparison operator used in the return statement.",
       "Changing the operator from greater-than-or-equal to strict greater-than alters the threshold boundary."
     ]
+  },
+  {
+    "id": "ex-g0267",
+    "language": "python",
+    "title": "SQL Injection in Dynamic Report Filter",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "import sqlite3\n\ndef get_sales_report(category):\n    conn = sqlite3.connect('sales.db')\n    cursor = conn.cursor()\n    query = \"SELECT * FROM sales WHERE category = '\" + category + \"'\"\n    cursor.execute(query)\n    return cursor.fetchall()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM sales WHERE category = '\" + category + \"'\"\n+    query = \"SELECT * FROM sales WHERE category = ?\"\n+    cursor.execute(query, (category,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could input malicious SQL syntax to manipulate the query logic and bypass restrictions. To fix this, use parameterized queries by passing parameters as a tuple to cursor.execute(), which ensures proper sanitization.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the concatenation of the category variable.",
+      "Replace string concatenation with parameterized queries using question mark placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0268",
+    "language": "python",
+    "title": "Unclosed CSV File Stream in Generator",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef stream_csv_records(filepath):\n    f = open(filepath, mode=\"r\", encoding=\"utf-8\")\n    reader = csv.DictReader(f)\n    for row in reader:\n        yield row\n    f.close()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    f = open(filepath, mode=\"r\", encoding=\"utf-8\")\n+    with open(filepath, mode=\"r\", encoding=\"utf-8\") as f:",
+    "reference": "The original implementation opens the file manually and relies on reaching the end of the generator to close it via f.close(). However, if the consumer of the generator stops iteration early or an exception occurs during consumption, the file descriptor remains open and can cause resource leaks. Using a context manager guarantees that the file resource is properly cleaned up regardless of how iteration terminates.",
+    "hints": [
+      "Consider what happens if the caller stops iterating over the generator prematurely.",
+      "Look closely at how the file resource is acquired and released.",
+      "Use a context manager to ensure deterministic cleanup of the file handle."
+    ]
+  },
+  {
+    "id": "ex-g0269",
+    "language": "python",
+    "title": "Floating-Point Currency Calculation",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_total(items):\n    total = 0.0\n    for item in items:\n        total += item[\"price\"]\n    return round(total, 2)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        total += item[\"price\"]\n+        total += int(item[\"price\"] * 100)",
+    "reference": "Using floating-point arithmetic for currency calculations leads to precision errors due to how computers represent decimals internally. Even with a final rounding step, intermediate accumulation errors can still occur. The correct approach is to perform all monetary calculations in the smallest currency unit (such as cents) using integers.",
+    "hints": [
+      "Look closely at the data types used for monetary accumulation.",
+      "Consider how floating-point numbers are represented in binary.",
+      "Accumulate prices as integers representing cents rather than floats."
+    ]
+  },
+  {
+    "id": "ex-g0270",
+    "language": "python",
+    "title": "Mutable Default Argument in Job Retry Queue",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "def enqueue_job(job_id, queue=[]) -> list:\n    queue.append(job_id)\n    if len(queue) > 100:\n        queue.pop(0)\n    return queue\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def enqueue_job(job_id, queue=[]) -> list:\n+ def enqueue_job(job_id, queue=None) -> list:\n+     if queue is None:\n+         queue = []",
+    "reference": "Python evaluates default arguments only once when the function is defined, meaning the same list object is shared across all function calls that omit the queue argument. This causes jobs to accumulate unexpectedly over multiple invocations instead of starting fresh each time. The fix is to use None as the default value and instantiate a new list inside the function body.",
+    "hints": [
+      "Examine how default function arguments are evaluated in Python.",
+      "Pay close attention to mutable objects like lists used in function signatures.",
+      "Replace the default mutable list with None and initialize the list locally if it is not provided."
+    ]
+  },
+  {
+    "id": "ex-g0271",
+    "language": "python",
+    "title": "Insecure Webhook Signature Comparison",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(request_body: bytes, signature: str, secret: str) -> bool:\n    expected_signature = hmac.new(\n        secret.encode('utf-8'),\n        request_body,\n        hashlib.sha256\n    ).hexdigest()\n    return signature == expected_signature\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "-    return signature == expected_signature\n+    return hmac.compare_digest(signature, expected_signature)",
+    "reference": "Using a standard equality operator (==) for comparing cryptographic signatures is vulnerable to timing attacks, as it short-circuits upon encountering the first mismatch. The hmac.compare_digest function should always be used for security-sensitive string comparisons like tokens and signatures because it executes in constant time regardless of the input contents.",
+    "hints": [
+      "Look closely at how the signature validation result is computed and returned.",
+      "Consider how standard comparison operators behave when evaluating strings character by character.",
+      "Replace the direct equality check with a timing-attack resistant function provided by the standard library."
+    ]
+  },
+  {
+    "id": "ex-g0272",
+    "language": "python",
+    "title": "Unclosed Temporary File in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import tempfile\n\ndef save_upload(file_obj):\n    temp = tempfile.NamedTemporaryFile(delete=False)\n    temp.write(file_obj.read())\n    temp.close()\n    return temp.name\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,2 @@\n-    temp = tempfile.NamedTemporaryFile(delete=False)\n+    with tempfile.NamedTemporaryFile(delete=False) as temp:\n+        temp.write(file_obj.read())\n@@ -6,2 +7,0 @@\n-    temp.close()\n-    return temp.name",
+    "reference": "The code creates a temporary file with delete=False and relies on a manual close, but if an exception occurs during the write operation, the file descriptor and handle might leak resources. Utilizing a context manager (with statement) ensures that the underlying file is properly managed and closed even if errors occur during I/O operations. Resource leaks in file upload handlers can eventually lead to exhaustion of file descriptors on the host system.",
+    "hints": [
+      "Examine how the temporary file resource is initialized and acquired.",
+      "Consider what happens to the file handle if an exception is raised right after the file is opened.",
+      "Refactor the instantiation to use a context manager to automatically handle cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0273",
+    "language": "python",
+    "title": "Unsynchronized Balance Update",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "from threading import Lock\n\nclass Account:\n    def __init__(self, balance):\n        self.balance = balance\n        self.lock = Lock()\n\n    def withdraw(self, amount):\n        if self.balance >= amount:\n            self.balance -= amount\n            return True\n        return False\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -9,2 +9,3 @@\n+        with self.lock:\n             if self.balance >= amount:\n                 self.balance -= amount",
+    "reference": "This code suffers from a classic race condition known as a Check-Then-Act defect. While checking the balance and modifying it are individual operations, the combination is not atomic, allowing two threads to pass the balance check simultaneously and overdraw the account. Wrapping the critical section in a threading lock ensures that only one thread can evaluate and update the balance at a time.",
+    "hints": [
+      "Look closely at how thread safety is established in this class.",
+      "A lock attribute is initialized in the constructor, but is it ever used in the methods?",
+      "Wrap the balance check and subtraction inside a 'with self.lock:' context manager to make the operation atomic."
+    ]
+  },
+  {
+    "id": "ex-g0274",
+    "language": "python",
+    "title": "Insecure Session Token Comparison",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef validate_session(request_token: str, stored_token: str) -> bool:\n    if not request_token or not stored_token:\n        return False\n    return request_token == stored_token\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    return request_token == stored_token\n+    return hmac.compare_digest(request_token, stored_token)",
+    "reference": "Using the standard equality operator (==) to compare sensitive strings like session tokens is vulnerable to timing attacks. An attacker can measure the time it takes for the comparison to fail, allowing them to guess the token character by character. To fix this, use hmac.compare_digest() which provides a constant-time comparison to prevent side-channel timing leaks.",
+    "hints": [
+      "Consider how strings are compared at the hardware level in Python.",
+      "Think about side-channel attacks involving execution time.",
+      "Use a module from the standard library designed for secure string comparisons."
+    ]
+  },
+  {
+    "id": "ex-g0275",
+    "language": "python",
+    "title": "Swallowing Unexpected Cache Exceptions",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import pickle\nimport redis\n\ndef get_cached_user(client: redis.Redis, user_id: int):\n    try:\n        data = client.get(f\"user:{user_id}\")\n        return pickle.loads(data) if data else None\n    except redis.RedisError:\n        return None\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -6,2 +6,2 @@\n-    except redis.RedisError:\n+    except (redis.RedisError, pickle.UnpicklingError):\n        return None",
+    "reference": "The function attempts to deserialize cached data using pickle, which can raise a pickle.UnpicklingError if the data is corrupted or maliciously altered. Because the except block only catches redis.RedisError, an unpickling exception will propagate unexpectedly and crash the caller. Adding pickle.UnpicklingError to the caught exception tuple ensures all expected caching and serialization failures are gracefully handled.",
+    "hints": [
+      "Examine the potential exceptions that can be thrown inside a try block during deserialization.",
+      "Think about what happens if the data retrieved from Redis is corrupted and cannot be deserialized.",
+      "The except clause catches Redis-specific errors, but ignores errors raised by the pickle module."
+    ]
+  },
+  {
+    "id": "ex-g0276",
+    "language": "python",
+    "title": "Database Connection Leak in Background Worker",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef process_jobs(queue):\n    while not queue.empty():\n        job = queue.get()\n        conn = get_db_connection()\n        conn.execute(job.query)\n        job.mark_done()\n        queue.task_done()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- worker.py\n+++ worker.py\n@@ -5,3 +5,4 @@\n         conn = get_db_connection()\n-        conn.execute(job.query)\n-        job.mark_done()\n+        with conn:\n+            conn.execute(job.query)\n+            job.mark_done()\n",
+    "reference": "Background workers frequently interact with external resources like databases during job processing. If an exception occurs during the execution of job.query, the database connection is left open and never explicitly closed, leading to connection leaks. Using a context manager ensures that the connection is properly handled and cleaned up regardless of whether the job succeeds or fails.",
+    "hints": [
+      "Consider what happens to external resources if an exception is raised inside the loop.",
+      "Look closely at how the database connection lifecycle is managed in relation to the job execution.",
+      "Wrap the database operations inside a context manager using 'with conn:' to ensure proper resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0277",
+    "language": "python",
+    "title": "Unsafe Job Counter Increment",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "queue.py",
+    "code": "import threading\n\ncompleted_jobs = 0\n\ndef process_job():\n    global completed_jobs\n    current = completed_jobs\n    completed_jobs = current + 1\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -6,3 +6,3 @@\n     global completed_jobs\n-    current = completed_jobs\n-    completed_jobs = current + 1\n+    with threading.Lock():\n+        completed_jobs += 1",
+    "reference": "The code suffers from a race condition because multiple threads can read the same value of completed_jobs before any thread writes back the incremented value. This leads to lost updates where the counter does not reflect the actual number of processed jobs. Using a threading.Lock ensures that the read-modify-write sequence is atomic and thread-safe.",
+    "hints": [
+      "Consider what happens when multiple worker threads execute this function simultaneously.",
+      "Look closely at how the shared variable 'completed_jobs' is read and updated in separate steps.",
+      "Use a threading.Lock to synchronize access to the shared counter."
+    ]
+  },
+  {
+    "id": "ex-g0278",
+    "language": "python",
+    "title": "Unsynchronized Global Config Cache",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import threading\n\n_config_cache = {}\n\ndef get_config(key):\n    if key not in _config_cache:\n        _config_cache[key] = load_from_file(key)\n    return _config_cache[key]\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "--- config_loader.py\n+++ config_loader.py\n@@ -5,3 +5,4 @@\n def get_config(key):\n-    if key not in _config_cache:\n-        _config_cache[key] = load_from_file(key)\n+    with threading.Lock():\n+        if key not in _config_cache:\n+            _config_cache[key] = load_from_file(key)\n     return _config_cache[key]",
+    "reference": "This function checks and modifies a shared global dictionary without synchronization. In a multi-threaded environment, multiple threads might simultaneously find the key missing and execute the loading logic, leading to race conditions and redundant file I/O operations. Wrapping the check-and-set block in a threading lock ensures that cache initialization is thread-safe and atomic.",
+    "hints": [
+      "Consider what happens when multiple threads call this function simultaneously.",
+      "Look closely at how the global dictionary '_config_cache' is accessed and modified.",
+      "Use a threading primitive to ensure that checking the cache and updating it happens atomically."
+    ]
+  },
+  {
+    "id": "ex-g0279",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Update",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import sqlite3\n\ndef update_job_status(db_path, job_id, status):\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n    cursor.execute(query)\n    conn.commit()\n    conn.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This function suffers from a SQL injection vulnerability because user-supplied input (status) and job identifiers are directly concatenated into the SQL query string. An attacker could manipulate the status parameter to execute arbitrary SQL commands against the database. To fix this, you should use parameterized queries with placeholders (?) so that the database driver safely handles the input escaping.",
+    "hints": [
+      "Examine how the SQL query string is constructed before it is executed.",
+      "Look closely at string concatenation used for variables like status and job_id.",
+      "Replace string formatting and concatenation with parameterized query tuples passed to cursor.execute()."
+    ]
+  },
+  {
+    "id": "ex-g0280",
+    "language": "python",
+    "title": "Race Condition in Wallet Balance Deduction",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "wallet.py",
+    "code": "import threading\n\nclass Wallet:\n    def __init__(self, balance):\n        self.balance = balance\n        self.lock = threading.Lock()\n\n    def deduct(self, amount):\n        if self.balance >= amount:\n            self.balance -= amount\n            return True\n        return False\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -8,3 +8,4 @@\n     def deduct(self, amount):\n+        with self.lock:\n             if self.balance >= amount:\n                 self.balance -= amount",
+    "reference": "This code suffers from a race condition because the balance check and the subsequent deduction are not performed atomically. If two threads invoke the deduct method simultaneously when the balance is just enough for one transaction, both checks might pass, leading to a negative balance. Wrapping the critical section inside a threading lock ensures that only one thread can evaluate and modify the balance at a time.",
+    "hints": [
+      "Look at how shared state is accessed across multiple method calls.",
+      "Consider what happens if two threads execute the deduct method concurrently.",
+      "Use a context manager with the provided lock instance to protect the critical section."
+    ]
+  },
+  {
+    "id": "ex-g0281",
+    "language": "python",
+    "title": "Unsynchronized Balance Deduction",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "wallet.py",
+    "code": "import threading\n\nclass Wallet:\n    def __init__(self, balance):\n        self.balance = balance\n\n    def deduct(self, amount):\n        if self.balance >= amount:\n            self.balance -= amount\n            return True\n        return False\n",
+    "real_lines": [
+      8,
+      9
+    ],
+    "fix_diff": "@@ -6,4 +6,6 @@\n     def deduct(self, amount):\n+        with threading.Lock():\n             if self.balance >= amount:\n                 self.balance -= amount\n                 return True\n             return False",
+    "reference": "This code suffers from a classic read-modify-write race condition in a multi-threaded environment. If two threads check the balance simultaneously, both might see sufficient funds and proceed to deduct the amount, resulting in an unintended negative balance or lost updates. Wrapping the critical section in a threading.Lock ensures atomic execution of the check and deduction.",
+    "hints": [
+      "Consider what happens if multiple threads invoke this method at the exact same time.",
+      "Look closely at the check-then-act pattern used for the balance.",
+      "You need to use a threading primitive like a Lock to make the read and write operations atomic."
+    ]
+  },
+  {
+    "id": "ex-g0282",
+    "language": "python",
+    "title": "CSV Command Injection via Formula",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef process_csv_import(file_path):\n    with open(file_path, mode='r', encoding='utf-8') as f:\n        reader = csv.reader(f)\n        for row in reader:\n            username = row[0]\n            role = row[1]\n            print(f\"Processing user: {username} with role: {role}\")\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -7,1 +7,15 @@\n-            username = row[0]\n+            raw_username = row[0]\n+            if raw_username.startswith(('=', '+', '-', '@')):\n+                username = f\"'{raw_username}\"\n+            else:\n+                username = raw_username",
+    "reference": "This code is vulnerable to CSV Formula Injection (also known as Excel Macro Injection). When untrusted user input starts with characters like '=', '+', '-', or '@', spreadsheet applications like Microsoft Excel or LibreOffice Calc interpret the cell content as a formula or command rather than literal text. An attacker can supply a malicious formula that executes system commands or exfiltrates data when the CSV file is opened. The fix sanitizes the input by prefixing dangerous starting characters with a single quote, forcing the spreadsheet software to treat the value as text.",
+    "hints": [
+      "Consider what happens when a user opens a CSV file containing spreadsheet formulas in Microsoft Excel.",
+      "Look closely at the data extracted from the CSV row before it is processed or displayed downstream.",
+      "Certain special characters at the very beginning of a CSV cell can cause spreadsheet software to execute arbitrary commands."
+    ]
+  },
+  {
+    "id": "ex-g0283",
+    "language": "python",
+    "title": "False Positive Session Key Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session_util.py",
+    "code": "def clear_user_session(session):\n    keys_to_remove = list(session.keys())\n    for key in keys_to_remove:\n        session.pop(key, None)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Iterating over a list copy of dictionary keys (list(session.keys())) while modifying the original dictionary prevents runtime errors related to changing dictionary size during iteration. This code is completely safe and correct.",
+    "hints": [
+      "Check how the dictionary keys are being iterated over.",
+      "Consider whether modifying a dictionary during iteration poses a risk here."
+    ]
+  },
+  {
+    "id": "ex-g0284",
+    "language": "python",
+    "title": "Unbounded Request History in Rate Limiter",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "import time\n\nREQUEST_HISTORY = []\n\ndef is_allowed(user_id):\n    now = time.time()\n    REQUEST_HISTORY.append(now)\n    recent = [t for t in REQUEST_HISTORY if now - t < 60]\n    return len(recent) <= 5\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "- REQUEST_HISTORY = []\n+ user_requests = {}",
+    "reference": "Storing all requests in a global list without ever removing old entries leads to a memory leak because the list grows indefinitely over time. To fix this, use a per-user dictionary that maps user IDs to their timestamp lists and clean up expired timestamps on each check.",
+    "hints": [
+      "Consider what happens to the data structure as time goes on and more users make requests.",
+      "Look closely at where and how REQUEST_HISTORY is defined and updated.",
+      "Global lists that only append and never clear old timestamps will consume all available memory."
+    ]
+  },
+  {
+    "id": "ex-g0285",
+    "language": "python",
+    "title": "Incorrect Currency Conversion Order",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_refund_amount(original_amount, exchange_rate, fee_percentage):\n    fee = original_amount * (fee_percentage / 100)\n    net_amount = original_amount - fee\n    converted_amount = net_amount * exchange_rate\n    return round(converted_amount, 2)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -4,1 +4,1 @@\n-    converted_amount = net_amount * exchange_rate\n+    converted_amount = (original_amount * exchange_rate) - (fee * exchange_rate)",
+    "reference": "In payment flows, currency conversion should typically be applied to the base amount before deducting flat or percentage fees, or the fee itself must be converted at the same rate. Applying the exchange rate only to the net amount leaves the fee unconverted or in the wrong currency denomination. The fix ensures that both the principal and the fee are properly converted to the target currency.",
+    "hints": [
+      "Examine the order of operations between the fee deduction and the currency conversion.",
+      "Consider what currency the fee is calculated in and when the exchange rate is applied.",
+      "Applying the exchange rate to the net amount means the fee was subtracted before conversion, which is incorrect if the fee needs to match the converted currency."
+    ]
+  },
+  {
+    "id": "ex-g0286",
+    "language": "python",
+    "title": "Swallowing Unexpected Exceptions in Cache",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_data(cache_client, key):\n    try:\n        return cache_client.get(key)\n    except KeyError:\n        return None\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    except KeyError:\n+    except (KeyError, ConnectionError):",
+    "reference": "The function attempts to retrieve data from a caching layer, catching KeyError to handle missing entries gracefully. However, external cache clients typically raise network-related exceptions like ConnectionError or TimeoutError when they fail, rather than KeyError. By only catching KeyError, connection drops or timeouts will crash the application instead of falling back safely.",
+    "hints": [
+      "Consider what happens if the cache server goes down while attempting a lookup.",
+      "Look at the specific exception being caught in the except block.",
+      "Cache clients usually raise communication errors like ConnectionError when they are unreachable."
+    ]
   }
 ]
