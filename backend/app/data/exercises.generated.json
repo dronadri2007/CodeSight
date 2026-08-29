@@ -6430,5 +6430,406 @@
       "Consider the business requirements for inventory accuracy during high-concurrency checkout events.",
       "Check if serving stale stock data from a cache could lead to overselling items."
     ]
+  },
+  {
+    "id": "ex-g0327",
+    "language": "python",
+    "title": "Unthreadsafe Cache Update",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import threading\n\nclass SimpleCache:\n    def __init__(self):\n        self._store = {}\n        self._lock = threading.Lock()\n\n    def get_or_set(self, key, factory):\n        if key not in self._store:\n            with self._lock:\n                if key not in self._store:\n                    self._store[key] = factory()\n        return self._store[key]\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "@@ -9,3 +9,3 @@\n-        return self._store[key]\n+            return self._store[key]\n+        return self._store[key]",
+    "reference": "The cache performs a double-checked locking pattern to avoid lock contention on reads, but the final dictionary read is performed outside the critical section. In a multi-threaded environment, another thread might evict or modify the cache immediately after the lock is released, leading to a race condition. To fix this, the return statement must be safely nested inside the locked block or safely assigned.",
+    "hints": [
+      "Examine the scope of the critical section.",
+      "Look at where the dictionary is accessed relative to the lock context manager.",
+      "The return statement reads from self._store outside the lock after the write block finishes."
+    ]
+  },
+  {
+    "id": "ex-g0328",
+    "language": "python",
+    "title": "Uncaught Exception in Password Verification",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import bcrypt\n\ndef verify_password(stored_hash: str, provided_password: str) -> bool:\n    try:\n        return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash)\n    except ValueError:\n        return False\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-        return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash)\n+        return bcrypt.checkpw(provided_password.encode('utf-8'), stored_hash.encode('utf-8'))",
+    "reference": "The bcrypt.checkpw function expects both the provided password and the stored hash to be of type bytes rather than strings. Passing a string directly for the stored hash raises a TypeError instead of a ValueError, causing the exception handler to be bypassed entirely. By explicitly encoding the stored hash to bytes, we ensure type consistency and allow the function to handle invalid inputs safely.",
+    "hints": [
+      "Check the expected data types for the parameters accepted by the hashing library function.",
+      "Look closely at the exception type being caught versus the type likely raised by passing incorrect data types.",
+      "Ensure both arguments passed to checkpw are encoded as bytes."
+    ]
+  },
+  {
+    "id": "ex-g0329",
+    "language": "python",
+    "title": "Uncaught Exception in Job Queue Consumer",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef process_jobs(queue):\n    while not queue.is_empty():\n        job = queue.pop()\n        try:\n            job.execute()\n        except SystemError:\n            job.mark_failed()\n        time.sleep(1)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- worker.py\n+++ worker.py\n@@ -7,2 +7,2 @@\n-        except SystemError:\n+        except Exception:\n             job.mark_failed()",
+    "reference": "Background job consumers must gracefully handle arbitrary runtime errors thrown by individual jobs to prevent the entire worker thread from crashing. Catching only SystemError leaves the worker vulnerable to standard exceptions like ValueError, TypeError, or custom application errors. Changing the catch block to catch the base Exception class ensures that any failing job is correctly marked as failed and the queue loop continues running.",
+    "hints": [
+      "Examine the exception type being caught in the try-except block.",
+      "Consider what kinds of exceptions user-defined jobs might throw during execution.",
+      "Replace the narrow exception type with a broader base class that covers standard runtime errors."
+    ]
+  },
+  {
+    "id": "ex-g0330",
+    "language": "python",
+    "title": "Handling Mailbox Full Exceptions",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_welcome_email(user_email):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    try:\n        server.sendmail('admin@example.com', user_email, 'Welcome!')\n    except smtplib.SMTPException:\n        print('Failed to send email.')\n    finally:\n        server.quit()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- mailer.py\n+++ mailer.py\n@@ -4,1 +4,1 @@\n-    server = smtplib.SMTP('smtp.example.com', 587)\n+    server = smtplib.SMTP('smtp.example.com', 587)\n+    try:\n+        server = smtplib.SMTP('smtp.example.com', 587)\n+    except smtplib.SMTPException:\n+        print('Connection failed.')\n+        return",
+    "reference": "The error-handling defect in this code is that the connection attempt itself is not protected by the try-except block. If the SMTP server is unreachable, the smtplib.SMTP() constructor raises an exception before the try block is ever entered, causing the program to crash. Wrapping the connection initialization inside the try block ensures that network connection failures are properly caught and handled.",
+    "hints": [
+      "Look closely at where the network operations begin in the function.",
+      "Consider what happens if the SMTP server refuses connection during the setup phase.",
+      "The smtplib.SMTP() constructor can raise exceptions, but it is placed outside the try-except block."
+    ]
+  },
+  {
+    "id": "ex-g0331",
+    "language": "python",
+    "title": "Unsynchronized Dictionary Access in Thread Pool",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import concurrent.futures\n\nthumbnail_cache = {}\n\ndef process_images(image_paths):\n    def generate_thumb(path):\n        thumb = path.lower()\n        thumbnail_cache[path] = thumb\n        return thumb\n    \n    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:\n        list(executor.map(generate_thumb, image_paths))\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,1 @@\n-        thumbnail_cache[path] = thumb\n+        with threading.Lock(): thumbnail_cache[path] = thumb",
+    "reference": "Python standard dictionaries are not thread-safe for write operations, and concurrent dictionary assignments from multiple worker threads can lead to silent data corruption or RuntimeError. To fix this, a threading.Lock should be used to synchronize write access to the shared cache dictionary. Alternatively, thread-safe data structures or returning the results to be aggregated in the main thread can avoid shared state entirely.",
+    "hints": [
+      "Look at how shared state is accessed inside the worker function.",
+      "Consider what happens when multiple threads write to a dictionary simultaneously.",
+      "Use a threading.Lock to protect writes to the shared thumbnail_cache."
+    ]
+  },
+  {
+    "id": "ex-g0332",
+    "language": "python",
+    "title": "Unclosed File Resource in Report Generation",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def generate_summary_report(data, filename):\n    file = open(filename, 'w')\n    report_content = \"Summary: \" + str(data)\n    file.write(report_content)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- report.py\n+++ report.py\n@@ -1,5 +1,6 @@\n def generate_summary_report(data, filename):\n-    file = open(filename, 'w')\n-    report_content = \"Summary: \" + str(data)\n-    file.write(report_content)\n-    return True\n+    with open(filename, 'w') as file:\n+        report_content = \"Summary: \" + str(data)\n+        file.write(report_content)\n+    return True",
+    "reference": "When opening files for writing, the operating system allocates system resources that must be released. If the file is not explicitly closed or managed using a context manager, it can lead to resource leaks and locked files. Using the 'with' statement ensures that the file is automatically closed as soon as the block is exited.",
+    "hints": [
+      "Check how the file is being opened and if its lifecycle is properly managed.",
+      "Look closely at the built-in functions used for file I/O operations.",
+      "Consider using a context manager ('with' statement) to handle resource cleanup automatically."
+    ]
+  },
+  {
+    "id": "ex-g0333",
+    "language": "python",
+    "title": "Uncaught Token Exception in Password Reset",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import jwt\n\ndef verify_reset_token(token, secret_key):\n    try:\n        payload = jwt.decode(token, secret_key, algorithms=[\"HS256\"])\n        return payload[\"sub\"]\n    except jwt.PyJWTError:\n        return None\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-        return payload[\"sub\"]\n+        if \"sub\" not in payload:\n+            return None\n+        return payload[\"sub\"]",
+    "reference": "The jwt.decode function successfully verifies the token signature and returns the payload dictionary, but it does not guarantee that specific expected claims, such as 'sub', are actually present inside the payload. Accessing payload['sub'] directly without checking for key existence can raise a KeyError, which escapes the JWT error-handling block. To fix this, we should explicitly check if the 'sub' key exists in the payload dictionary before accessing it.",
+    "hints": [
+      "Look closely at what happens after the JWT token is successfully decoded.",
+      "Consider what exceptions can be raised when working with dictionaries in Python.",
+      "Verify whether all expected keys are guaranteed to be present inside the decoded payload dictionary."
+    ]
+  },
+  {
+    "id": "ex-g0334",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Updater",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "queue_worker.py",
+    "code": "import sqlite3\n\ndef update_job_status(conn: sqlite3.Connection, job_id: str, status: str) -> None:\n    cursor = conn.cursor()\n    query = f\"UPDATE background_jobs SET status = '{status}' WHERE id = '{job_id}'\"\n    cursor.execute(query)\n    conn.commit()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    query = f\"UPDATE background_jobs SET status = '{status}' WHERE id = '{job_id}'\"\n-    cursor.execute(query)\n+    query = \"UPDATE background_jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This code is vulnerable to SQL injection because variables are directly interpolated into the SQL command string using f-strings. An attacker could manipulate the `job_id` or `status` parameters to execute arbitrary SQL commands against the database. The fix is to use parameterized queries with placeholders (?) so that the database driver safely handles user input.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the use of f-strings combined with database execution.",
+      "Replace string interpolation with parameterized query tuples."
+    ]
+  },
+  {
+    "id": "ex-g0335",
+    "language": "python",
+    "title": "Race Condition in Account Balance Deduction",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import time\nimport threading\n\nbalances = {\"user_1\": 100}\nlock = threading.Lock()\n\ndef deduct_funds(user_id: str, amount: int) -> bool:\n    if balances[user_id] >= amount:\n        time.sleep(0.01)\n        balances[user_id] -= amount\n        return True\n    return False\n",
+    "real_lines": [
+      9,
+      10,
+      11
+    ],
+    "fix_diff": "@@ -9,3 +9,3 @@\n-    if balances[user_id] >= amount:\n-        time.sleep(0.01)\n-        balances[user_id] -= amount\n+    with lock:\n+        if balances[user_id] >= amount:\n+            balances[user_id] -= amount",
+    "reference": "This code suffers from a classic check-then-act race condition where the balance check and the deduction are not performed atomically. Multiple threads can pass the balance validation concurrently before any thread actually updates the dictionary, leading to an overdraw state. Wrapping the critical section inside a threading lock ensures that only one thread can evaluate and modify the balance at a time.",
+    "hints": [
+      "Consider what happens if two threads execute this function simultaneously.",
+      "Look closely at the check on line 9 and the modification on line 11.",
+      "Use the module-level 'lock' object with a context manager to protect the critical section."
+    ]
+  },
+  {
+    "id": "ex-g0336",
+    "language": "python",
+    "title": "Missing Authorization Check in Cache Retrieval",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "cache_store = {\"user_1_profile\": \"sensitive_data\"}\n\ndef get_user_profile(user_id, request_user_id):\n    key = f\"user_{user_id}_profile\"\n    return cache_store.get(key)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    return cache_store.get(key)\n+    if user_id != request_user_id:\n+        return \"Unauthorized\"\n+    return cache_store.get(key)",
+    "reference": "The function retrieves cached user data based solely on the requested user ID without verifying if the requesting user has permission to access it. This introduces an authorization bypass vulnerability known as Insecure Direct Object Reference (IDOR). To fix this, you must explicitly check if the requesting user matches the target user before returning the cached payload.",
+    "hints": [
+      "Examine how user identifiers are used within the function.",
+      "Consider what happens if a malicious user requests another user's ID.",
+      "Compare the requested user ID with the identity of the user making the request before returning data."
+    ]
+  },
+  {
+    "id": "ex-g0337",
+    "language": "python",
+    "title": "Fix Password Comparison Logic",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def authenticate(stored_password, provided_password):\n    if stored_password == provided_password:\n        return True\n    else:\n        return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if stored_password == provided_password:\n+    if secrets.compare_digest(stored_password, provided_password):",
+    "reference": "Using the standard equality operator (==) for comparing passwords is insecure because it is vulnerable to timing attacks. An attacker can measure the time it takes for the function to return false and deduce how many characters of the password were correct. To fix this, you should use a constant-time comparison function like secrets.compare_digest to prevent timing discrepancies.",
+    "hints": [
+      "Consider the security implications of string comparison.",
+      "Think about how execution time can leak information about the password.",
+      "Look into the Python secrets module for a safer comparison method."
+    ]
+  },
+  {
+    "id": "ex-g0338",
+    "language": "python",
+    "title": "SQL Injection in Payment Search",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import sqlite3\n\ndef get_payment_by_reference(db_conn: sqlite3.Connection, ref: str) -> dict:\n    cursor = db_conn.cursor()\n    query = \"SELECT id, amount, currency, status FROM payments WHERE reference = '\" + ref + \"'\"\n    cursor.execute(query)\n    row = cursor.fetchone()\n    if not row:\n        return {}\n    return {\"id\": row[0], \"amount\": row[1], \"currency\": row[2], \"status\": row[3]}\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -5,1 +5,1px\n-    query = \"SELECT id, amount, currency, status FROM payments WHERE reference = '\" + ref + \"'\"\n-    cursor.execute(query)\n+    query = \"SELECT id, amount, currency, status FROM payments WHERE reference = ?\"\n+    cursor.execute(query, (ref,))",
+    "reference": "This code suffers from a SQL injection vulnerability because the user-supplied reference string is directly concatenated into the SQL query string. An attacker could supply a specially crafted input to manipulate the query logic and extract unauthorized payment records. The fix is to use parameterized queries by passing the user input as a separate tuple to cursor.execute(), allowing the database engine to safely escape the value.",
+    "hints": [
+      "Examine how the SQL query string is constructed and executed.",
+      "Look at how external input flows into database operations.",
+      "Replace string concatenation with parameterized query placeholders (?) to prevent SQL injection."
+    ]
+  },
+  {
+    "id": "ex-g0339",
+    "language": "python",
+    "title": "Uncaught FileNotFoundError in Config Loader",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import json\n\ndef load_config(filepath):\n    with open(filepath, 'r') as f:\n        config = json.load(f)\n    return config\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,2 +4,5 @@\n-    with open(filepath, 'r') as f:\n-        config = json.load(f)\n+    try:\n+        with open(filepath, 'r') as f:\n+            config = json.load(f)\n+    except FileNotFoundError:\n+        config = {}\n",
+    "reference": "The function attempts to open and read a configuration file without handling potential exceptions. If the specified file does not exist, Python raises a FileNotFoundError and crashes the program. Wrapping the file operation in a try-except block allows the program to gracefully handle missing files by returning a default empty configuration.",
+    "hints": [
+      "Consider what happens if the filepath provided does not exist on disk.",
+      "The open() function can raise an exception when a file is missing.",
+      "Use a try-except block to catch FileNotFoundError and return a default value."
+    ]
+  },
+  {
+    "id": "ex-g0340",
+    "language": "python",
+    "title": "Unsafe YAML Load in Configuration Parser",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import yaml\n\ndef load_configuration(file_path):\n    with open(file_path, 'r') as file:\n        config_data = yaml.load(file, Loader=yaml.Loader)\n    return config_data\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- config_loader.py\n+++ config_loader.py\n@@ -5,1 +5,1px\n-        config_data = yaml.load(file, Loader=yaml.Loader)\n+        config_data = yaml.safe_load(file)",
+    "reference": "Using the standard yaml.load() method with yaml.Loader allows for the arbitrary instantiation of Python objects, leading to remote code execution vulnerabilities. By switching to yaml.safe_load(), the parser restricts execution to a safe subset of YAML language features, preventing untrusted input from running arbitrary code on your system.",
+    "hints": [
+      "Examine how the configuration file is being parsed into Python data structures.",
+      "Look closely at the PyYAML functions being utilized and their security implications.",
+      "Replace the unsafe loader function with its safer alternative provided by the library."
+    ]
+  },
+  {
+    "id": "ex-g0341",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in Report Export",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_user_report(request, report_id):\n    report = Report.objects.get(id=report_id)\n    if not request.user.is_authenticated:\n        raise PermissionDenied()\n    return HttpResponse(report.content, content_type=\"text/plain\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    report = Report.objects.get(id=report_id)\n+    report = Report.objects.get(id=report_id, user=request.user)",
+    "reference": "The function fetches the requested report by ID without verifying whether the currently authenticated user actually owns or has permission to view that specific report. This enables Insecure Direct Object Reference (IDOR), allowing any authenticated user to access arbitrary reports by guessing or enumerating IDs. The fix ensures the query scopes the lookup to both the report ID and the requesting user.",
+    "hints": [
+      "Examine how the report object is retrieved from the database.",
+      "Check if the query filters by anything other than the primary key.",
+      "Ensure the report lookup includes a check against the requesting user."
+    ]
+  },
+  {
+    "id": "ex-g0342",
+    "language": "python",
+    "title": "Missing Admin Authorization in Rate Limit Reset",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "def reset_rate_limit(user_id, current_user):\n    if current_user.id != user_id:\n        return \"Unauthorized\"\n    database.clear_rate_limit(user_id)\n    return \"Success\"\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "-    if current_user.id != user_id:\n-        return \"Unauthorized\"\n+    if not current_user.is_admin:\n+        return \"Unauthorized\"",
+    "reference": "The function attempts to restrict rate limit resets, but it incorrectly checks whether the target user ID matches the requesting user's ID rather than verifying if the requesting user has administrative privileges. This allows any standard user to reset their own rate limit by passing their own ID. Fixing this requires implementing a proper privilege check to ensure only authorized administrators can perform reset operations.",
+    "hints": [
+      "Consider who should be allowed to perform this sensitive action.",
+      "Look closely at the condition being checked in the if-statement.",
+      "Comparing the target user ID to the current user's ID lets regular users reset their own limits, which bypasses the intended admin control."
+    ]
+  },
+  {
+    "id": "ex-g0343",
+    "language": "python",
+    "title": "Unclosed File Resource in Cache Writer",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import json\n\ndef write_cache(filepath, data):\n    f = open(filepath, 'w')\n    content = json.dumps(data)\n    f.write(content)\n    return True\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -4,1 +4,2 ----\n-    f = open(filepath, 'w')\n+    with open(filepath, 'w') as f:\n",
+    "reference": "The function opens a file to write cached data using the built-in open() function, but it never closes the file handle. This leads to a resource leak as the file descriptor remains open until garbage collected. Using a context manager via the 'with' statement ensures the file is properly and safely closed after the block exits.",
+    "hints": [
+      "Examine how external system resources are acquired in the function.",
+      "Check if resources opened inside the function are ever explicitly released.",
+      "Consider using a context manager (the 'with' statement) when handling files."
+    ]
+  },
+  {
+    "id": "ex-g0344",
+    "language": "python",
+    "title": "Unused Import or Redundant Extension Check",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\nfrom PIL import Image\n\ndef create_thumbnail(image_path, output_path, size=(128, 128)):\n    with Image.open(image_path) as img:\n        img.thumbnail(size)\n        file_extension = os.path.splitext(output_path)[1].lower()\n        if file_extension == '.jpg' or file_extension == '.jpeg':\n            img.save(output_path, 'JPEG')\n        else:\n            img.save(output_path)\n    return output_path\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses os.path.splitext which looks like it might be vulnerable to path manipulation if not careful, but it is only extracting the file extension to determine the save format. The extension check is safe and correctly handles JPEG format conversion explicitly while falling back to PIL's automatic format detection based on extension for other formats.",
+    "hints": [
+      "Check how the file extension is being used in the conditional statement.",
+      "Verify if the output path is subjected to any unsafe file system operations or if it is only passed safely to Pillow's save method."
+    ]
+  },
+  {
+    "id": "ex-g0345",
+    "language": "python",
+    "title": "Incorrect Aspect Ratio Thumbnail Dimensions",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(width, height, max_size):\n    if width > height:\n        new_width = max_size\n        new_height = height * max_size / width\n    else:\n        new_width = width * max_size / height\n        new_height = max_size\n    return int(new_width), int(new_height)\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -3,1 +3,1px\n-        new_height = height * max_size / width\n+        new_height = int(height * max_size / width)",
+    "reference": "When calculating the new height for the thumbnail when the width is larger than the height, division in Python results in a float. Although the final return statement casts both values to integers, intermediate float precision issues or type expectations might affect other dependent logic. More importantly, the calculation structure should maintain consistent type handling throughout.",
+    "hints": [
+      "Look closely at the arithmetic operations performed on the dimensions.",
+      "Check the type of the values assigned to new_width and new_height inside the conditional branches.",
+      "Ensure that both new_width and new_height are consistently handled as integers before the final return statement."
+    ]
+  },
+  {
+    "id": "ex-g0346",
+    "language": "python",
+    "title": "Unsynchronized Global State in Webhook Counter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "from flask import Flask, request\n\napp = Flask(__name__)\nprocessed_events = 0\n\n@app.route(\"/webhook\", methods=[\"POST\"])\ndef webhook():\n    global processed_events\n    processed_events += 1\n    return {\"status\": \"received\", \"total\": processed_events}, 200\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- webhook_receiver.py\n+++ webhook_receiver.py\n@@ -1,6 +1,6 @@\n from flask import Flask, request\n+import threading\n \n app = Flask(__name__)\n processed_events = 0\n+lock = threading.Lock()\n \n @app.route(\"/webhook\", methods=[\"POST\"])\n def webhook():\n     global processed_events\n-    processed_events += 1\n-    return {\"status\": \"received\", \"total\": processed_events}, 200\n+    with lock:\n+        processed_events += 1\n+        return {\"status\": \"received\", \"total\": processed_events}, 200",
+    "reference": "Web servers typically handle incoming webhook requests concurrently using multiple threads or processes. The increment operation on the global variable processed_events is not atomic, meaning read-modify-write cycles can interleave and cause lost updates. Introducing a threading lock ensures that critical sections modifying shared state are executed mutually exclusively.",
+    "hints": [
+      "Consider how the web server handles simultaneous incoming requests.",
+      "Examine how the global counter is modified inside the route handler.",
+      "Use a threading.Lock to protect the critical section where the counter is incremented."
+    ]
   }
 ]
