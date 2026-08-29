@@ -21,7 +21,19 @@ half degrades to a reference-based fallback.
 
 ## Test
 
-    python -m pytest -q          # localisation scorer, no API key needed
+    python -m pytest -q          # offline, no API key needed
+
+    RUN_NETWORK_TESTS=1 python -m pytest tests/test_concept_links.py -q
+                                # checks every concepts.json YouTube link resolves
+
+## Checking concept video links
+
+    python scripts/check_concept_links.py
+
+Hits YouTube's keyless oEmbed endpoint for every video in
+`app/data/concepts.json`: flags dead links (exit 1), non-embeddable videos,
+and entries whose stored title no longer matches the real one. Run before a
+demo or on a CI schedule.
 
 ## Module map
 
