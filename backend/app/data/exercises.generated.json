@@ -14590,5 +14590,394 @@
       "Look closely at the control flow, specifically what happens to the acquired session when the user is not found.",
       "Wrap the session initialization in a context manager (using the 'with' statement) to ensure automatic cleanup upon exit."
     ]
+  },
+  {
+    "id": "ex-g0740",
+    "language": "python",
+    "title": "Unsafe File Extension Check",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "import os\n\nALLOWED_EXTENSIONS = {'.png', '.jpg', '.jpeg'}\n\ndef validate_upload(filename):\n    ext = filename[filename.rfind('.'):]\n    if ext in ALLOWED_EXTENSIONS:\n        return True\n    return False\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    ext = filename[filename.rfind('.'):]\n+    ext = os.path.splitext(filename)[1].lower()",
+    "reference": "The original implementation uses rfind to slice the file extension, which fails if the filename contains uppercase characters or has no extension, resulting in an IndexError or bypassed validation. Using os.path.splitext combined with lower() ensures that extensions are safely extracted and case-insensitively matched against the allowed set.",
+    "hints": [
+      "Consider what happens if a file is uploaded with an uppercase extension like .JPG.",
+      "Look closely at how the extension is sliced from the filename string when no dot is present.",
+      "Using Python's standard library module for path manipulation can handle edge cases like missing extensions and case sensitivity."
+    ]
+  },
+  {
+    "id": "ex-g0741",
+    "language": "python",
+    "title": "Unreleased Database Connection in Payment Processor",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def process_refund(transaction_id, amount):\n    db = DatabaseConnection()\n    account = db.query(\"SELECT * FROM accounts WHERE tx_id = %s\", (transaction_id,))\n    if not account:\n        raise ValueError(\"Transaction not found\")\n    db.execute(\"UPDATE accounts SET balance = balance + %s WHERE id = %s\", (amount, account['id']))\n    db.commit()\n    db.close()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,2 @@\n-        raise ValueError(\"Transaction not found\")\n+        db.close()\n+        raise ValueError(\"Transaction not found\")",
+    "reference": "When the transaction is not found, the function raises a ValueError immediately without closing the database connection. This causes a resource leak, holding open database connections until they timeout or exhaust the connection pool. Using a try-finally block or context manager ensures that resources are always properly released regardless of exceptions.",
+    "hints": [
+      "Examine what happens to external resources when early control flow exits occur.",
+      "Trace the execution path when a transaction is missing.",
+      "The database connection is never closed if the ValueError is raised."
+    ]
+  },
+  {
+    "id": "ex-g0742",
+    "language": "python",
+    "title": "Fix Report Total Calculation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def calculate_total(items):\n    total = 0\n    for item in items:\n        total + item[\"price\"]\n    return total\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        total + item[\"price\"]\n+        total += item[\"price\"]",
+    "reference": "The bug occurs because the addition operation calculates the new sum but fails to assign it back to the 'total' variable. Using the augmented assignment operator '+=' correctly updates the accumulator on each iteration. Without this reassignment, the function always returns the initial value of zero.",
+    "hints": [
+      "Look closely at how the accumulator variable is modified inside the loop.",
+      "Check if the result of the addition is actually being stored anywhere.",
+      "Change the line to use the assignment operator like '+=' instead of just '+'."
+    ]
+  },
+  {
+    "id": "ex-g0743",
+    "language": "python",
+    "title": "Email Subject Formatter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_util.py",
+    "code": "def format_subject(username, topic):\n    \"\"\"Formats the email subject line.\"\"\"\n    template = \"Hello %s, your topic is %s\"\n    return template % (username, topic)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses old-style string formatting (% operator), which is sometimes discouraged in favor of f-strings, but it is completely safe here because it uses a tuple for formatting multiple values and does not execute any dynamic code. This is a false positive for a security vulnerability.",
+    "hints": [
+      "Check if the format string itself comes from user input or is hardcoded.",
+      "Verify whether the variables passed into the formatting operation can execute arbitrary code."
+    ]
+  },
+  {
+    "id": "ex-g0744",
+    "language": "python",
+    "title": "Missing Authorization Check in Inventory Update",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def update_stock(user, item_id, quantity):\n    db = get_database()\n    if user:\n        db.items.update_one({\"_id\": item_id}, {\"$set\": {\"qty\": quantity}})\n        return True\n    return False\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        db.items.update_one({\"_id\": item_id}, {\"$set\": {\"qty\": quantity}})\n+        if user.get(\"role\") == \"admin\":\n+            db.items.update_one({\"_id\": item_id}, {\"$set\": {\"qty\": quantity}})\n+            return True",
+    "reference": "The function checks if a user object exists, but it never validates whether the user actually has the administrative permissions required to modify inventory levels. This leads to an authorization bypass where any authenticated user can change stock quantities. The fix is to explicitly verify that the user's role is set to an authorized level like 'admin' before executing the database update.",
+    "hints": [
+      "Look closely at what the function checks regarding the user before proceeding.",
+      "Authentication checks if a user is logged in, but authorization checks if they are allowed to perform an action.",
+      "You need to check if the user has the correct role (e.g., admin) before updating the database."
+    ]
+  },
+  {
+    "id": "ex-g0745",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def save_upload(file_obj, destination_path):\n    dest = open(destination_path, \"wb+\")\n    for chunk in file_obj.chunks():\n        dest.write(chunk)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    dest = open(destination_path, \"wb+\")\n+    with open(destination_path, \"wb+\") as dest:",
+    "reference": "The code opens a file handle to write the uploaded chunks but never closes it, leading to a file descriptor leak. Over time, accumulated open handles can exhaust system resources and prevent the file from being safely accessed elsewhere. Using a context manager ('with' statement) ensures the file is automatically closed as soon as the block exits, even if an exception occurs during the write process.",
+    "hints": [
+      "Examine how system resources are acquired and released throughout the function.",
+      "Check if file handles are properly managed across all execution paths.",
+      "Consider wrapping the file opening mechanism in a context manager to guarantee cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0746",
+    "language": "python",
+    "title": "Unclosed Configuration File Stream",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\n\ndef load_config(path):\n    f = open(path, \"r\")\n    data = json.load(f)\n    if \"timeout\" not in data:\n        raise ValueError(\"Missing timeout config\")\n    return data\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -4,1 +4,2 ----\n-    f = open(path, \"r\")\n+    with open(path, \"r\") as f:\n",
+    "reference": "The function opens a file handle manually using open() without ensuring it is properly closed if an exception occurs or execution completes. When the file is not closed, it can lead to file descriptor leaks, which eventually exhaust system resources under load. Using a context manager via the 'with' statement guarantees that the resource is automatically and safely cleaned up regardless of whether the block succeeds or raises an exception.",
+    "hints": [
+      "Examine how external system resources like files are acquired and released.",
+      "Consider what happens to the file descriptor if an exception is raised inside the function.",
+      "Replace the manual open() call with a context manager using the 'with' statement."
+    ]
+  },
+  {
+    "id": "ex-g0747",
+    "language": "python",
+    "title": "Email Header Injection via Unsanitized Subject",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, subject, body):\n    msg = EmailMessage()\n    msg['Subject'] = subject\n    msg['From'] = \"admin@example.com\"\n    msg['To'] = recipient\n    msg.set_content(body)\n    with smtplib.SMTP('localhost') as smtp:\n        smtp.send_message(msg)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- email_sender.py\n+++ email_sender.py\n@@ -6,1 +6,1 \u09ac\u09bf\u09ad\u09be\u0997\u09c7\n-    msg['Subject'] = subject\n+    msg['Subject'] = subject.replace('\\n', '').replace('\\r', '')",
+    "reference": "This code is vulnerable to email header injection because the subject parameter is directly assigned to the email message headers without sanitization. An attacker can supply newline characters in the subject string to inject arbitrary headers such as Cc or Bcc, potentially hijacking the email flow or spamming other recipients. The fix involves stripping carriage return and newline characters from the user-controlled input before setting the header.",
+    "hints": [
+      "Examine how user-supplied input is used when constructing the email headers.",
+      "Consider what happens if the 'subject' string contains special control characters like newlines.",
+      "Sanitize the input by removing newline and carriage return characters before assigning it to 'msg['Subject']'."
+    ]
+  },
+  {
+    "id": "ex-g0748",
+    "language": "python",
+    "title": "CSV Stream Parsing with Generator Expression",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nfrom typing import Iterator, Dict\n\ndef stream_clean_rows(file_obj) -> Iterator[Dict[str, str]]:\n    reader = csv.DictReader(file_obj)\n    return (row for row in reader if any(row.values()))\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses a generator expression returning an iterator over the csv.DictReader. While returning a generator that relies on an open file object might look suspicious to novices who expect eager loading or immediate consumption, it is completely standard and safe in Python as long as the file remains open during iteration. It avoids loading the entire file into memory.",
+    "hints": [
+      "Check how the file object is consumed and whether the generator lifetime is appropriately managed by the caller.",
+      "Verify if any memory buffering issues exist or if lazy evaluation is intentional and correct here."
+    ]
+  },
+  {
+    "id": "ex-g0749",
+    "language": "python",
+    "title": "Unclosed File Resource in Inventory Export",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def export_inventory(data, filepath):\n    f = open(filepath, 'w')\n    f.write(str(data))\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(filepath, 'w')\n+    with open(filepath, 'w') as f:",
+    "reference": "Opening a file without using a context manager or explicit try-finally block can lead to resource leaks if an exception occurs before the file is closed. This can exhaust file descriptors and leave the data unflushed on disk. Using the 'with' statement ensures the file resource is reliably cleaned up as soon as the block exits.",
+    "hints": [
+      "Examine how external system resources are acquired and released.",
+      "Look closely at the built-in function used for file I/O operations.",
+      "Consider wrapping the file opening mechanism in a context manager to ensure safe cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0750",
+    "language": "python",
+    "title": "Hardcoded Email Password",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_welcome_email(recipient):\n    sender = \"admin@example.com\"\n    password = \"secret123\"\n    server = smtplib.SMTP(\"smtp.example.com\", 587)\n    server.login(sender, password)\n    server.sendmail(sender, recipient, \"Subject: Welcome!\")\n    server.quit()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    password = \"secret123\"\n+    password = os.environ.get(\"EMAIL_PASSWORD\")",
+    "reference": "Hardcoding sensitive credentials like passwords directly in source code is a major security vulnerability. If the code is pushed to a public repository or accessed by unauthorized users, the credentials are instantly compromised. The fix is to retrieve sensitive information dynamically from secure environment variables instead.",
+    "hints": [
+      "Look closely at where sensitive credentials are being retrieved.",
+      "Consider what happens if this code is uploaded to a public repository.",
+      "Use environment variables via the os module to fetch the password securely."
+    ]
+  },
+  {
+    "id": "ex-g0751",
+    "language": "python",
+    "title": "Uncached Inventory Lookup",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "from typing import Dict, Optional\n\nclass InventoryService:\n    def __init__(self, stock_data: Dict[str, int]) -> None:\n        self._stock = stock_data\n\n    def get_stock_level(self, item_id: str) -> Optional[int]:\n        return self._stock.get(item_id)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The implementation directly accesses the underlying dictionary via the .get() method without caching. While a novice reviewer might suspect performance issues or missing caching layers, this is a clean, direct O(1) lookup suitable for this service boundary where caching is handled at a higher architectural layer.",
+    "hints": [
+      "Check the time complexity of dictionary lookups in Python.",
+      "Consider whether caching belongs inside a low-level service class or at the API gateway/use-case layer."
+    ]
+  },
+  {
+    "id": "ex-g0752",
+    "language": "python",
+    "title": "Unverified Webhook Signature",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(request_body, signature, secret):\n    expected = hmac.new(secret, request_body, hashlib.sha256).hexdigest()\n    if signature == expected:\n        return True\n    return False\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    expected = hmac.new(secret, request_body, hashlib.sha256).hexdigest()\n+    expected = hmac.new(secret.encode(), request_body.encode(), hashlib.sha256).hexdigest()",
+    "reference": "The hmac.new function expects both the secret key and the message body to be of type bytes rather than strings. Passing strings directly will raise a TypeError in Python 3. To fix this, encode both parameters into byte strings using UTF-8 before generating the HMAC signature.",
+    "hints": [
+      "Look closely at the data types required by the cryptography library.",
+      "What format do functions like hmac.new usually expect for text arguments in Python?",
+      "You need to call the encode() method on the string variables before passing them into hmac.new."
+    ]
+  },
+  {
+    "id": "ex-g0753",
+    "language": "python",
+    "title": "Unclosed File Resource on Upload Failure",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_obj, destination_path):\n    dest = open(destination_path, 'wb')\n    while chunk := file_obj.read(8192):\n        dest.write(chunk)\n    dest.close()\n    return True\n",
+    "real_lines": [
+      3,
+      4
+    ],
+    "fix_diff": "@@ -2,5 +2,5 @@\n def save_upload(file_obj, destination_path):\n-    dest = open(destination_path, 'wb')\n-    while chunk := file_obj.read(8192):\n-        dest.write(chunk)\n-    dest.close()\n+    with open(destination_path, 'wb') as dest:\n+        while chunk := file_obj.read(8192):\n+            dest.write(chunk)\n     return True",
+    "reference": "The function opens a file for writing but lacks proper exception handling to ensure the file handle is closed if a write or read error occurs. If an exception is raised during the upload loop, the execution jumps out of the function without reaching the dest.close() call, leading to a resource leak and a locked file handle. Using a context manager via the 'with' statement guarantees that the file resource is safely cleaned up regardless of whether the block succeeds or raises an exception.",
+    "hints": [
+      "Examine how resources are acquired and released throughout the function's execution lifecycle.",
+      "Consider what happens to the opened file descriptor if an exception is raised inside the while loop.",
+      "Refactor the file opening mechanism to use a context manager to ensure automatic cleanup upon exiting the block."
+    ]
+  },
+  {
+    "id": "ex-g0754",
+    "language": "python",
+    "title": "Uncaught Session Expiry",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "def get_username(session):\n    try:\n        user = session[\"user\"]\n        return user[\"name\"]\n    except KeyError:\n        return None\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "@@ -3,1 +3,1 @@\n-        user = session[\"user\"]\n+        user = session.get(\"user\")\n",
+    "reference": "Accessing a dictionary directly using bracket notation raises a KeyError if the key is missing. Although the code includes a try-except block to catch KeyError, it only wraps the dictionary access and not the subsequent retrieval of the name key. If the user object is None or if another exception occurs, it may fail, or if session[\"user\"] is missing, the code should safely handle it using the .get() method or broader error handling.",
+    "hints": [
+      "Look closely at how dictionary values are retrieved.",
+      "Consider what happens if the 'user' key is missing from the session dictionary.",
+      "Use session.get('user') instead of bracket notation to safely handle missing keys."
+    ]
+  },
+  {
+    "id": "ex-g0755",
+    "language": "python",
+    "title": "Incorrect Email Address Joining",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "def format_recipients(to_list, cc_list):\n    all_recipients = to_list + cc_list\n    header = \", \".join(all_recipients)\n    return header\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- email_sender.py\n+++ email_sender.py\n@@ -3,1 +3,1---\n-    header = \", \".join(all_recipients)\n+    header = \",\".join(all_recipients)",
+    "reference": "When formatting email headers such as 'To' or 'Cc', RFC standards and standard email clients require addresses to be separated strictly by commas without following spaces, or strictly by comma-space depending on the MIME encoder, but standard Python email libraries or SMTP builders expect a simple comma-separated string or a list. Wait, standard email header parsing typically requires a comma followed by a space for readability, but standard libraries like `email.message.EmailMessage` or `smtplib` actually require either a comma-separated string without extra whitespace padding the actual address, or preferably a list. Here, the join string uses a comma and a space, which can sometimes inject a leading space into the second email address if not parsed carefully, or break strict RFC 5322 parsing where folding white space is expected. Specifically, standard email headers use just ',' to separate multiple addresses safely.",
+    "hints": [
+      "Look closely at how the email addresses are being joined together into a single string.",
+      "Examine the separator string used in the join method.",
+      "RFC email specifications and mail servers can be strict about whitespace around addresses."
+    ]
+  },
+  {
+    "id": "ex-g0756",
+    "language": "python",
+    "title": "Insecure Session Token Comparison",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef validate_session(user_token: str, expected_token: str) -> bool:\n    if not user_token or not expected_token:\n        return False\n    if user_token == expected_token:\n        return True\n    return False\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    if user_token == expected_token:\n+    if hmac.compare_digest(user_token, expected_token):",
+    "reference": "Using standard equality operators like '==' to compare sensitive strings such as session tokens or cryptographic signatures is vulnerable to timing attacks. An attacker can measure the time it takes for the comparison to fail and gradually deduce the correct token. Using hmac.compare_digest performs a constant-time comparison, preventing this type of side-channel vulnerability.",
+    "hints": [
+      "Look closely at how the two session tokens are being compared.",
+      "Standard comparison operators in Python evaluate character by character and return early on mismatch.",
+      "Consider using a function from the 'hmac' module designed specifically to prevent timing attacks."
+    ]
+  },
+  {
+    "id": "ex-g0757",
+    "language": "python",
+    "title": "Uncaught Image Read Exception in Thumbnailer",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(image_path, output_path, size=(128, 128)):\n    try:\n        img = Image.open(image_path)\n        img.thumbnail(size)\n        img.save(output_path)\n    except IOError:\n        print(f\"Failed to process {image_path}\")\n        raise\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    except IOError:\n+    except (IOError, SyntaxError):",
+    "reference": "When processing images with Pillow, corrupted or improperly formatted files often trigger a SyntaxError or UnidentifiedImageError rather than a standard IOError during the open or load phase. Catching only IOError leaves the function vulnerable to unhandled exceptions when encountering malformed image files. Expanding the exception tuple to include these parsing errors ensures robust error handling across all invalid file states.",
+    "hints": [
+      "Look closely at the types of exceptions that image processing libraries can throw when given invalid data.",
+      "Consider what happens if the input file is not actually a valid image format, but rather a text file or corrupted bytes.",
+      "PIL's Image.open can raise exceptions other than IOError when parsing headers fails. You may need to catch a broader set of exceptions."
+    ]
+  },
+  {
+    "id": "ex-g0758",
+    "language": "python",
+    "title": "Background Job Status Poller",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_poller.py",
+    "code": "import time\nimport logging\n\nlogger = logging.getLogger(__name__)\n\ndef poll_job_status(job_client, job_id, timeout=60, interval=2):\n    start_time = time.time()\n    while time.time() - start_time < timeout:\n        status = job_client.get_status(job_id)\n        if status in (\"COMPLETED\", \"FAILED\"):\n            return status\n        time.sleep(interval)\n    return \"TIMEOUT\"\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The implementation correctly tracks elapsed time using time.time() rather than relying on a fixed loop counter, which prevents drift. The while condition accurately checks the timeout boundary. The seemingly infinite-looking loop is safely bounded by the timeout subtraction and will terminate either upon completion or timeout.",
+    "hints": [
+      "Check how the timeout duration is enforced across iterations.",
+      "Verify if the loop has a definitive exit condition when the external service hangs or takes too long."
+    ]
+  },
+  {
+    "id": "ex-g0759",
+    "language": "python",
+    "title": "Uncaught Connection Error in Inventory Restock",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "import requests\n\ndef restock_item(item_id: str, quantity: int) -> bool:\n    url = f\"https://api.inventory.internal/items/{item_id}/restock\"\n    try:\n        response = requests.post(url, json={\"quantity\": quantity}, timeout=5)\n        response.raise_for_status()\n        return True\n    except requests.exceptions.HTTPError as e:\n        logger.error(f\"HTTP error occurred: {e}\")\n        return False\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-        logger.error(f\"HTTP error occurred: {e}\")\n+        import logging\n+        logging.error(f\"HTTP error occurred: {e}\")",
+    "reference": "The function attempts to log the HTTP error using an undefined variable 'logger', which will raise a NameError during execution. While the exception handling structure is correct for catching network and HTTP issues, referencing an uninitialized logger causes the failure handler itself to crash. The fix involves either importing and using the standard logging module or initializing a logger instance properly.",
+    "hints": [
+      "Examine how errors are logged inside the exception block.",
+      "Check if all variables and objects used in the function body are defined or imported.",
+      "The logger object is referenced without being instantiated or imported in this scope."
+    ]
   }
 ]
