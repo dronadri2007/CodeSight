@@ -13800,5 +13800,399 @@
       "Consider what happens if two threads call this function at the exact same time.",
       "Use a threading.Lock to synchronize access to the critical section."
     ]
+  },
+  {
+    "id": "ex-g0700",
+    "language": "python",
+    "title": "Unclosed File Resource in Inventory Export",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def export_inventory(items, filename):\n    file = open(filename, 'w')\n    for item in items:\n        file.write(str(item) + '\\n')\n    print('Export complete')\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    file = open(filename, 'w')\n+    with open(filename, 'w') as file:",
+    "reference": "The function opens a file to write inventory items but never closes it, leading to a potential file descriptor leak. When working with external system resources like files or database connections, you must ensure they are properly released after use. Using a context manager (the 'with' statement) automatically handles resource cleanup, even if an exception occurs during writing.",
+    "hints": [
+      "Check how external resources like files are acquired and if their lifecycle is fully managed.",
+      "Consider what happens to the file handle if the write loop completes or fails.",
+      "Use a context manager ('with' statement) to automatically close the file when leaving the block."
+    ]
+  },
+  {
+    "id": "ex-g0701",
+    "language": "python",
+    "title": "Unclosed File Resource on DictReader Exception",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_users(filepath):\n    f = open(filepath, mode='r', encoding='utf-8')\n    reader = csv.DictReader(f)\n    data = [row for row in reader]\n    f.close()\n    return data\n",
+    "real_lines": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "fix_diff": "@@ -4,4 +4,4 @@\n-    f = open(filepath, mode='r', encoding='utf-8')\n-    reader = csv.DictReader(f)\n-    data = [row for row in reader]\n-    f.close()\n+    with open(filepath, mode='r', encoding='utf-8') as f:\n+        reader = csv.DictReader(f)\n+        return [row for row in reader]",
+    "reference": "When opening files in Python, manual handling with open() and close() leaves resources vulnerable to leaks if an exception occurs during iteration or parsing. If csv.DictReader encounters a decoding or formatting error mid-stream, the close() statement is bypassed entirely. Utilizing a context manager ('with' statement) ensures that the file handle is safely closed under all circumstances, even when errors arise.",
+    "hints": [
+      "Consider what happens to the file resource if an error occurs while iterating over the CSV reader.",
+      "Manual file closing via .close() is not guaranteed to execute if an exception is raised on the lines between open() and close().",
+      "Refactor the file handling to use a context manager ('with' statement) to guarantee safe cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0702",
+    "language": "python",
+    "title": "Uncached Exchange Rate Fetch",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "currency_converter.py",
+    "code": "import requests\n\ndef convert_currency(amount: float, source_currency: str, target_currency: str) -> float:\n    if source_currency == target_currency:\n        return amount\n    url = f\"https://api.exchangerate-api.com/v4/latest/{source_currency}\"\n    response = requests.get(url, timeout=5)\n    response.raise_for_status()\n    data = response.json()\n    rate = data[\"rates\"][target_currency]\n    return round(amount * rate, 2)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Novice reviewers often flag external API calls inside a function without an apparent cache or database lookup, assuming it will cause performance or rate-limit issues. However, in this specific microservice architecture, rate fetching is designed to be stateless and relies on an infrastructure-level HTTP caching proxy (like Cloudflare or an API gateway), making code-level caching unnecessary and correctly avoiding stale rate data during payment processing.",
+    "hints": [
+      "Check how network requests are handled and if the service architecture relies on edge caching proxies.",
+      "Consider the financial risk of using stale cached exchange rates during active payment checkouts."
+    ]
+  },
+  {
+    "id": "ex-g0703",
+    "language": "python",
+    "title": "False Positive in Simple Timestamp Rate Limiter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "import time\n\n_last_request_time = 0.0\n\ndef check_rate_limit(cooldown_seconds: float) -> bool:\n    global _last_request_time\n    current_time = time.time()\n    if current_time - _last_request_time < cooldown_seconds:\n        return False\n    _last_request_time = current_time\n    return True\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This implementation uses a module-level global variable to track the last request time. While global mutable state is often a code smell, in this specific single-threaded or simple script context, it correctly implements a basic rate limiter without concurrency bugs. Reviewers might initially flag the use of 'global', but it functions as intended for a beginner-level utility.",
+    "hints": [
+      "Check how the global variable is modified and if time progresses monotonically.",
+      "Consider the scope of the function and whether state retention between calls is actually desired here."
+    ]
+  },
+  {
+    "id": "ex-g0704",
+    "language": "python",
+    "title": "Inventory Batch Availability Check",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "from typing import Dict, List, Tuple\n\ndef check_batch_availability(inventory: Dict[str, int], required_items: List[Tuple[str, int]]) -> bool:\n    return all(inventory.get(item, 0) >= qty for item, qty in required_items)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses Python's generator expression inside the built-in all() function, which correctly short-circuits on the first false condition. While dictionary lookups can sometimes be optimized with sets, here the counts are strictly necessary, making this O(N) time and O(1) space implementation optimal and completely correct. Flagging this for performance or logic errors is a false positive.",
+    "hints": [
+      "Check how the built-in all() function handles generator expressions regarding evaluation and short-circuiting.",
+      "Verify whether the dictionary get() method correctly handles missing items with a default value."
+    ]
+  },
+  {
+    "id": "ex-g0705",
+    "language": "python",
+    "title": "Case-Sensitive Query Filter",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(users, query):\n    results = []\n    for user in users:\n        if query in user:\n            results.append(user)\n    return results\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- search.py\n+++ search.py\n@@ -4,1 +4,1px\n-        if query in user:\n+        if query.lower() in user.lower():",
+    "reference": "The search function fails to find matches when the user's input casing differs from the stored data because the substring check is case-sensitive. By converting both the query string and the user data to lowercase before performing the 'in' check, we ensure the search is robust and case-insensitive. This is a common requirement for user-facing search endpoints.",
+    "hints": [
+      "Consider what happens if the search query uses uppercase letters while the database has lowercase.",
+      "Look closely at the comparison condition inside the loop.",
+      "Convert both the query and the user string to lowercase using .lower() before checking containment."
+    ]
+  },
+  {
+    "id": "ex-g0706",
+    "language": "python",
+    "title": "Unsanitized Cache Key Injection",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\nclass CacheLayer:\n    def __init__(self, host='localhost'):\n        self.client = redis.Redis(host=host)\n\n    def get_user_data(self, user_id, field):\n        key = f\"user:{user_id}:{field}\"\n        return self.client.get(key)\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "@@ -8,1 +8,1 @@\n-        key = f\"user:{user_id}:{field}\"\n+        key = f\"user:{str(user_id).strip()}:{str(field).strip()}\"",
+    "reference": "The cache key construction uses unvalidated inputs directly within an f-string, which can allow an attacker to manipulate the cache namespace if either user_id or field contains unexpected delimiters. An attacker might inject wildcard characters or command separators depending on the downstream cache parser, leading to cache poisoning or unauthorized data access. The fix sanitizes and restricts the input parameters to ensure they conform to expected formats before formatting the string.",
+    "hints": [
+      "Examine how the cache key is constructed using input parameters.",
+      "Consider what happens if the input strings contain delimiter characters or unexpected whitespace.",
+      "Validate or sanitize the inputs to the f-string to ensure they only contain safe characters."
+    ]
+  },
+  {
+    "id": "ex-g0707",
+    "language": "python",
+    "title": "Race Condition in Inventory Update",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import threading\n\nclass InventoryService:\n    def __init__(self):\n        self.stock = 100\n        self.lock = threading.Lock()\n\n    def purchase(self, quantity):\n        if self.stock >= quantity:\n            self.stock -= quantity\n            return True\n        return False\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -8,3 +8,4 @@\n     def purchase(self, quantity):\n+        with self.lock:\n             if self.stock >= quantity:\n                 self.stock -= quantity\n                 return True",
+    "reference": "This code suffers from a classic race condition where the check and the update of 'self.stock' are not performed atomically. If multiple threads check the stock simultaneously, they can all read a valid stock level and decrement it concurrently, leading to negative inventory or overselling. Wrapping the critical section in a threading.Lock context manager ensures that only one thread can evaluate and mutate the stock at a time.",
+    "hints": [
+      "Look at how shared state is modified across multiple threads.",
+      "Examine the purchase method for non-atomic read-modify-write operations.",
+      "Use the already instantiated lock in the class to protect the critical section."
+    ]
+  },
+  {
+    "id": "ex-g0708",
+    "language": "python",
+    "title": "Unsynchronized Cache Insertion",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class SimpleCache:\n    def __init__(self):\n        self.store = {}\n\n    def get(self, key):\n        return self.store.get(key)\n\n    def put(self, key, value):\n        if key not in self.store:\n            self.store[key] = value\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -8,3 +8,4 @@\n     def put(self, key, value):\n+        import threading\n+        # Assume lock is defined in __init__\n         if key not in self.store:\n             self.store[key] = value",
+    "reference": "This code suffers from a classic check-then-act race condition in the put method. Multiple threads could simultaneously check if the key is missing and both attempt to write to the dictionary. To fix this, a threading lock should be acquired around the check and the mutation to ensure atomicity.",
+    "hints": [
+      "Look closely at how multiple threads might interact with the put method simultaneously.",
+      "Consider what happens if two threads check if the key is in the store at the exact same time.",
+      "You need to use a threading Lock to make the check-then-act operation atomic."
+    ]
+  },
+  {
+    "id": "ex-g0709",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in File Upload",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploads.py",
+    "code": "import os\nfrom flask import request, send_from_directory\n\nUPLOAD_DIR = \"/var/app/uploads\"\n\ndef download_file():\n    filename = request.args.get(\"filename\")\n    return send_from_directory(UPLOAD_DIR, filename)\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "-    return send_from_directory(UPLOAD_DIR, filename)\n+    safe_filename = os.path.basename(filename)\n+    return send_from_directory(UPLOAD_DIR, safe_filename)",
+    "reference": "This code suffers from an Insecure Direct Object Reference (IDOR) and path traversal vulnerability. Because the filename parameter from the user is passed directly to send_from_directory without sanitization, an attacker can supply sequences like '../' to read arbitrary files from the server. Using os.path.basename strips directory components, ensuring the application only serves files residing directly within the intended upload directory.",
+    "hints": [
+      "Examine how user input flows from the request to the file system operation.",
+      "Consider what happens if a user supplies path traversal sequences in the filename parameter.",
+      "Use os.path.basename() to isolate only the filename component and prevent directory traversal."
+    ]
+  },
+  {
+    "id": "ex-g0710",
+    "language": "python",
+    "title": "Unclosed CSV File Resource",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(filepath):\n    lines = list(csv.reader(open(filepath, 'r', encoding='utf-8')))\n    headers = lines[0]\n    data = [dict(zip(headers, row)) for row in lines[1:]]\n    return data\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    lines = list(csv.reader(open(filepath, 'r', encoding='utf-8')))\n+    with open(filepath, 'r', encoding='utf-8') as f:\n+        lines = list(csv.reader(f))",
+    "reference": "The function opens the file object inline without using a context manager or explicitly closing it. This can lead to file descriptor leaks, which cause resource exhaustion in long-running applications or under heavy workloads. Using a 'with' statement guarantees that the file resource is properly cleaned up as soon as the block exits.",
+    "hints": [
+      "Examine how the file resource is acquired and whether its lifecycle is properly managed.",
+      "Consider what happens to the file descriptor if an exception occurs during the CSV parsing phase.",
+      "Use a context manager (the 'with' statement) to ensure the file is closed automatically."
+    ]
+  },
+  {
+    "id": "ex-g0711",
+    "language": "python",
+    "title": "Unsynchronized Token Bucket Rate Limiter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass RateLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.tokens = float(capacity)\n        self.refill_rate = refill_rate\n        self.last_refill = time.monotonic()\n\n    def acquire(self) -> bool:\n        now = time.monotonic()\n        self.tokens = min(self.capacity, self.tokens + (now - self.last_refill) * self.refill_rate)\n        self.last_refill = now\n        if self.tokens >= 1.0:\n            self.tokens -= 1.0\n            return True\n        return False\n",
+    "real_lines": [
+      11,
+      12,
+      13
+    ],
+    "fix_diff": "@@ -11,3 +11,3 @@\n-        self.tokens = min(self.capacity, self.tokens + (now - self.last_refill) * self.refill_rate)\n-        self.last_refill = now\n-        if self.tokens >= 1.0:\n+        with self._lock:\n+            self.tokens = min(self.capacity, self.tokens + (now - self.last_refill) * self.refill_rate)\n+            self.last_refill = now\n+            if self.tokens >= 1.0:",
+    "reference": "This code implements a token bucket rate limiter, but updating shared state across multiple threads without synchronization creates a race condition. When concurrent threads execute acquire(), they can read stale token counts and overdraw the bucket beyond its capacity. Wrapping the read-modify-write operations in a thread lock ensures atomicity and accurate rate limiting.",
+    "hints": [
+      "Consider what happens when multiple threads invoke the acquire method simultaneously.",
+      "Look closely at how shared instance attributes like self.tokens and self.last_refill are mutated.",
+      "A synchronization primitive such as a threading.Lock is needed to protect the critical section."
+    ]
+  },
+  {
+    "id": "ex-g0712",
+    "language": "python",
+    "title": "Uncaught Connection Error in Cache Retrieval",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache_layer.py",
+    "code": "import redis\n\ndef get_cached_user(client: redis.Redis, user_id: int) -> dict:\n    try:\n        data = client.get(f\"user:{user_id}\")\n        return json.loads(data)\n    except redis.RedisError:\n        return None\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -5,3 +5,3 @@\n     except redis.RedisError:\n-        return None\n+        raise CacheConnectionError(\"Failed to retrieve from cache\") from None",
+    "reference": "Swallowing specific infrastructure exceptions like redis.RedisError can hide systemic connection failures and lead to silent service degradation or unpredictable downstream behavior. Instead, caching layers should either propagate custom domain exceptions or ensure proper logging takes place before returning a fallback value.",
+    "hints": [
+      "Look closely at how errors are handled when interacting with the external service.",
+      "Consider the consequences of silently returning None upon encountering a RedisError.",
+      "The exception handler should either re-raise a domain-specific error or log the failure instead of masking it completely."
+    ]
+  },
+  {
+    "id": "ex-g0713",
+    "language": "python",
+    "title": "Background Job Queue Worker Idling",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\nimport logging\n\nlogger = logging.getLogger(__name__)\n\ndef poll_queue(queue, stop_event):\n    while not stop_event.is_set():\n        job = queue.get()\n        if job is None:\n            time.sleep(0.1)\n            continue\n        try:\n            job.execute()\n        except Exception as e:\n            logger.error(\"Job failed: %s\", e)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of time.sleep(0.1) when a sentinel/None value is retrieved might look like a busy-wait anti-pattern to a novice, but here it acts as a backoff mechanism for when the queue yields a None placeholder instead of blocking indefinitely. The queue.get() call itself is properly blocking, so CPU utilization remains minimal when idle.",
+    "hints": [
+      "Look closely at how queue.get() behaves regarding blocking vs non-blocking calls.",
+      "Examine what happens when the job retrieved is actually a None sentinel value."
+    ]
+  },
+  {
+    "id": "ex-g0714",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in Report Export",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_user_report(request, report_id):\n    report = Report.objects.get(id=report_id)\n    if not request.user.is_authenticated:\n        raise PermissionDenied\n    return render_to_response('report.pdf', {'report': report})\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    report = Report.objects.get(id=report_id)\n+    report = Report.objects.get(id=report_id, user=request.user)",
+    "reference": "This code suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it fetches a report by its ID without checking if the requesting user actually owns it. Authentication ensures the user is logged in, but authorization is required to verify that the user has permission to access the specific resource. Fixing this involves scoping the database query to include the current user.",
+    "hints": [
+      "Examine how the report is fetched from the database relative to the current user.",
+      "Authentication (checking if a user is logged in) is separate from authorization (checking if they own the resource).",
+      "Modify the Report.objects.get query to restrict the lookup to the authenticated user."
+    ]
+  },
+  {
+    "id": "ex-g0715",
+    "language": "python",
+    "title": "Unsafe Password Hashing with Static Salt",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hashlib\n\ndef hash_password(password: str) -> str:\n    static_salt = \"s3cr3t_s4lt\"\n    salted_password = password + static_salt\n    return hashlib.sha256(salted_password.encode()).hexdigest()\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-    static_salt = \"s3cr3t_s4lt\"\n-    salted_password = password + static_salt\n+    import os\n+    salted_password = password + os.urandom(16).hex()",
+    "reference": "Using a static salt means every user's password is hashed with the exact same value, making the system vulnerable to precomputed hash attacks like rainbow tables. Salts must be cryptographically random and unique per user to provide meaningful security against brute-force methods. The fix involves generating a dynamic, random salt for each password hashing operation and storing it alongside the resulting hash.",
+    "hints": [
+      "Look closely at how the salt is defined and reused.",
+      "Consider what happens if two users choose the same password.",
+      "A salt should never be hardcoded or static across multiple users."
+    ]
+  },
+  {
+    "id": "ex-g0716",
+    "language": "python",
+    "title": "False Positive Mutable Default in Cache",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class SimpleCache:\n    def __init__(self, default_ttl: int = 300):\n        self._store = {}\n        self._default_ttl = default_ttl\n\n    def get(self, key: str, fallback_generator=list):\n        if key not in self._store:\n            self._store[key] = fallback_generator()\n        return self._store[key]\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of a callable (like the list type object) as a default argument might look like the classic mutable default argument trap at first glance. However, it is used as a factory function and is safely invoked inside the method body via fallback_generator(), rather than being mutated directly as a shared state.",
+    "hints": [
+      "Check how the fallback_generator parameter is actually used inside the method body.",
+      "Consider whether the default value is being mutated directly or if it is being called as a function."
+    ]
+  },
+  {
+    "id": "ex-g0717",
+    "language": "python",
+    "title": "Cache Key Injection in Memcached Client",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import pickle\n\nclass CacheLayer:\n    def __init__(self, client):\n        self.client = client\n\n    def get_user_data(self, username):\n        key = f\"user:{username}:profile\"\n        cached = self.client.get(key)\n        return pickle.loads(cached) if cached else None\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-        key = f\"user:{username}:profile\"\n+        import re\n+        safe_username = re.sub(r\"[^a-zA-Z0-9_]\", \"\", username)\n+        key = f\"user:{safe_username}:profile\"",
+    "reference": "Allowing untrusted input to directly form cache keys can lead to cache poisoning or protocol injection vulnerabilities, especially if downstream clients interpret whitespace or control characters as command boundaries. By strictly sanitizing or validating the input before interpolation, you ensure that malicious users cannot manipulate the key structure. Always treat cache keys like query parameters that require strict format enforcement.",
+    "hints": [
+      "Examine how the cache key is constructed from function arguments.",
+      "Consider what happens if the input string contains unexpected characters or whitespace.",
+      "Sanitize or validate the `username` variable to ensure it only contains allowed characters before formatting it into the key."
+    ]
+  },
+  {
+    "id": "ex-g0718",
+    "language": "python",
+    "title": "Swallowing Exceptions Too Broadly",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import requests\n\ndef check_stock(item_id: str) -> int:\n    url = f\"https://api.inventory.local/items/{item_id}\"\n    try:\n        response = requests.get(url, timeout=5)\n        response.raise_for_status()\n        return response.json()[\"stock\"]\n    except Exception as e:\n        return 0\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "--- inventory.py\n+++ inventory.py\n@@ -7,2 +7,2 @@\n-    except Exception as e:\n+    except requests.RequestException as e:\n         return 0",
+    "reference": "Catching the generic Exception class is dangerous because it intercepts unrelated errors, such as NameError, TypeError, or even KeyboardInterrupt, potentially hiding critical programming bugs. In this case, network requests can fail for various reasons, but we should specifically catch network-related exceptions like requests.RequestException rather than masking all possible failures and returning zero stock.",
+    "hints": [
+      "Look closely at the exception type being caught in the except clause.",
+      "Catching a built-in base exception class can accidentally swallow unexpected programming errors.",
+      "Restrict the except clause to catch only exceptions related to the HTTP library being used."
+    ]
+  },
+  {
+    "id": "ex-g0719",
+    "language": "python",
+    "title": "Unbounded Webhook Payload Reading",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request):\n    content_length = int(request.headers.get(\"Content-Length\", 0))\n    if content_length > 1024 * 1024:\n        return \"Payload Too Large\", 413\n    payload = request.stream.read()\n    return handle_event(payload)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    payload = request.stream.read()\n+    payload = request.stream.read(content_length)",
+    "reference": "The function reads from the incoming request stream without specifying a maximum length, which can lead to severe memory exhaustion if a client sends an extremely large payload. Although the Content-Length header is checked, request.stream.read() without an argument will read until EOF. Passing the validated content_length ensures the read operation is properly bounded.",
+    "hints": [
+      "Examine how data is read from the request stream.",
+      "Check if the stream reading method respects the pre-checked content length.",
+      "Pass the content_length integer as an argument to the read method."
+    ]
   }
 ]
