@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { UserLevel, UserProfile, ComplexitySubmissionResult } from '../types'
 
@@ -11,12 +11,24 @@ export const LEVELS: UserLevel[] = [
   'AI Engineer Pro',
 ]
 
+export type TrackType = 'student' | 'pro'
+export type LevelTier = 'Beginner' | 'Intermediate' | 'Pro'
+
 interface AuthState {
   isAuthenticated: boolean
   user: UserProfile | null
+  selectedTrack: TrackType
+  studentLevel: LevelTier
+  proLevel: LevelTier
+  hasPassedPromotionalTest: boolean
+  
   login: (name?: string, email?: string) => void
   logout: () => void
   setRole: (role: any) => void
+  setSelectedTrack: (track: TrackType) => void
+  setStudentLevel: (level: LevelTier) => void
+  setProLevel: (level: LevelTier) => void
+  setPassedPromotionalTest: (passed: boolean) => void
   promoteToNextLevel: () => { success: boolean; newLevel: UserLevel }
   recordSubmission: (result: ComplexitySubmissionResult) => void
   updateWeaknessCatchRate: (defectClassId: string, success: boolean) => void
@@ -27,8 +39,8 @@ const defaultProfile: UserProfile = {
   name: 'Afrid Shaik',
   email: 'afrid@codesight.dev',
   avatar: 'AF',
-  level: 'Student Pro',
-  levelIndex: 3,
+  level: 'Student Intermediate',
+  levelIndex: 2,
   totalXP: 2847,
   globalRank: 1,
   currentStreak: 4,
@@ -65,28 +77,6 @@ const defaultProfile: UserProfile = {
       },
       timestamp: '2 hours ago',
     },
-    {
-      problemId: 'prob-02',
-      problemTitle: 'Safe User Profile Lookup with Error Boundaries',
-      mode: 'student',
-      userCode: 'def fetch_user_profile(...): ...',
-      userTC: 'O(1)',
-      userSC: 'O(1)',
-      optimalTC: 'O(1)',
-      optimalSC: 'O(1)',
-      tcScore: 50,
-      scScore: 50,
-      totalScore: 85,
-      pass: true,
-      aiFeedback: {
-        summary: 'Good defensive check on database cursor before record access.',
-        timeAnalysis: 'Constant time lookup O(1).',
-        spaceAnalysis: 'Constant space memory O(1).',
-        optimizationGuidance: ['Consider specific custom domain exception classes.'],
-        recommendedPattern: 'Defensive NoneType guard clauses before indexing.',
-      },
-      timestamp: '1 day ago',
-    },
   ],
 }
 
@@ -95,6 +85,10 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       isAuthenticated: true,
       user: defaultProfile,
+      selectedTrack: 'student',
+      studentLevel: 'Intermediate',
+      proLevel: 'Beginner',
+      hasPassedPromotionalTest: false,
 
       login: (name = 'Afrid Shaik', email = 'afrid@codesight.dev') => {
         const initials = name
@@ -123,7 +117,25 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setRole: (role: any) => {
-        // Compatibility
+        if (role === 'student' || role === 'pro' || role === 'professional') {
+          set({ selectedTrack: role === 'student' ? 'student' : 'pro' })
+        }
+      },
+
+      setSelectedTrack: (track: TrackType) => {
+        set({ selectedTrack: track })
+      },
+
+      setStudentLevel: (level: LevelTier) => {
+        set({ studentLevel: level })
+      },
+
+      setProLevel: (level: LevelTier) => {
+        set({ proLevel: level })
+      },
+
+      setPassedPromotionalTest: (passed: boolean) => {
+        set({ hasPassedPromotionalTest: passed })
       },
 
       promoteToNextLevel: () => {
@@ -182,7 +194,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'codesight-auth',
+      name: 'codesight-auth-v2',
     }
   )
 )

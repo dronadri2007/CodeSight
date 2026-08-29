@@ -18,6 +18,14 @@ export interface DefectClass {
   color: string
 }
 
+export interface TestCase {
+  id?: string
+  input: string
+  expected?: string
+  expectedOutput?: string
+  description?: string
+}
+
 export interface Problem {
   id: string
   number: number
@@ -36,11 +44,15 @@ export interface Problem {
   optimalSC: string // e.g. 'O(1)'
   brokenTC?: string // e.g. 'O(n^2)'
   brokenSC?: string // e.g. 'O(n)'
-  testCases: { input: string; expected: string; description: string }[]
+  testCases: TestCase[]
   weaknessPattern: string
   conceptId: string
   youtubeVideoId?: string
   examEligible?: boolean
+  language?: string
+  repo?: string
+  buggyLines?: number[]
+  isExamProblem?: boolean
 }
 
 export interface ComplexitySubmissionResult {

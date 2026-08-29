@@ -1,14 +1,15 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
-  Search, Bell, Moon, Sun, User, LogOut, Trophy,
+  Search, Bell, Moon, Sun, User, LogOut, Home,
   Swords, Shield, ChevronDown, Check, Sparkles, Code2,
-  GraduationCap, Bot
+  GraduationCap, Bot, Compass, HelpCircle
 } from 'lucide-react'
 import { BrandLogo } from '../ui/BrandLogo'
 import { Badge } from '../ui/Badge'
 import { useAuthStore } from '../../store/authStore'
 import { useProblemStore } from '../../store/problemStore'
+import { useThemeStore } from '../../store/themeStore'
 
 interface NavbarProps {
   variant?: 'marketing' | 'app' | 'student' | 'pro'
@@ -17,15 +18,20 @@ interface NavbarProps {
 export function Navbar({ variant = 'app' }: NavbarProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, user, logout } = useAuthStore()
+  const { isAuthenticated, user, logout, hasPassedPromotionalTest, selectedTrack, setSelectedTrack } = useAuthStore()
   const { filters, setFilters } = useProblemStore()
+  const { theme, toggleTheme } = useThemeStore()
+
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(true)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const isProblemsActive = location.pathname.startsWith('/problems') || location.pathname.startsWith('/practice') || location.pathname === '/home'
+  const isHomeActive = location.pathname === '/home' || location.pathname === '/dashboard' || location.pathname === '/'
+  const isProblemsActive = location.pathname === '/problems' || location.pathname.startsWith('/practice')
   const isContestActive = location.pathname.startsWith('/contest') || location.pathname.startsWith('/battle')
+  const isStudentActive = location.pathname.startsWith('/student')
+  const isProActive = location.pathname.startsWith('/pro')
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -43,109 +49,108 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
     navigate('/')
   }
 
-  // Marketing variant (for landing page when unauthenticated)
-  if (variant === 'marketing' && !isAuthenticated) {
-    return (
-      <header className="sticky top-0 z-50 w-full border-b border-[#3A2F1D] bg-[#000000]/95 backdrop-blur-md text-[#E5DFC9]">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <BrandLogo size="sm" variant="dark" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              to="/role-select?mode=login"
-              className="text-xs font-semibold text-[#E5DFC9]/80 hover:text-[#E5DFC9] transition-colors"
-            >
-              Sign In
-            </Link>
-            <Link
-              to="/role-select?mode=signup"
-              className="px-4 py-1.5 rounded-xl bg-[#E5DFC9] text-[#000000] font-bold text-xs hover:bg-[#F2EDDE] transition-all shadow-sm"
-            >
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </header>
-    )
+  const handleStudentTrackClick = () => {
+    setSelectedTrack('student')
+    setFilters({ mode: 'student' })
+    navigate('/student/problems')
   }
 
-  // LeetCode-style App Navbar
+  const handleProTrackClick = () => {
+    setSelectedTrack('pro')
+    setFilters({ mode: 'ai_engineer' })
+    if (hasPassedPromotionalTest) {
+      navigate('/pro/problems')
+    } else {
+      navigate('/pro/promotional-entry')
+    }
+  }
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#3A2F1D] bg-[#000000] text-[#E5DFC9] select-none">
+    <header className="sticky top-0 z-50 w-full border-b transition-colors bg-[#000000] border-[#3A2F1D] text-[#E5DFC9] html-light:bg-[#F8F5EC] html-light:border-[#D0C5AE] html-light:text-[#1A130D] select-none">
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* Left: Brand Logo & Navigation Tabs */}
-        <div className="flex items-center gap-6">
-          <Link to="/problems" className="flex items-center gap-2">
-            <BrandLogo size="sm" variant="dark" />
+        {/* Left: Brand Logo & Navigation Links */}
+        <div className="flex items-center gap-5">
+          <Link to="/home" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+            <BrandLogo size="sm" variant={theme === 'light' ? 'light' : 'dark'} />
           </Link>
 
-          <nav className="flex items-center gap-1">
-            {/* Problems Tab - DEFAULT ACTIVE */}
+          <nav className="hidden md:flex items-center gap-1">
+            {/* 1. Home Link - REAL WORKING NAVIGATION ITEM */}
             <Link
-              to="/problems"
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                isProblemsActive
-                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] shadow-inner font-bold'
+              to="/home"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isHomeActive
+                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] font-bold shadow-inner'
                   : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
               }`}
             >
-              <Code2 size={14} className={isProblemsActive ? 'text-[#E5DFC9]' : 'text-[#E5DFC9]/50'} />
+              <Home size={13} />
+              <span>Home</span>
+            </Link>
+
+            {/* 2. Problems Link */}
+            <Link
+              to="/problems"
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isProblemsActive && !isStudentActive && !isProActive
+                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] font-bold shadow-inner'
+                  : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
+              }`}
+            >
+              <Code2 size={13} />
               <span>Problems</span>
             </Link>
 
-            {/* Contest Tab */}
+            {/* 3. Contest Link */}
             <Link
               to="/contest"
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 isContestActive
-                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] shadow-inner font-bold'
+                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] font-bold shadow-inner'
                   : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
               }`}
             >
-              <Swords size={14} className={isContestActive ? 'text-[#E5DFC9]' : 'text-[#E5DFC9]/50'} />
+              <Swords size={13} />
               <span>Contest</span>
             </Link>
+
+            <div className="h-4 w-px bg-[#3A2F1D] mx-1" />
+
+            {/* 4. Student Track */}
+            <button
+              onClick={handleStudentTrackClick}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isStudentActive || (isProblemsActive && filters.mode === 'student')
+                  ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm'
+                  : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
+              }`}
+            >
+              <GraduationCap size={13} />
+              <span>Student Track</span>
+            </button>
+
+            {/* 5. AI-Assisted Pro */}
+            <button
+              onClick={handleProTrackClick}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isProActive || (isProblemsActive && filters.mode === 'ai_engineer')
+                  ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm'
+                  : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
+              }`}
+            >
+              <Bot size={13} />
+              <span>AI-Assisted Pro</span>
+              {!hasPassedPromotionalTest && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Assessment Required" />
+              )}
+            </button>
           </nav>
         </div>
 
-        {/* Center: Track Switcher (Student vs AI-Assisted Professional) */}
-        <div className="hidden lg:flex items-center p-0.5 rounded-xl bg-[#1A130D] border border-[#3A2F1D]">
-          <button
-            onClick={() => {
-              setFilters({ mode: 'student' })
-              if (!location.pathname.startsWith('/problems')) navigate('/problems')
-            }}
-            className={`px-3 py-1 rounded-lg text-2xs font-bold transition-all flex items-center gap-1.5 ${
-              filters.mode === 'student'
-                ? 'bg-[#E5DFC9] text-[#000000] shadow-sm'
-                : 'text-[#E5DFC9]/60 hover:text-[#E5DFC9]'
-            }`}
-          >
-            <GraduationCap size={12} />
-            <span>Student Track</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setFilters({ mode: 'ai_engineer' })
-              if (!location.pathname.startsWith('/problems')) navigate('/problems')
-            }}
-            className={`px-3 py-1 rounded-lg text-2xs font-bold transition-all flex items-center gap-1.5 ${
-              filters.mode === 'ai_engineer'
-                ? 'bg-[#E5DFC9] text-[#000000] shadow-sm'
-                : 'text-[#E5DFC9]/60 hover:text-[#E5DFC9]'
-            }`}
-          >
-            <Bot size={12} />
-            <span>AI-Assisted Pro</span>
-          </button>
-        </div>
-
-        {/* Right: Search, Notifications & Avatar Dropdown */}
-        <div className="flex items-center gap-3" ref={dropdownRef}>
+        {/* Right: Search, Theme Toggle, Notifications, User Avatar */}
+        <div className="flex items-center gap-2.5" ref={dropdownRef}>
           {/* Search Input */}
-          <div className="hidden md:flex items-center relative max-w-[180px]">
+          <div className="hidden lg:flex items-center relative max-w-[170px]">
             <Search size={13} className="absolute left-3 text-[#E5DFC9]/40 pointer-events-none" />
             <input
               type="text"
@@ -155,6 +160,16 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
               className="w-full bg-[#1A130D] border border-[#3A2F1D] rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#E5DFC9] placeholder-[#E5DFC9]/40 focus:outline-none focus:border-[#E5DFC9]/60 transition-colors"
             />
           </div>
+
+          {/* Theme Toggle (Working Light/Dark Mode) */}
+          <button
+            onClick={toggleTheme}
+            aria-label="Toggle Theme"
+            className="w-8 h-8 rounded-xl bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:border-[#E5DFC9]/40 flex items-center justify-center transition-colors"
+            title={`Current: ${theme === 'dark' ? 'Dark Mode' : 'Light Mode'} (Click to toggle)`}
+          >
+            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+          </button>
 
           {/* Notifications */}
           <div className="relative">
@@ -167,20 +182,20 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
             </button>
 
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl p-4 text-xs space-y-3 z-50">
+              <div className="absolute right-0 mt-2 w-72 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl p-4 text-xs space-y-3 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <div className="flex items-center justify-between border-b border-[#3A2F1D] pb-2">
                   <span className="font-bold text-[#E5DFC9]">Notifications</span>
                   <span className="text-2xs text-[#E5DFC9]/50 font-mono">1 New</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-[#000000] border border-[#3A2F1D] space-y-1">
-                  <p className="font-semibold text-[#E5DFC9]">Promotion Exam Ready!</p>
-                  <p className="text-2xs text-[#E5DFC9]/70">You qualify for the 30-min timed promotion exam to unlock the AI Engineer tier.</p>
+                  <p className="font-semibold text-[#E5DFC9]">Adaptive Review Ready</p>
+                  <p className="text-2xs text-[#E5DFC9]/70">Recommended: 3 Concurrency exercises to improve your catch rate.</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* User Avatar Dropdown */}
+          {/* User Profile Avatar Dropdown */}
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -197,12 +212,10 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
 
             {/* Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl py-2 text-xs space-y-1 z-50">
+              <div className="absolute right-0 mt-2 w-56 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl py-2 text-xs space-y-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <div className="px-4 py-2 border-b border-[#3A2F1D]">
                   <p className="font-bold text-[#E5DFC9] truncate">{user?.name || 'Afrid Shaik'}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <Badge variant="gold" size="sm">{user?.level || 'Student Pro'}</Badge>
-                  </div>
+                  <p className="text-2xs text-[#E5DFC9]/60 truncate font-mono">{user?.level || 'Student Intermediate'}</p>
                 </div>
 
                 <Link
@@ -211,7 +224,7 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
                   className="flex items-center gap-2.5 px-4 py-2 text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]/40 transition-colors"
                 >
                   <User size={14} className="text-[#E5DFC9]/60" />
-                  <span>Profile & Weakness Mastery</span>
+                  <span>My Profile & Weaknesses</span>
                 </Link>
 
                 <Link
@@ -220,16 +233,16 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
                   className="flex items-center gap-2.5 px-4 py-2 text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]/40 transition-colors"
                 >
                   <Sparkles size={14} className="text-[#E5DFC9]/60" />
-                  <span>Switch Track</span>
+                  <span>Switch Learning Track</span>
                 </Link>
 
                 <div
-                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  onClick={() => toggleTheme()}
                   className="flex items-center justify-between px-4 py-2 text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]/40 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2.5">
-                    {isDarkMode ? <Moon size={14} className="text-[#E5DFC9]/60" /> : <Sun size={14} className="text-[#E5DFC9]/60" />}
-                    <span>Theme: {isDarkMode ? 'Dark' : 'Light'}</span>
+                    {theme === 'dark' ? <Moon size={14} className="text-[#E5DFC9]/60" /> : <Sun size={14} className="text-[#E5DFC9]/60" />}
+                    <span>Theme: {theme === 'dark' ? 'Dark' : 'Light'}</span>
                   </div>
                   <span className="text-2xs font-mono text-[#E5DFC9]/50">Toggle</span>
                 </div>
@@ -241,7 +254,7 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
                   className="w-full flex items-center gap-2.5 px-4 py-2 text-[#E5DFC9]/70 hover:text-red-400 hover:bg-[#3A2F1D]/40 transition-colors text-left"
                 >
                   <LogOut size={14} className="text-red-400" />
-                  <span>Logout</span>
+                  <span>Sign Out</span>
                 </button>
               </div>
             )}

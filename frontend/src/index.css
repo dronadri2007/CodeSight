@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -23,9 +23,15 @@
     line-height: 1.6;
     min-height: 100vh;
     overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
-  /* Custom scrollbar */
+  html.light body {
+    background-color: #F8F5EC;
+    color: #1A130D;
+  }
+
+  /* Custom scrollbar - Dark */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -35,18 +41,35 @@
     background: #000000;
   }
 
+  html.light ::-webkit-scrollbar-track {
+    background: #F8F5EC;
+  }
+
   ::-webkit-scrollbar-thumb {
     background: #3A2F1D;
     border-radius: 3px;
+  }
+
+  html.light ::-webkit-scrollbar-thumb {
+    background: #D0C5AE;
   }
 
   ::-webkit-scrollbar-thumb:hover {
     background: #E5DFC9;
   }
 
+  html.light ::-webkit-scrollbar-thumb:hover {
+    background: #3A2F1D;
+  }
+
   ::selection {
     background: rgba(229, 223, 201, 0.25);
     color: #E5DFC9;
+  }
+
+  html.light ::selection {
+    background: rgba(58, 47, 29, 0.25);
+    color: #1A130D;
   }
 }
 
@@ -77,6 +100,11 @@
     background-size: 20px 20px;
   }
 
+  html.light .bg-grid-dark {
+    background-image: radial-gradient(rgba(58, 47, 29, 0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -88,18 +116,34 @@
 }
 
 /* Monaco Dark Workspace Overrides */
-.monaco-editor,
-.monaco-editor-background,
-.monaco-editor .margin {
+.dark .monaco-editor,
+.dark .monaco-editor-background,
+.dark .monaco-editor .margin {
   background-color: #000000 !important;
 }
 
-.monaco-editor .line-numbers {
+.dark .monaco-editor .line-numbers {
   color: rgba(229, 223, 201, 0.45) !important;
 }
 
-.monaco-editor .current-line {
+.dark .monaco-editor .current-line {
   background-color: rgba(58, 47, 29, 0.35) !important;
+  border: none !important;
+}
+
+/* Monaco Light Workspace Overrides */
+.light .monaco-editor,
+.light .monaco-editor-background,
+.light .monaco-editor .margin {
+  background-color: #EDE7D7 !important;
+}
+
+.light .monaco-editor .line-numbers {
+  color: rgba(26, 19, 13, 0.45) !important;
+}
+
+.light .monaco-editor .current-line {
+  background-color: rgba(208, 197, 174, 0.45) !important;
   border: none !important;
 }
 
@@ -108,7 +152,17 @@
   border-left: 3px solid #E5DFC9 !important;
 }
 
+html.light .selected-line-decoration {
+  background: rgba(208, 197, 174, 0.60) !important;
+  border-left: 3px solid #1A130D !important;
+}
+
 .flagged-line-decoration {
   background: rgba(58, 47, 29, 0.60) !important;
   border-left: 3px solid #E5DFC9 !important;
+}
+
+html.light .flagged-line-decoration {
+  background: rgba(208, 197, 174, 0.60) !important;
+  border-left: 3px solid #1A130D !important;
 }

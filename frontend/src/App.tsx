@@ -1,32 +1,66 @@
 ﻿import { Routes, Route, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 
-// The 10 Primary Pages strictly matching the specification:
-import IntroHero from './pages/IntroHero' // PAGE 1: INTRO ANIMATION (3-step slideshow)
-import Auth from './pages/Auth' // PAGE 2: LOGIN / REGISTER (Glassmorphic card)
-import ProblemListHome from './pages/ProblemListHome' // PAGE 3: HOME (LeetCode Style Problem List)
-import Profile from './pages/Profile' // PAGE 4: PROFILE PAGE (Stats, 6-Level Stepper, Weakness Profile)
-import PracticeWorkspace from './pages/PracticeWorkspace' // PAGE 5: PRACTICE MODE (3-Column Draggable Monaco Workspace)
-import PromotionExam from './pages/PromotionExam' // PAGE 6: EXAM MODE (30-Min Timed Promotion Test)
-import ComplexityResults from './pages/ComplexityResults' // PAGE 7: RESULTS SCREEN (TC/SC Gap & Claude Feedback)
-import ConceptLearn from './pages/ConceptLearn' // PAGE 8: CONCEPT LEARN PAGE (Deep Dive, YouTube Embed & Mini-checks)
-import BattleLobby from './pages/BattleLobby' // PAGE 9: BATTLE LOBBY (Friend Match & Ranked ELO Match)
-import BattleRoom from './pages/BattleRoom' // PAGE 10: BATTLE ROOM (Live Multiplayer Room & Podium)
-import Landing from './pages/Landing' // Full About / Platform Overview
-import RoleSelect from './pages/RoleSelect' // Role / Track Selector
+// Core Navigation & Onboarding
+import Landing from './pages/Landing'
+import IntroHero from './pages/IntroHero'
+import Auth from './pages/Auth'
+import RoleSelect from './pages/RoleSelect'
+import HomeDashboard from './pages/HomeDashboard'
+import ProblemListHome from './pages/ProblemListHome'
+import Profile from './pages/Profile'
+
+// Student Track Pages
+import StudentLevelSelect from './pages/student/StudentLevelSelect'
+import StudentLevelTest from './pages/student/StudentLevelTest'
+import StudentProblems from './pages/student/StudentProblems'
+import StudentWorkspace from './pages/student/StudentWorkspace'
+import StudentResults from './pages/student/StudentResults'
+
+// AI-Assisted Professional Track Pages
+import ProPromotionalEntry from './pages/pro/ProPromotionalEntry'
+import ProPromotionalTest from './pages/pro/ProPromotionalTest'
+import ProPromotionalResult from './pages/pro/ProPromotionalResult'
+import ProLevelSelect from './pages/pro/ProLevelSelect'
+import ProLevelTest from './pages/pro/ProLevelTest'
+import ProProblems from './pages/pro/ProProblems'
+import ProDebugWorkspace from './pages/pro/ProDebugWorkspace'
+import ProReviewResults from './pages/pro/ProReviewResults'
+
+// Contests, Exams & Learn Concepts
+import BattleLobby from './pages/BattleLobby'
+import BattleRoom from './pages/BattleRoom'
+import ConceptLearn from './pages/ConceptLearn'
+import PromotionExam from './pages/PromotionExam'
 
 export default function App() {
   return (
     <Routes>
-      {/* PAGE 1: INTRO ANIMATION (First-time users) */}
+      {/* Landing & Intro Pages */}
       <Route path="/" element={<IntroHero />} />
       <Route path="/about" element={<Landing />} />
-
-      {/* PAGE 2: LOGIN / REGISTER */}
       <Route path="/auth" element={<Auth />} />
       <Route path="/role-select" element={<RoleSelect />} />
 
-      {/* PAGE 3: HOME (Problem List - LeetCode Style - DEFAULT ACTIVE) */}
+      {/* Main Home Dashboard - Central Experience */}
+      <Route
+        path="/home"
+        element={
+          <ProtectedRoute>
+            <HomeDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <HomeDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Global Problem List */}
       <Route
         path="/problems"
         element={
@@ -35,9 +69,140 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/home" element={<Navigate to="/problems" replace />} />
 
-      {/* PAGE 4: PROFILE PAGE (Stats & Progress) */}
+      {/* ================= STUDENT TRACK ================= */}
+      <Route
+        path="/student/level-select"
+        element={
+          <ProtectedRoute>
+            <StudentLevelSelect />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/level-test"
+        element={
+          <ProtectedRoute>
+            <StudentLevelTest />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/problems"
+        element={
+          <ProtectedRoute>
+            <StudentProblems />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/practice/:id"
+        element={
+          <ProtectedRoute>
+            <StudentWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/practice/:id"
+        element={
+          <ProtectedRoute>
+            <StudentWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/results/:id"
+        element={
+          <ProtectedRoute>
+            <StudentResults />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/results/:id"
+        element={
+          <ProtectedRoute>
+            <StudentResults />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ================= AI-ASSISTED PRO TRACK ================= */}
+      <Route
+        path="/pro/promotional-entry"
+        element={
+          <ProtectedRoute>
+            <ProPromotionalEntry />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/promotional-test"
+        element={
+          <ProtectedRoute>
+            <ProPromotionalTest />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/promotional-result"
+        element={
+          <ProtectedRoute>
+            <ProPromotionalResult />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/level-select"
+        element={
+          <ProtectedRoute>
+            <ProLevelSelect />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/level-test"
+        element={
+          <ProtectedRoute>
+            <ProLevelTest />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/problems"
+        element={
+          <ProtectedRoute>
+            <ProProblems />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/debug/:id"
+        element={
+          <ProtectedRoute>
+            <ProDebugWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/practice/:id"
+        element={
+          <ProtectedRoute>
+            <ProDebugWorkspace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pro/results/:id"
+        element={
+          <ProtectedRoute>
+            <ProReviewResults />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Profile, Contests, Concepts & Exams */}
       <Route
         path="/profile"
         element={
@@ -54,49 +219,6 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-
-      {/* PAGE 5: PRACTICE MODE (Student / AI Engineer - 3-Column Draggable) */}
-      <Route
-        path="/practice/:id"
-        element={
-          <ProtectedRoute>
-            <PracticeWorkspace />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/practice" element={<Navigate to="/problems" replace />} />
-
-      {/* PAGE 6: EXAM MODE (Promotion Test - Full Screen 30-Min Timer) */}
-      <Route
-        path="/exam"
-        element={
-          <ProtectedRoute>
-            <PromotionExam />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* PAGE 7: RESULTS SCREEN (Relative TC/SC Complexity & AI Feedback) */}
-      <Route
-        path="/results/:id"
-        element={
-          <ProtectedRoute>
-            <ComplexityResults />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* PAGE 8: CONCEPT LEARN PAGE (Defect Class, YouTube Masterclass & Mini-checks) */}
-      <Route
-        path="/learn/:conceptId"
-        element={
-          <ProtectedRoute>
-            <ConceptLearn />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* PAGE 9: BATTLE LOBBY (Create/Join Friend Match & Ranked Match) */}
       <Route
         path="/contest"
         element={
@@ -106,8 +228,6 @@ export default function App() {
         }
       />
       <Route path="/battle" element={<Navigate to="/contest" replace />} />
-
-      {/* PAGE 10: BATTLE ROOM (Live Multiplayer IDE & Leaderboard) */}
       <Route
         path="/battle/:roomId"
         element={
@@ -116,13 +236,28 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/learn/:conceptId"
+        element={
+          <ProtectedRoute>
+            <ConceptLearn />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/exam"
+        element={
+          <ProtectedRoute>
+            <PromotionExam />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* Backward Compatibility Fallbacks */}
-      <Route path="/student/*" element={<Navigate to="/problems" replace />} />
-      <Route path="/pro/*" element={<Navigate to="/problems" replace />} />
-      <Route path="/leaderboard" element={<Navigate to="/contest" replace />} />
+      {/* Fallback Redirects */}
+      <Route path="/student" element={<Navigate to="/student/problems" replace />} />
+      <Route path="/pro" element={<Navigate to="/pro/problems" replace />} />
       <Route path="/settings" element={<Navigate to="/profile" replace />} />
-      <Route path="*" element={<Navigate to="/problems" replace />} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   )
 }
