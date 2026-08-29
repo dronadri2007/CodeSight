@@ -8797,5 +8797,410 @@
       "Look closely at how the stock_dict parameter is used inside the function body. Is it ever modified or written to?",
       "Consider whether the function only performs read operations, making the persistence of the default argument harmless in this context."
     ]
+  },
+  {
+    "id": "ex-g0447",
+    "language": "python",
+    "title": "Incorrect Thumbnail Aspect Ratio Calculation",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size):\n    if original_width > original_height:\n        ratio = max_size / original_width\n        new_width = max_size\n        new_height = original_height * ratio\n    else:\n        ratio = original_height / max_size\n        new_width = original_width * ratio\n        new_height = max_size\n    return int(new_width), int(new_height)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-        ratio = original_height / max_size\n+        ratio = max_size / original_height",
+    "reference": "The bug lies in the aspect ratio calculation for the branch where the height is the larger dimension. By dividing original_height by max_size instead of max_size by original_height, the ratio becomes inverted, resulting in an incorrect and much too large dimension. Fixing this to max_size / original_height ensures the scaling factor is correctly proportioned.",
+    "hints": [
+      "Examine how the scaling ratio is computed in both conditional branches.",
+      "Look closely at the numerator and denominator when original_height is greater than original_width.",
+      "The division order for the height-dominant branch should mirror the width-dominant branch."
+    ]
+  },
+  {
+    "id": "ex-g0448",
+    "language": "python",
+    "title": "Missing Authorization Header Validation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request):\n    auth_header = request.headers.get(\"Authorization\")\n    if auth_header != \"secret_token\":\n        return \"Unauthorized\", 401\n    data = request.json()\n    return \"Success\", 200\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    data = request.json()\n+    data = request.json",
+    "reference": "In this function, request.json is a property rather than a method in many popular web frameworks like Flask, meaning calling it as a function causes a runtime TypeError. Removing the trailing parentheses accesses the data correctly as a property or attribute. Always verify whether framework request payloads are accessed via attributes or callable methods.",
+    "hints": [
+      "Look closely at how the request data is extracted.",
+      "Check the syntax used for retrieving the payload in common Python web frameworks.",
+      "Determine if request.json should be called as a function with parentheses or accessed directly as an attribute."
+    ]
+  },
+  {
+    "id": "ex-g0449",
+    "language": "python",
+    "title": "Unbounded Rate Limiter Dictionary Growth",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\nrequest_counts = {}\n\ndef is_allowed(user_id: str) -> bool:\n    current_time = int(time.time())\n    if user_id not in request_counts:\n        request_counts[user_id] = [current_time, 1]\n        return True\n    if current_time == request_counts[user_id][0]:\n        request_counts[user_id][1] += 1\n        return request_counts[user_id][1] <= 5\n    request_counts[user_id] = [current_time, 1]\n    return True\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- ratelimit.py\n+++ ratelimit.py\n@@ -3,1 +3,1 @@\n-request_counts = {}\n+from cachetools import TTLCache\n+request_counts = TTLCache(maxsize=10000, ttl=60)",
+    "reference": "This code implements a simple rate limiter that tracks requests per user in a global dictionary. However, because the dictionary never removes inactive users, it suffers from a memory leak as the number of unique users grows infinitely over time. Using a bounded cache with a time-to-live (TTL) expiration or periodically cleaning up stale entries resolves this resource leak.",
+    "hints": [
+      "Look closely at where the request data is stored globally.",
+      "Consider what happens to the size of the dictionary over time if millions of unique users make a single request.",
+      "Replace the standard dictionary with a bounded structure or implement an expiration policy for old entries."
+    ]
+  },
+  {
+    "id": "ex-g0450",
+    "language": "python",
+    "title": "Shared Mutable File Handle in Threading",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "csv_importer.py",
+    "code": "import csv\nimport threading\n\nshared_file = open('data.csv', 'r')\nreader = csv.reader(shared_file)\n\ndef process_rows():\n    for row in reader:\n        print(row)\n\nt1 = threading.Thread(target=process_rows)\nt2 = threading.Thread(target=process_rows)\nt1.start()\nt2.start()\nt1.join()\nt2.join()\nshared_file.close()\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "@@ -8,2 +8,2 @@\n-    for row in reader:\n+        for row in reader:\n+            pass",
+    "reference": "The code shares a single csv.reader object across multiple threads without synchronization. Because the reader mutates its internal state when advancing through rows, concurrent access from multiple threads leads to race conditions and unpredictable data skipping or duplication. To fix this, each thread should open its own file handle and instantiate its own reader, or access the shared reader inside a threading lock.",
+    "hints": [
+      "Look at how the threads interact with shared resources.",
+      "Examine the csv.reader object and how it tracks state.",
+      "Multiple threads are iterating over the exact same reader instance simultaneously without a lock."
+    ]
+  },
+  {
+    "id": "ex-g0451",
+    "language": "python",
+    "title": "Race Condition in Session Store",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "from threading import Lock\n\nactive_sessions = {}\nsession_lock = Lock()\n\ndef authenticate_user(username, token):\n    if username in active_sessions:\n        active_sessions[username].refresh(token)\n        return True\n    session = create_new_session(username, token)\n    active_sessions[username] = session\n    return True\n",
+    "real_lines": [
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "fix_diff": "@@ -7,5 +7,6 @@\n def authenticate_user(username, token):\n+    with session_lock:\n         if username in active_sessions:\n             active_sessions[username].refresh(token)\n             return True\n         session = create_new_session(username, token)\n         active_sessions[username] = session\n         return True",
+    "reference": "The authenticate_user function checks and updates the shared active_sessions dictionary across multiple threads without holding the lock for the entire check-then-act sequence. This creates a classic race condition where two threads could simultaneously check for a non-existent username and both create competing sessions. Wrapping the critical section in a context manager using session_lock ensures atomic execution and prevents state corruption.",
+    "hints": [
+      "Look closely at the global state being accessed and modified.",
+      "Examine how the thread lock defined at the top of the file is utilized in the function.",
+      "The entire check-then-act block needs to be atomic to prevent concurrent threads from interfering with each other."
+    ]
+  },
+  {
+    "id": "ex-g0452",
+    "language": "python",
+    "title": "Swallowing Specific Exception",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import requests\n\ndef fetch_item_stock(item_id: str) -> int:\n    try:\n        response = requests.get(f\"https://api.inventory.local/items/{item_id}\")\n        response.raise_for_status()\n        return response.json()[\"stock\"]\n    except requests.RequestException:\n        raise ValueError(\"Inventory service unavailable\")\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -7,2 +7,2 @@\n-    except requests.RequestException:\n+    except requests.RequestException as e:\n-        raise ValueError(\"Inventory service unavailable\")\n+        raise ValueError(\"Inventory service unavailable\") from e",
+    "reference": "By catching a low-level exception and raising a high-level domain exception without chaining it, the original stack trace and context are lost. Using 'raise ... from e' preserves the underlying exception chain, which is crucial for root-cause debugging in distributed inventory services. Without it, logs will only show the ValueError without knowing if it was a timeout, DNS failure, or 500 error.",
+    "hints": [
+      "Look closely at how exceptions are handled and re-raised in the except block.",
+      "Consider what happens to the original exception's traceback when a new exception is raised.",
+      "Use the 'from' keyword with the raise statement to chain the caught exception."
+    ]
+  },
+  {
+    "id": "ex-g0453",
+    "language": "python",
+    "title": "Missing Authorization Check in Inventory Update",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def update_stock(request, item_id, quantity):\n    item = InventoryItem.get(item_id)\n    if not item:\n        raise NotFoundError(\"Item not found\")\n    \n    item.quantity = quantity\n    item.save()\n    return item\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -5,3 +5,6 @@\n+    if not request.user.has_perm(\"inventory.update_item\"):\n+        raise PermissionDenied(\"Unauthorized\")\n+\n     item.quantity = quantity\n     item.save()",
+    "reference": "This function modifies critical inventory state without validating whether the incoming user has the appropriate permissions. An attacker could exploit this missing check to manipulate stock levels arbitrarily. To fix this, insert a permission check verifying that the request user is authorized to perform updates before persisting the changes.",
+    "hints": [
+      "Examine the parameters passed into the function.",
+      "Look at how the request object is utilized before making state changes.",
+      "Check if user permissions are validated prior to executing the update logic."
+    ]
+  },
+  {
+    "id": "ex-g0454",
+    "language": "python",
+    "title": "Inventory stock allocation uses incorrect operator",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def allocate_stock(current_stock, requested_quantity):\n    if current_stock or requested_quantity < 0:\n        raise ValueError(\"Invalid stock or quantity\")\n    if current_stock < requested_quantity:\n        raise ValueError(\"Insufficient stock\")\n    return current_stock - requested_quantity\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- inventory_service.py\n+++ inventory_service.py\n@@ -2,1 +2,1 f\n-    if current_stock or requested_quantity < 0:\n+    if current_stock < 0 or requested_quantity < 0:",
+    "reference": "The bug lies in the validation condition where current_stock is checked using a logical 'or' without a comparison operator. In Python, evaluating 'current_stock or requested_quantity < 0' treats any non-zero stock as truthy, bypassing the negative stock check entirely and causing unintended errors. Changing this to explicitly check 'current_stock < 0 or requested_quantity < 0' ensures both inputs are properly validated before proceeding.",
+    "hints": [
+      "Examine the conditional statement used to validate the function inputs.",
+      "Look closely at the expression checking 'current_stock' on the first if-statement.",
+      "Add a comparison operator so that 'current_stock' is actually checked for being less than zero."
+    ]
+  },
+  {
+    "id": "ex-g0455",
+    "language": "python",
+    "title": "Insecure Session Token Comparison",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef validate_session(request_token, stored_token):\n    if request_token == stored_token:\n        return True\n    return False\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    if request_token == stored_token:\n+    if hmac.compare_digest(request_token, stored_token):",
+    "reference": "Using the standard equality operator (==) to compare secret session tokens is vulnerable to timing attacks. An attacker can measure the time it takes for the comparison to fail, allowing them to guess the token character by character. Replacing it with hmac.compare_digest ensures constant-time execution, preventing side-channel timing disclosures.",
+    "hints": [
+      "Consider how strings are compared in Python at the lowest level.",
+      "Look into Python's standard library for cryptographic or secure comparisons.",
+      "Use hmac.compare_digest to prevent timing-based side-channel attacks."
+    ]
+  },
+  {
+    "id": "ex-g0456",
+    "language": "python",
+    "title": "Unclosed File Descriptor in Webhook File Logging",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def log_webhook_payload(payload: str, log_path: str = \"webhook.log\") -> None:\n    f = open(log_path, \"a\")\n    f.write(payload + \"\\n\")\n    if \"critical\" in payload:\n        raise ValueError(\"Critical event detected\")\n    f.close()\n",
+    "real_lines": [
+      2,
+      6
+    ],
+    "fix_diff": "@@ -1,6 +1,6 @@\n def log_webhook_payload(payload: str, log_path: str = \"webhook.log\") -> None:\n-    f = open(log_path, \"a\")\n-    f.write(payload + \"\\n\")\n-    if \"critical\" in payload:\n-        raise ValueError(\"Critical event detected\")\n-    f.close()\n+    with open(log_path, \"a\") as f:\n+        f.write(payload + \"\\n\")\n+        if \"critical\" in payload:\n+            raise ValueError(\n+                \"Critical event detected\"\n+            )",
+    "reference": "Opening a file manually without a context manager leaves the file descriptor open if an exception occurs during execution, such as when a critical payload raises a ValueError. This can lead to resource leaks and file descriptor exhaustion under high-throughput webhook traffic. Using a context manager ('with' statement) guarantees that the file is safely closed regardless of whether an exception is raised.",
+    "hints": [
+      "Examine how resources are acquired and released throughout the entire function execution.",
+      "Consider what happens to the file descriptor if an exception is raised halfway through the function.",
+      "Replace manual file opening and closing with a context manager like the 'with' statement."
+    ]
+  },
+  {
+    "id": "ex-g0457",
+    "language": "python",
+    "title": "Unclosed File Resource in Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "upload_service.py",
+    "code": "def save_uploaded_file(upload_file, destination_path):\n    dest = open(destination_path, \"wb+\")\n    chunk = upload_file.read(1024)\n    while chunk:\n        dest.write(chunk)\n        chunk = upload_file.read(1024)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    dest = open(destination_path, \"wb+\")\n+    with open(destination_path, \"wb+\") as dest:\n@@ -7,1 +8,0 @@\n-",
+    "reference": "Opening a file without a context manager or explicit close operation leads to resource leaks, holding file descriptors open until garbage collection occurs. This can eventually exhaust system file descriptor limits under heavy upload loads. Using a context manager ('with' statement) guarantees that the file is safely closed as soon as the block exits, even if an exception occurs during the write operations.",
+    "hints": [
+      "Look closely at how external system resources are acquired in the function.",
+      "Check if the file opened for writing is ever explicitly closed.",
+      "Consider using a context manager to automatically manage the file lifecycle."
+    ]
+  },
+  {
+    "id": "ex-g0458",
+    "language": "python",
+    "title": "SQL Injection in Cache Key Lookup",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import sqlite3\n\ndef get_cached_data(cursor, user_id):\n    query = \"SELECT data FROM cache WHERE user_id = '\" + user_id + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    return result[0] if result else None\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -4,1 +4,1px\n-    query = \"SELECT data FROM cache WHERE user_id = '\" + user_id + \"'\"\n+    query = \"SELECT data FROM cache WHERE user_id = ?\"\n-    cursor.execute(query)\n+    cursor.execute(query, (user_id,))",
+    "reference": "Directly concatenating user input into a SQL query string allows attackers to manipulate the query structure, leading to SQL injection vulnerabilities. By using parameterized queries with placeholders instead of string concatenation, the database driver safely escapes the input, preventing malicious SQL execution.",
+    "hints": [
+      "Look closely at how the SQL query string is constructed.",
+      "Consider how user input is incorporated into database commands in Python's sqlite3 library.",
+      "Replace string concatenation with parameterized queries using question mark placeholders and a tuple of parameters."
+    ]
+  },
+  {
+    "id": "ex-g0459",
+    "language": "python",
+    "title": "Missing Authorization in Cache Retrieval",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "cache_store = {\"user_1_profile\": \"sensitive_data_1\", \"user_2_profile\": \"sensitive_data_2\"}\n\ndef get_user_profile(user_id, requester_id):\n    key = f\"user_{user_id}_profile\"\n    return cache_store.get(key)\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -4,2 +4,4 @@\n def get_user_profile(user_id, requester_id):\n+    if user_id != requester_id:\n+        raise PermissionError(\"Unauthorized access to profile\")\n     key = f\"user_{user_id}_profile\"\n     return cache_store.get(key)",
+    "reference": "This function retrieves user data from a caching layer based on the requested user ID. However, it fails to check if the user requesting the data actually has permission to view it. Adding an authorization check ensures that a user can only access their own profile data.",
+    "hints": [
+      "Look closely at the parameters accepted by the function.",
+      "Are all input parameters being utilized to enforce security policies?",
+      "Consider comparing the requested user ID with the ID of the person making the request."
+    ]
+  },
+  {
+    "id": "ex-g0460",
+    "language": "python",
+    "title": "Uncaught Exception in Search Query Parameter",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "from fastapi import FastAPI, HTTPException\n\napp = FastAPI()\n\n@app.get(\"/search\")\ndef search_endpoint(limit: int = 10, offset: int = 0):\n    if limit > 100:\n        raise ValueError(\"Limit cannot exceed 100\")\n    return {\"results\": [], \"limit\": limit, \"offset\": offset}\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-        raise ValueError(\"Limit cannot exceed 100\")\n+        raise HTTPException(status_code=400, detail=\"Limit cannot exceed 100\")",
+    "reference": "The endpoint raises a built-in ValueError instead of FastAPI's HTTPException when validation fails. In web frameworks, raising standard Python exceptions often results in an uncaught 500 Internal Server Error rather than the intended client-facing status code. Replacing it with an HTTPException ensures the client receives the correct 400 Bad Response status.",
+    "hints": [
+      "Examine how exceptions are communicated back to the API client.",
+      "Look at the exception type being raised inside the validation check.",
+      "Consider which exception class is specifically designed to return HTTP status codes in FastAPI."
+    ]
+  },
+  {
+    "id": "ex-g0461",
+    "language": "python",
+    "title": "CSV Header Row Processing Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "csv_importer.py",
+    "code": "import csv\n\ndef process_csv_data(file_path):\n    with open(file_path, mode='r', encoding='utf-8') as file:\n        reader = csv.reader(file)\n        header = next(reader)\n        data = []\n        for row in reader:\n            item = dict(zip(header, row))\n            data.append(item)\n        return data\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-        for row in reader:\n+        for row in reader:\n+            if not row:\n+            \t continue",
+    "reference": "The code iterates over CSV rows and uses zip to combine the header and each row into a dictionary. However, if the CSV file contains empty lines, the row will be an empty list, causing zip to silently produce an empty dictionary instead of mapping the actual data. Adding a check for empty rows ensures that malformed or blank lines in the CSV do not corrupt the resulting dataset.",
+    "hints": [
+      "Look closely at how unexpected or empty lines in the CSV file are handled during iteration.",
+      "Consider what happens to the csv.reader output if the CSV file contains blank lines.",
+      "You should check if the row is empty before attempting to zip it with the header."
+    ]
+  },
+  {
+    "id": "ex-g0462",
+    "language": "python",
+    "title": "Missing Request Body Read in Middleware",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "middleware.py",
+    "code": "import logging\n\nasync def log_request_body(request, call_next):\n    body = await request.body()\n    logging.info(f\"Incoming request body: {body.decode()}\")\n    response = await call_next(request)\n    return response\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- middleware.py\n+++ middleware.py\n@@ -4,1 +4,1px\n-    body = await request.body()\n+    body = await request().body()",
+    "reference": "In ASGI frameworks like FastAPI or Starlette, request.body() consumes the underlying streaming receive channel once. Because the stream is fully consumed during logging, downstream route handlers attempting to read the body will hang or receive an empty payload. To fix this, you must either clone the request or use a middleware pattern that safely caches or recreates the body stream for downstream consumption.",
+    "hints": [
+      "Consider what happens to a network stream after it is read once.",
+      "Look closely at how ASGI request bodies are consumed in asynchronous Python web frameworks.",
+      "Using request.body() directly in middleware consumes the stream, preventing downstream handlers from reading it. You need to reset or recreate the stream."
+    ]
+  },
+  {
+    "id": "ex-g0463",
+    "language": "python",
+    "title": "Unclosed File Resource in Job Logger",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "def log_job_execution(job_id, status):\n    f = open(\"job_execution.log\", \"a\")\n    f.write(f\"Job {job_id}: {status}\\n\")\n    if status == \"FAILED\":\n        raise RuntimeError(f\"Job {job_id} failed execution.\")\n    f.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    f.close()\n+    # Removed unreached close or use context manager\n+    pass",
+    "reference": "In Python, when an exception is raised inside a function before reaching the cleanup code, resources like open file handles are not properly released until garbage collection runs. This can lead to file descriptor leaks over time under failure conditions. Using a context manager such as the 'with' statement ensures that resources are reliably cleaned up regardless of whether an exception occurs.",
+    "hints": [
+      "Examine what happens to the file handle if an exception is raised.",
+      "Look closely at the execution path when status is set to 'FAILED'.",
+      "Use a 'with' statement context manager to guarantee the file is closed automatically."
+    ]
+  },
+  {
+    "id": "ex-g0464",
+    "language": "python",
+    "title": "Uncached Configuration Loader",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\nimport os\n\ndef load_config(path=\"config.json\"):\n    if not os.path.exists(path):\n        return {}\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and safe. Novice reviewers often worry that repeatedly calling this function without caching will cause performance bottlenecks or file descriptor leaks. However, the file is properly opened using a context manager ('with open(...)'), which guarantees the file handle is closed immediately after reading. Furthermore, configuration files are typically loaded infrequently at startup or on specific reload events, making disk reads desirable to pick up runtime configuration changes without restarting the application.",
+    "hints": [
+      "Check how the file resource is managed. Is it left dangling or properly closed after reading?",
+      "Consider the lifecycle of an application configuration. Is loading it dynamically on demand necessarily a performance flaw?"
+    ]
+  },
+  {
+    "id": "ex-g0465",
+    "language": "python",
+    "title": "Incorrect Inventory Threshold Check",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def check_low_stock(stock_levels, threshold):\n    low_stock_items = []\n    for item, quantity in stock_levels.items():\n        if quantity > threshold:\n            low_stock_items.append(item)\n    return low_stock_items\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        if quantity > threshold:\n+        if quantity < threshold:",
+    "reference": "The function aims to identify items that are running low on stock based on a given threshold. However, the comparison operator used is greater-than (>), which incorrectly selects items with high stock levels rather than those falling below the threshold. Changing the operator to less-than (<) ensures that only quantities strictly under the threshold are flagged.",
+    "hints": [
+      "Read through the loop carefully and think about what condition defines a 'low stock' item.",
+      "Look closely at the comparison operator used against the threshold value.",
+      "Change the greater-than symbol to a less-than symbol to correctly capture quantities below the threshold."
+    ]
+  },
+  {
+    "id": "ex-g0466",
+    "language": "python",
+    "title": "SQL Injection in Session Lookup",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "import sqlite3\n\ndef get_user_session(db_path, session_token):\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"SELECT user_id FROM sessions WHERE token = '\" + session_token + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    conn.close()\n    return result[0] if result else None\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT user_id FROM sessions WHERE token = '\" + session_token + \"'\"\n+    query = \"SELECT user_id FROM sessions WHERE token = ?\"\n+    cursor.execute(query, (session_token,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied session data is directly concatenated into the SQL query string rather than using parameterized queries. An attacker could manipulate the session token string to alter the query logic and potentially access unauthorized accounts. The fix uses parameterized queries with question mark placeholders, ensuring that the database driver properly escapes the input.",
+    "hints": [
+      "Examine how external input is incorporated into the database query.",
+      "Look at line 6 where string concatenation is used to build the SQL statement.",
+      "Replace string concatenation with parameterized queries using a tuple of arguments in cursor.execute."
+    ]
   }
 ]
