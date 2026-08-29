@@ -14979,5 +14979,400 @@
       "Check if all variables and objects used in the function body are defined or imported.",
       "The logger object is referenced without being instantiated or imported in this scope."
     ]
+  },
+  {
+    "id": "ex-g0760",
+    "language": "python",
+    "title": "Fix Race Condition in Rate Limiter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass SimpleRateLimiter:\n    def __init__(self, max_calls):\n        self.max_calls = max_calls\n        self.calls = 0\n\n    def is_allowed(self):\n        if self.calls < self.max_calls:\n            self.calls += 1\n            return True\n        return False\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -10,1 +10,1 @@\n-            self.calls += 1\n+            self.calls += 1",
+    "reference": "This code suffers from a race condition because checking the call count and incrementing it are not atomic operations. In a multithreaded environment, multiple threads can pass the 'if' check simultaneously and increment the counter past the intended maximum. Using a threading lock ensures that the check and increment happen safely as a single critical section.",
+    "hints": [
+      "Consider how this class behaves if multiple threads call is_allowed() at the exact same time.",
+      "Look closely at the check-then-act logic inside the is_allowed method.",
+      "Introduce a threading.Lock and acquire it before checking and updating self.calls."
+    ]
+  },
+  {
+    "id": "ex-g0761",
+    "language": "python",
+    "title": "Incorrect Thumbnail Dimension Calculation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(width, height, max_size):\n    if width > height:\n        ratio = max_size / width\n        new_width = max_size\n        new_height = height * ratio\n    else:\n        ratio = height / max_size\n        new_height = max_size\n        new_width = width * ratio\n    return int(new_width), int(new_height)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -7,1 +7,1---\n-        ratio = height / max_size\n+        ratio = max_size / height",
+    "reference": "The bug lies in how the ratio is calculated when the height is greater than or equal to the width. Instead of scaling down by dividing max_size by the original height, it divided height by max_size, resulting in an inverted and much larger dimension. Fixing this to ratio = max_size / height ensures the image scales down correctly while maintaining the proper aspect ratio.",
+    "hints": [
+      "Look closely at how the scaling ratio is computed in both branches of the conditional statement.",
+      "Compare the mathematical formula used in the 'if' branch versus the 'else' branch.",
+      "In the 'else' branch, dividing the original dimension by the maximum size grows the image rather than shrinking it."
+    ]
+  },
+  {
+    "id": "ex-g0762",
+    "language": "python",
+    "title": "Timing Attack Vulnerability in Password Verification",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef verify_password(stored_password: str, provided_password: str) -> bool:\n    if len(stored_password) != len(provided_password):\n        return False\n    return stored_password == provided_password\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    return stored_password == provided_password\n+    return hmac.compare_digest(stored_password, provided_password)",
+    "reference": "Using the standard equality operator (==) for comparing sensitive strings like passwords causes a timing attack. The comparison stops at the first mismatch, allowing an attacker to measure response times and deduce the correct password character by character. Replacing it with hmac.compare_digest ensures constant-time execution, preventing timing side-channel leaks.",
+    "hints": [
+      "Consider how string comparison operations are executed under the hood in Python.",
+      "Think about what information an attacker can gain by measuring how long a function takes to return False.",
+      "Use a built-in cryptographic module function designed to compare strings in constant time."
+    ]
+  },
+  {
+    "id": "ex-g0763",
+    "language": "python",
+    "title": "Unclosed CSV File Resource",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(file_path):\n    f = open(file_path, mode='r', encoding='utf-8')\n    reader = csv.reader(f)\n    header = next(reader)\n    return [dict(zip(header, row)) for row in reader]\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    f = open(file_path, mode='r', encoding='utf-8')\n+    with open(file_path, mode='r', encoding='utf-8') as f:",
+    "reference": "Opening files without a context manager leaves the file descriptor open until garbage collection reclaims it, which can exhaust system file descriptors. Using the 'with' statement ensures the file is properly and promptly closed as soon as the block exits, even if exceptions occur. This is a best practice for managing external system resources safely.",
+    "hints": [
+      "Look closely at how external resources like files are acquired.",
+      "Consider what happens to the file descriptor if an exception is raised during iteration.",
+      "Use a context manager (the 'with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0764",
+    "language": "python",
+    "title": "Email Sender SSL Context False Positive",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nimport ssl\n\ndef send_notification(receiver_email: str, message: str) -> None:\n    port = 465\n    smtp_server = \"smtp.example.com\"\n    sender_email = \"notifications@example.com\"\n    password = \"secure_password\"\n\n    context = ssl.create_default_context()\n    with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:\n        server.login(sender_email, password)\n        server.sendmail(sender_email, receiver_email, message)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses ssl.create_default_context() which correctly enables hostname checking and certificate verification by default. While passing a custom context to SMTP_SSL might look like a place where verification could be disabled if configured incorrectly, here the default context is secure and follows standard Python practices.",
+    "hints": [
+      "Check how the SSL context is instantiated before being passed to the SMTP client.",
+      "Verify whether certificate validation or hostname checking is explicitly disabled anywhere in the context."
+    ]
+  },
+  {
+    "id": "ex-g0765",
+    "language": "python",
+    "title": "Check Inventory Stock",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def check_stock(inventory, item, requested_quantity):\n    if item in inventory:\n        current_stock = inventory[item]\n        if current_stock < requested_quantity:\n            return True\n        return False\n    return False\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        if current_stock < requested_quantity:\n+        if current_stock >= requested_quantity:",
+    "reference": "The function checks if the requested quantity is available in the inventory. However, the comparison operator used is strictly less than (<), which causes the function to return True when stock is insufficient and False when it is adequate. Changing this operator to greater than or equal to (>=) correctly verifies that the current stock meets or exceeds the requested quantity.",
+    "hints": [
+      "Look closely at the boolean condition used to determine if the stock is sufficient.",
+      "Trace what happens when the current stock is equal to the requested quantity.",
+      "The function should return True when the stock is enough to fulfill the request, which means current stock must be greater than or equal to the requested quantity."
+    ]
+  },
+  {
+    "id": "ex-g0766",
+    "language": "python",
+    "title": "Thread-Unsafe Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "from datetime import datetime\n\nrequest_count = 0\n\ndef log_request(endpoint: str) -> None:\n    global request_count\n    request_count += 1\n    timestamp = datetime.utcnow().isoformat()\n    print(f\"[{timestamp}] Request #{request_count} to {endpoint}\")\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -4,3 +4,3 @@\n def log_request(endpoint: str) -> None:\n     global request_count\n-    request_count += 1\n+    with lock:\n+        request_count += 1",
+    "reference": "The function increments a global request counter without synchronization, which introduces a race condition in multi-threaded environments like WSGI servers. Because the augmented assignment operator is not atomic in Python, concurrent threads can read the same old count and overwrite each other's increments. Wrapping the increment operation in a threading.Lock ensures that updates are mutually exclusive and accurate.",
+    "hints": [
+      "Look closely at how state is being tracked across multiple calls.",
+      "Consider what happens if two threads execute this function at the exact same time.",
+      "The increment operation is not atomic in Python and needs synchronization like a Lock."
+    ]
+  },
+  {
+    "id": "ex-g0767",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Lookup",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "queue.py",
+    "code": "import sqlite3\n\ndef get_job_status(job_id):\n    conn = sqlite3.connect('jobs.db')\n    cursor = conn.cursor()\n    query = \"SELECT status FROM queue WHERE id = '\" + job_id + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    conn.close()\n    return result[0] if result else None\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT status FROM queue WHERE id = '\" + job_id + \"'\"\n-    cursor.execute(query)\n+    query = \"SELECT status FROM queue WHERE id = ?\"\n+    cursor.execute(query, (job_id,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could pass a crafted string to manipulate the query logic and access unauthorized data. To fix this, use parameterized queries by passing the input as a tuple to cursor.execute().",
+    "hints": [
+      "Look closely at how the SQL query string is constructed.",
+      "Examine how the job_id parameter is combined with the SQL statement.",
+      "Replace string concatenation with parameterized queries using question mark placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0768",
+    "language": "python",
+    "title": "Uncached Inventory Lookup",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "from typing import Dict, Optional\n\nclass InventoryService:\n    def __init__(self, stock_database: Dict[str, int]):\n        self._db = stock_database\n\n    def get_stock_level(self, item_id: str) -> Optional[int]:\n        return self._db.get(item_id)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code directly queries the underlying dictionary without caching. A novice reviewer might suspect performance or thread-safety issues, but for an in-memory dictionary-backed service, this is completely correct, safe, and avoids premature optimization.",
+    "hints": [
+      "Check if the underlying data structure is already in-memory or if it involves I/O.",
+      "Consider whether adding a caching layer here would introduce unnecessary complexity without proven bottlenecks."
+    ]
+  },
+  {
+    "id": "ex-g0769",
+    "language": "python",
+    "title": "Unsafe File Extension Check",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def allowed_file(filename):\n    ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png'}\n    return '.' in filename and \\\n           filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-           filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS\n+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS",
+    "reference": "The function checks if the file extension is allowed by splitting the filename and matching against a predefined set. However, it fails to normalize the case of the extracted extension, allowing bypasses like .PNG or .PdF. Fixing this requires converting the extension to lowercase before performing the lookup.",
+    "hints": [
+      "Consider how user input casing might vary for the same file type.",
+      "Look closely at the string methods used on the extension before checking the set.",
+      "Apply the .lower() method to the extracted extension to ensure case-insensitive validation."
+    ]
+  },
+  {
+    "id": "ex-g0770",
+    "language": "python",
+    "title": "SQL Injection in Cache Layer Key Lookup",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import sqlite3\n\ndef get_cached_user(conn: sqlite3.Connection, user_id: str):\n    cursor = conn.cursor()\n    query = \"SELECT data FROM cache WHERE user_id = '\" + user_id + \"'\"\n    cursor.execute(query)\n    result = cursor.fetchone()\n    return result[0] if result else None\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT data FROM cache WHERE user_id = '\" + user_id + \"'\"\n+    query = \"SELECT data FROM cache WHERE user_id = ?\"\n+    cursor.execute(query, (user_id,))",
+    "reference": "This function suffers from a classic SQL injection vulnerability because the user_id parameter is directly concatenated into the SQL query string. An attacker could supply a malicious string containing SQL commands to bypass authentication or extract sensitive data from the cache table. The fix uses parameterized queries, allowing the database driver to safely handle user input as data rather than executable code.",
+    "hints": [
+      "Examine how the SQL query string is constructed from input parameters.",
+      "Look closely at the line where cursor.execute is called without argument parameters.",
+      "Replace string concatenation with parameterized query placeholders (e.g., '?')."
+    ]
+  },
+  {
+    "id": "ex-g0771",
+    "language": "python",
+    "title": "Fix Password Validation Logic",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def check_password(password):\n    min_length = 8\n    has_digit = any(char.isdigit() for char in password)\n    \n    if len(password) > min_length and has_digit:\n        return True\n    return False\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    if len(password) > min_length and has_digit:\n+    if len(password) >= min_length and has_digit:",
+    "reference": "Password policies typically specify a minimum length that is inclusive, meaning the password can be exactly that number of characters long. Using a strict greater-than operator (>) incorrectly rejects passwords that meet the exact minimum length requirement of 8 characters. Changing the operator to greater-than-or-equal-to (>=) correctly allows valid passwords of the exact boundary length.",
+    "hints": [
+      "Look closely at the conditional statement checking the password length.",
+      "Consider what happens if a user enters a password that is precisely 8 characters long.",
+      "The comparison operator for the minimum length should be inclusive rather than strict."
+    ]
+  },
+  {
+    "id": "ex-g0772",
+    "language": "python",
+    "title": "SQL Injection in Job Status Update",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import sqlite3\n\ndef update_job_status(job_id, status):\n    conn = sqlite3.connect(\"jobs.db\")\n    cursor = conn.cursor()\n    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n    cursor.execute(query)\n    conn.commit()\n    conn.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This function is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could manipulate the status parameter to alter the logic of the database command. The vulnerability is fixed by using parameterized queries, which safely separate the SQL code from the user data.",
+    "hints": [
+      "Examine how the SQL query string is constructed using string concatenation.",
+      "Look closely at the status parameter and how it is inserted into the query.",
+      "Use parameterized queries with question mark placeholders instead of string joining."
+    ]
+  },
+  {
+    "id": "ex-g0773",
+    "language": "python",
+    "title": "Global State in Email Sender",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import time\n\nlast_recipient = \"\"\n\ndef send_email(recipient, message):\n    global last_recipient\n    time.sleep(0.1)\n    last_recipient = recipient\n    print(f\"Sent to {recipient}: {message}\")\n    return last_recipient\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- email_sender.py\n+++ email_sender.py\n@@ -4,4 +4,3 @@\n def send_email(recipient, message):\n-    global last_recipient\n     time.sleep(0.1)\n-    last_recipient = recipient\n     print(f\"Sent to {recipient}: {message}\")\n-    return last_recipient\n+    print(f\"Sent to {recipient}: {message}\")",
+    "reference": "The function modifies and relies on a mutable global variable (`last_recipient`) across function calls while introducing a delay. In a concurrent environment like a multithreaded application, multiple threads calling `send_email` simultaneously will overwrite each other's values in this shared state, leading to race conditions and unpredictable behavior. To fix this, the function should avoid global state entirely and instead rely solely on local variables.",
+    "hints": [
+      "Look at how data is stored and tracked between function calls.",
+      "Consider what happens if two threads execute this function at the exact same time.",
+      "Remove the global variable and ensure all necessary state is kept within local scope."
+    ]
+  },
+  {
+    "id": "ex-g0774",
+    "language": "python",
+    "title": "Fix Rate Limiter Window Reset",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass SlidingWindowRateLimiter:\n    def __init__(self, limit: int, window: int):\n        self.limit = limit\n        self.window = window\n        self.timestamps = []\n\n    def is_allowed(self) -> bool:\n        now = time.time()\n        self.timestamps = [t for t in self.timestamps if now - t <= self.window]\n        if len(self.timestamps) < self.limit:\n            self.timestamps.append(now)\n            return True\n        return False\n",
+    "real_lines": [
+      12
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -12,1 +12,1 @@\n-        if len(self.timestamps) < self.limit:\n+        if len(self.timestamps) <= self.limit:",
+    "reference": "The sliding window rate limiter tracks request timestamps and purges those outside the active time window. However, using strict inequality when checking the current count against the limit prevents the very last allowed request from being correctly recorded. Changing the comparison to include the boundary ensures the exact configured limit of requests can pass within the window.",
+    "hints": [
+      "Examine how the current count of timestamps is compared against the maximum allowed limit.",
+      "Look closely at the conditional statement just before a new timestamp is appended.",
+      "Consider whether the limit represents a strict ceiling or an inclusive maximum count."
+    ]
+  },
+  {
+    "id": "ex-g0775",
+    "language": "python",
+    "title": "Unthreadsafe Report Cache",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_cache.py",
+    "code": "from threading import Lock\n\nclass ReportCache:\n    def __init__(self):\n        self._cache = {}\n        self._lock = Lock()\n\n    def get_or_compute(self, key, compute_func):\n        if key not in self._cache:\n            with self._lock:\n                self._cache[key] = compute_func()\n        return self._cache[key]\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "@@ -9,3 +9,3 @@\n-        if key not in self._cache:\n-            with self._lock:\n-                self._cache[key] = compute_func()\n+        with self._lock:\n+            if key not in self._cache:\n+                self._cache[key] = compute_func()",
+    "reference": "This code suffers from a classic double-checked locking anti-pattern without atomic guarantees, allowing multiple threads to evaluate the 'if' condition simultaneously before the lock is acquired. As a result, separate threads might execute the expensive compute function concurrently and overwrite each other's cache entries. To fix this, the entire check-then-act block must be enclosed within the context manager lock.",
+    "hints": [
+      "Examine how threads interact with the shared dictionary.",
+      "Look closely at the scope of the lock relative to the conditional check.",
+      "Ensure the check and the assignment happen atomically within the locked block."
+    ]
+  },
+  {
+    "id": "ex-g0776",
+    "language": "python",
+    "title": "Path Traversal via Filename",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "import os\n\ndef save_uploaded_file(upload_dir, file_obj):\n    filename = file_obj.filename\n    destination = os.path.join(upload_dir, filename)\n    with open(destination, \"wb\") as f:\n        f.write(file_obj.read())\n    return destination\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- upload.py\n+++ upload.py\n@@ -5,1 +5,1 @@\n-    destination = os.path.join(upload_dir, filename)\n+    destination = os.path.join(upload_dir, os.path.basename(filename))",
+    "reference": "This code is vulnerable to path traversal because it uses the uploaded filename directly in os.path.join(). If an attacker supplies a filename containing directory traversal sequences like '../../etc/passwd', the file can be written outside the intended upload directory. To fix this, use os.path.basename() to strip any directory components from the filename before joining it with the target directory.",
+    "hints": [
+      "Look closely at how the destination path is constructed from user-supplied input.",
+      "Consider what happens if the filename contains special directory navigation characters like '..'.",
+      "Sanitize the filename using a standard library function that extracts only the base filename without any directory paths."
+    ]
+  },
+  {
+    "id": "ex-g0777",
+    "language": "python",
+    "title": "Command Injection in Thumbnail Generator",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import subprocess\n\ndef generate_thumbnail(input_path, output_path, size=\"150x150\"): \n    command = f\"convert {input_path} -thumbnail {size} {output_path}\"\n    subprocess.run(command, shell=True, check=True)\n    return output_path\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    subprocess.run(command, shell=True, check=True)\n+    subprocess.run([\"convert\", input_path, \"-thumbnail\", size, output_path], check=True)",
+    "reference": "This code is vulnerable to command injection because it executes a shell command constructed via string interpolation with untrusted input (input_path). If an attacker provides a filename containing shell metacharacters like semicolons or backticks, arbitrary commands can be executed on the host system. The fix is to avoid shell=True entirely and pass the arguments as a list of strings to subprocess.run.",
+    "hints": [
+      "Examine how external processes are invoked in this function.",
+      "Look closely at the use of the shell parameter and string formatting.",
+      "Remove shell=True and pass the command and its arguments as a list to prevent shell interpretation."
+    ]
+  },
+  {
+    "id": "ex-g0778",
+    "language": "python",
+    "title": "Global State Mutation in Async Webhook Handler",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "active_requests = set()\n\nasync def handle_webhook(request):\n    data = await request.json()\n    request_id = data.get(\"id\")\n    active_requests.add(request_id)\n    try:\n        await process_payload(data)\n    finally:\n        active_requests.remove(request_id)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -5,1 +5,1px\n-    active_requests.add(request_id)\n+    # synchronized access needed",
+    "reference": "Modifying a shared global collection like a set across asynchronous execution points without synchronization can lead to race conditions and unexpected state corruption. Even though Python's asyncio is single-threaded, an awaited call between the set addition and removal yields control, allowing interleaved execution if multiple webhooks arrive concurrently. To fix this, use a threading.Lock or asyncio.Lock to safely guard the critical section.",
+    "hints": [
+      "Look at how shared state is modified across asynchronous boundaries.",
+      "Examine the set named active_requests and where it is mutated.",
+      "An 'await' expression allows other tasks to run. What happens if two webhooks hit this code simultaneously?"
+    ]
+  },
+  {
+    "id": "ex-g0779",
+    "language": "python",
+    "title": "Thread-Unsafe Cache Mutation",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class ThreadSafeCache:\n    def __init__(self):\n        self._store = {}\n\n    def get_or_set(self, key, factory):\n        if key not in self._store:\n            self._store[key] = factory()\n        return self._store[key]\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -5,3 +5,4 @@\n     def get_or_set(self, key, factory):\n-        if key not in self._store:\n-            self._store[key] = factory()\n+        with self._lock:\n+            return self._store.setdefault(key, factory())",
+    "reference": "The cache performs a check-then-act operation across the dictionary without synchronization primitives. Two threads can simultaneously evaluate key not in self._store and both execute factory(), leading to race conditions and potential cache stampedes. Using a threading lock and dict.setdefault ensures atomic evaluation and assignment.",
+    "hints": [
+      "Look closely at the operations performed inside the retrieval method.",
+      "Consider what happens if two threads execute the method concurrently with the same missing key.",
+      "The method lacks a threading lock to make the check and assignment atomic."
+    ]
   }
 ]
