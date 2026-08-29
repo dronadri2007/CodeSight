@@ -342,3 +342,39 @@ export async function submitMicroCheck(
   }
   return api.post<MicroCheckResult>(`/concept/${conceptId}/micro-check`, { answers })
 }
+
+// --- concept library — GET /concepts · GET /concept/{id} --------------
+import type { Concept, ConceptSummary } from './types'
+import { mockConcepts, getConceptById } from '../mock/concepts'
+
+function conceptFromMock(c: (typeof mockConcepts)[number]): Concept {
+  return {
+    id: c.id,
+    title: c.title ?? c.id,
+    summary: (c as unknown as { description?: string }).description ?? '',
+    example_bad: (c as unknown as { vulnerableCode?: string }).vulnerableCode ?? '',
+    example_good: (c as unknown as { saferCode?: string }).saferCode ?? '',
+    videos: (c as unknown as { resourceUrl?: string; resourceTitle?: string }).resourceUrl
+      ? [{ title: (c as unknown as { resourceTitle?: string }).resourceTitle ?? 'Reference', url: (c as unknown as { resourceUrl?: string }).resourceUrl as string }]
+      : [],
+    practice_exercise_ids: [],
+    micro_check_count: (mockBank(c.id) ?? []).length,
+  }
+}
+
+export async function getConcepts(): Promise<ConceptSummary[]> {
+  if (USE_MOCK) {
+    await delay(150)
+    return mockConcepts.map((c) => ({ id: c.id, title: c.title ?? c.id }))
+  }
+  return api.get<ConceptSummary[]>('/concepts')
+}
+
+export async function getConcept(conceptId: string): Promise<Concept> {
+  if (USE_MOCK) {
+    await delay(150)
+    const c = getConceptById(conceptId) ?? mockConcepts[0]
+    return conceptFromMock(c)
+  }
+  return api.get<Concept>(`/concept/${conceptId}`)
+}
