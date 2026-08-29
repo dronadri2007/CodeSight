@@ -18834,5 +18834,573 @@
       "Look closely at how the global variable is read, modified, and written back across multiple steps.",
       "Introduce a threading Lock to ensure the counter update happens atomically."
     ]
+  },
+  {
+    "id": "ex-g0955",
+    "language": "python",
+    "title": "Incorrect Email Address Validation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "def send_welcome_email(email):\n    if \"@\" in email and \".\" in email:\n        print(\"Sending welcome email to \" + email)\n        return True\n    print(\"Invalid email address\")\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if \"@\" in email and \".\" in email:\n+    if \"@\" in email and \".\" in email and email.index(\"@\") < email.rindex(\".\"):\n",
+    "reference": "The original function only checks if the characters '@' and '.' are present anywhere in the string, which allows invalid emails like '.test@' or 'user@domain'. The fix ensures that the '@' symbol appears before the domain dot, maintaining a basic structural requirement for a valid email format.",
+    "hints": [
+      "Check how the function validates the email string.",
+      "Look at the relative positions of the '@' and '.' characters.",
+      "Consider what happens if the dot appears before the '@' symbol."
+    ]
+  },
+  {
+    "id": "ex-g0956",
+    "language": "python",
+    "title": "Webhook Timing Attack Vulnerability",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "import hmac\n\ndef verify_signature(secret: str, payload: bytes, signature: str) -> bool:\n    expected = hmac.new(secret.encode(), payload, \"sha256\").hexdigest()\n    return signature == expected\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    return signature == expected\n+    return hmac.compare_digest(signature, expected)",
+    "reference": "Using standard equality operators for cryptographic signature verification is vulnerable to timing attacks, as string comparison stops at the first mismatch. Attackers can measure response times to guess the signature character by character. Using hmac.compare_digest ensures constant-time evaluation, neutralizing this vector.",
+    "hints": [
+      "Look closely at how the return value is calculated.",
+      "Consider how standard string comparison behaves when checking equality character by character.",
+      "Use a built-in cryptographic utility designed for constant-time comparisons."
+    ]
+  },
+  {
+    "id": "ex-g0957",
+    "language": "python",
+    "title": "Uninitialized Accumulator in Report Generator",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def calculate_total(items):\n    total = 0\n    for item in items:\n        total += item.get('price', 0)\n    return total\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The variable 'total' is correctly initialized to 0 before the loop begins. Although the function relies on dictionary method defaults and local scope mutation, this is standard and safe practice in Python. Flagging this as an uninitialized variable bug is a false positive.",
+    "hints": [
+      "Check the line right before the 'for' loop starts.",
+      "Verify whether the accumulator variable has a default value assigned prior to iteration."
+    ]
+  },
+  {
+    "id": "ex-g0958",
+    "language": "python",
+    "title": "Mutable Default Argument in Job Queue Retry",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef enqueue_job(job_id, payload, failed_jobs=[]) -> list:\n    if job_id in failed_jobs:\n        print(f\"Retrying job {job_id}\")\n    failed_jobs.append(job_id)\n    return failed_jobs\n",
+    "real_lines": [
+      3,
+      6
+    ],
+    "fix_diff": "--- worker.py\n+++ worker.py\n@@ -3,4 +3,4 @@\n-def enqueue_job(job_id, payload, failed_jobs=[]) -> list:\n+def enqueue_job(job_id, payload, failed_jobs=None) -> list:\n+    if failed_jobs is None:\n+        failed_jobs = []\n     if job_id in failed_jobs:\n         print(f\"Retrying job {job_id}\")\n     failed_jobs.append(job_id)\n     return failed_jobs",
+    "reference": "This function suffers from a classic Python trap: using a mutable default argument (`[]`). Because default arguments are evaluated only once when the function is defined, the `failed_jobs` list persists across multiple function calls, accumulating state unintentionally. To fix this, use `None` as the default value and initialize a new list inside the function body if the argument is not provided.",
+    "hints": [
+      "Look closely at the function signature and how default arguments are handled in Python.",
+      "Consider what happens to the default list object when `enqueue_job` is called multiple times without the third argument.",
+      "Initialize the list to None in the signature and create a new list inside the function if necessary."
+    ]
+  },
+  {
+    "id": "ex-g0959",
+    "language": "python",
+    "title": "Missing User Context in Rate Limiter",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass RateLimiter:\n    def __init__(self, limit: int, period: int):\n        self.limit = limit\n        self.period = period\n        self.requests = []\n\n    def is_allowed(self) -> bool:\n        now = time.time()\n        self.requests = [req for req in self.requests if req > now - self.period]\n        if len(self.requests) >= self.limit:\n            return False\n        self.requests.append(now)\n        return True\n",
+    "real_lines": [
+      9,
+      13,
+      14
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -9,6 +9,6 @@\n-    def is_allowed(self) -> bool:\n+    def is_allowed(self, user_id: str) -> bool:\n         now = time.time()\n         self.requests = [req for req in self.requests if req > now - self.period]\n         if len(self.requests) >= self.limit:\n             return False\n-        self.requests.append(now)\n+        self.requests.append((user_id, now))\n+        # and update filtering logic to check per-user requests",
+    "reference": "This rate limiter tracks requests globally across all users rather than isolating them per individual. Because the state is shared without any user identifier, a single heavy user can easily exhaust the request quota for all other users in the system. The fix involves accepting a user identifier and scoping the timestamp storage and validation strictly to that specific user.",
+    "hints": [
+      "Examine how requests are stored and counted over time.",
+      "Consider what happens when multiple different users interact with the same instance.",
+      "Check if the method signature accepts any parameters to distinguish who is making the request."
+    ]
+  },
+  {
+    "id": "ex-g0960",
+    "language": "python",
+    "title": "Uncaught Exception in File Upload",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\ndef save_user_avatar(file_storage, user_id):\n    upload_dir = \"/var/app/uploads\"\n    os.makedirs(upload_dir, exist_ok=True)\n    file_path = os.path.join(upload_dir, f\"{user_id}.png\")\n    file_storage.save(file_path)\n    return file_path\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -7,1 +7,5 @@\n-    file_storage.save(file_path)\n+    try:\n+        file_storage.save(file_path)\n+    except OSError as e:\n+        raise IOError(f\"Failed to save avatar for user {user_id}\") from e\n     return file_path",
+    "reference": "File I/O operations and third-party storage methods frequently raise low-level exceptions like PermissionError, IOError, or OSError due to disk space, permission restrictions, or filesystem failures. Failing to catch these exceptions can cause the web application to crash or leak internal implementation details to the client. Wrapping the save operation in a try-except block allows the application to gracefully handle storage failures and raise a descriptive application-level error.",
+    "hints": [
+      "Consider what happens if the filesystem runs out of disk space or permissions are misconfigured.",
+      "Look closely at the line where file_storage interacts with the disk.",
+      "Add a try-except block around file_storage.save() to catch low-level storage exceptions."
+    ]
+  },
+  {
+    "id": "ex-g0961",
+    "language": "python",
+    "title": "Mutable Default Argument in Job Queue Retry",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef enqueue_job(job_id, retry_queue=[]):\n    print(f\"Processing job {job_id}\")\n    retry_queue.append(job_id)\n    return retry_queue\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- worker.py\n+++ worker.py\n@@ -3,1 +3,3 @@\n-def enqueue_job(job_id, retry_queue=[]):\n+def enqueue_job(job_id, retry_queue=None):\n+    if retry_queue is None:\n+        retry_queue = []",
+    "reference": "Python evaluates default argument values at function definition time, not at call time. This means the default list object is shared across all subsequent function calls that omit the argument, leading to unexpected state accumulation in background job queues. Using None as the default value and initializing a new list inside the function body ensures each call gets a fresh container.",
+    "hints": [
+      "Look closely at the function signature and how default values are handled in Python.",
+      "Consider what happens to the retry_queue parameter if the function is called multiple times without passing a second argument.",
+      "Replace the default list with None and instantiate a new list inside the function body if the parameter is None."
+    ]
+  },
+  {
+    "id": "ex-g0962",
+    "language": "python",
+    "title": "SQL Injection in Report Filter",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "import sqlite3\n\ndef generate_user_report(username):\n    conn = sqlite3.connect('database.db')\n    cursor = conn.cursor()\n    query = \"SELECT * FROM reports WHERE user = '\" + username + \"'\"\n    cursor.execute(query)\n    return cursor.fetchall()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM reports WHERE user = '\" + username + \"'\"\n+    query = \"SELECT * FROM reports WHERE user = ?\"\n+    cursor.execute(query, (username,))",
+    "reference": "This code is vulnerable to SQL injection because user input is directly concatenated into the SQL query string. An attacker could supply malicious input to manipulate the query structure and access unauthorized data. The fix is to use parameterized queries, which safely separate user input from the SQL command structure.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the line where user input is combined with the SQL statement using string concatenation.",
+      "Replace string concatenation with parameterized queries using question marks and passing the parameters as a tuple to execute."
+    ]
+  },
+  {
+    "id": "ex-g0963",
+    "language": "python",
+    "title": "Uncaught JSON Decode Error in Webhook Handler",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "from flask import Flask, request, jsonify\n\napp = Flask(__name__)\n\n@app.route(\"/webhook\", methods=[\"POST\"])\ndef handle_webhook():\n    payload = request.get_json()\n    event_type = payload.get(\"type\")\n    return jsonify({\"status\": \"received\", \"event\": event_type}), 200\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -7,1 +7,1 \u09ac\u09bf\u09ad\u09be\u0997\u09c7\n-    payload = request.get_json()\n+    payload = request.get_json(silent=True) or {}",
+    "reference": "When a client sends a request with an invalid JSON body or without the correct application/json content type, Flask's request.get_json() defaults to raising a BadRequest exception which results in an uncaught 400 error response. By passing silent=True and falling back to an empty dictionary, the function safely handles malformed payloads without crashing the request lifecycle.",
+    "hints": [
+      "Examine how the incoming request body is parsed into a Python object.",
+      "Consider what happens if the incoming payload is not valid JSON or lacks the expected content type.",
+      "Use the silent parameter on the JSON parsing method to prevent abrupt exception raising."
+    ]
+  },
+  {
+    "id": "ex-g0964",
+    "language": "python",
+    "title": "Missing Row Skip for CSV Header",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "import_users.py",
+    "code": "import csv\n\ndef count_active_users(filepath):\n    active_count = 0\n    with open(filepath, mode='r') as file:\n        reader = csv.reader(file)\n        for row in reader:\n            if row[1] == 'active':\n                active_count += 1\n    return active_count\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- import_users.py\n+++ import_users.py\n@@ -6,1 +6,2 @@\n         reader = csv.reader(file)\n+        next(reader)\n         for row in reader:",
+    "reference": "When reading a CSV file that contains a header row, the first iteration of the loop processes the column names rather than actual data. This causes an IndexError or incorrect logic when checking specific column values like row[1]. To fix this, you should consume the header row using next(reader) before iterating over the remaining rows.",
+    "hints": [
+      "Look closely at the first row of a standard CSV file.",
+      "Consider what happens to the header row when you start iterating through the reader object.",
+      "Use the built-in next() function on the reader before the loop to skip the header."
+    ]
+  },
+  {
+    "id": "ex-g0965",
+    "language": "python",
+    "title": "Safe Query Parameter Handling",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(db_connection, query):\n    cursor = db_connection.cursor()\n    sql_query = \"SELECT id, username FROM users WHERE username LIKE %s\"\n    cursor.execute(sql_query, (\"%\" + query + \"%\",))\n    return cursor.fetchall()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely secure against SQL injection. Although string concatenation is used to build the LIKE clause parameter (\"%\" + query + \"%\"), the actual query string uses standard parameterized queries (%s) with a tuple argument. The database driver safely escapes the user input, so flagging this as an SQL injection vulnerability is a false positive.",
+    "hints": [
+      "Look closely at how the query string is passed to cursor.execute.",
+      "Check if the user input is being directly formatted into the SQL string or passed as a separate parameter."
+    ]
+  },
+  {
+    "id": "ex-g0966",
+    "language": "python",
+    "title": "Missing Authorization Header Check",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def verify_webhook(request):\n    auth_header = request.headers.get(\"Authorization\")\n    if auth_header == \"secret_token\":\n        return True\n    return False\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -3,1 +3,1 n\n-    if auth_header == \"secret_token\":\n+    if auth_header and hmac.compare_digest(auth_header, \"secret_token\"):\n",
+    "reference": "Comparing sensitive tokens using standard equality operators is vulnerable to timing attacks because execution time depends on where the first mismatch occurs. Using constant-time comparison functions like hmac.compare_digest mitigates this risk. Additionally, ensure the header exists before performing validation to avoid potential attribute or type errors.",
+    "hints": [
+      "Consider how strings are compared in terms of security.",
+      "Standard equality operators (==) are vulnerable to timing attacks in cryptographic contexts.",
+      "Use hmac.compare_digest to safely compare secret tokens in constant time."
+    ]
+  },
+  {
+    "id": "ex-g0967",
+    "language": "python",
+    "title": "Uncaught Exception in Search Query Parameter Conversion",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "from fastapi import FastAPI, HTTPException, Query\n\napp = FastAPI()\n\n@app.get(\"/search\")\ndef search_endpoint(limit: int = Query(..., ge=1, le=100)):\n    try:\n        results = fetch_results(limit)\n    except DatabaseError as e:\n        raise HTTPException(status_code=500, detail=\"Internal error\")\n    return {\"results\": results}\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-    except DatabaseError as e:\n+    except (DatabaseError, ConnectionError) as e:",
+    "reference": "The try-except block only catches `DatabaseError`, leaving other potential infrastructure failures like `ConnectionError` unhandled. When an uncaught exception propagates, it results in an unhandled 500 Internal Server Error without proper logging or a graceful response. Expanding the exception tuple ensures all expected backend failures are handled safely.",
+    "hints": [
+      "Examine what exceptions might occur when communicating with a data store.",
+      "Look closely at the types of exceptions being caught in the except clause.",
+      "Consider catching multiple exception types to prevent unhandled connection faults."
+    ]
+  },
+  {
+    "id": "ex-g0968",
+    "language": "python",
+    "title": "SQL Injection in Inventory Search",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import sqlite3\n\ndef get_item_by_sku(conn: sqlite3.Connection, sku: str):\n    cursor = conn.cursor()\n    query = \"SELECT id, name, stock FROM items WHERE sku = '\" + sku + \"'\"\n    cursor.execute(query)\n    return cursor.fetchone()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT id, name, stock FROM items WHERE sku = '\" + sku + \"'\"\n+    query = \"SELECT id, name, stock FROM items WHERE sku = ?\"\n+    cursor.execute(query, (sku,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could provide a crafted SKU string to manipulate the query structure and access unauthorized inventory data. The fix uses parameterized queries, which safely separate the SQL logic from the input parameters.",
+    "hints": [
+      "Examine how the SQL query string is constructed using the input parameter.",
+      "Look closely at the line where string concatenation is used to build the query.",
+      "Replace the direct string concatenation with parameterized queries using placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0969",
+    "language": "python",
+    "title": "Seemingly Dangerous Infinite Loop in Job Worker",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef process_jobs(queue):\n    while True:\n        job = queue.get()\n        if job is None:\n            break\n        try:\n        \tjob.execute()\n        except Exception as e:\n        \tprint(f\"Error executing job: {e}\")\n        finally:\n        \tqueue.task_done()\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The 'while True' loop might initially look like an infinite loop hazard to a novice reviewer. However, this is a standard and correct idiom for consumer worker threads in a queue architecture, where a sentinel value (None) is used to signal the worker to gracefully shut down. Furthermore, the queue.task_done() call is properly placed in a finally block to prevent deadlocks on join(). This is a false positive.",
+    "hints": [
+      "Check how the worker thread is signaled to stop by looking for a sentinel value.",
+      "Verify that the queue's internal task tracking state is always properly updated, even when exceptions occur."
+    ]
+  },
+  {
+    "id": "ex-g0970",
+    "language": "python",
+    "title": "Unsafe Session Cleanup in Exception Handler",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "def process_user_session(db_session, user_id):\n    try:\n        session_data = db_session.query(UserSession).filter_by(user_id=user_id).one()\n        session_data.touch()\n        db_session.commit()\n    except SQLAlchemyError as e:\n        db_session.rollback()\n        log.error(f\"Failed for user {user_id}: {e}\")\n    finally:\n        db_session.close()\n",
+    "real_lines": [
+      3,
+      4
+    ],
+    "fix_diff": "@@ -3,2 +3,2 @@\n-        session_data = db_session.query(UserSession).filter_by(user_id=user_id).one()\n-        session_data.touch()\n+        session_data = db_session.query(UserSession).filter_by(user_id=user_id).one_or_none()\n+        if session_data:\n+            session_data.touch()",
+    "reference": "The SQLAlchemy `one()` method raises a `NoResultFound` exception if no matching record exists, which bypasses expected session touch logic and jumps straight to the error handler. Using `one_or_none()` safely returns `None` instead of throwing an unhandled exception for missing sessions. Checking for a truthy session value prevents AttributeError when attempting to call methods on a nonexistent record.",
+    "hints": [
+      "Examine how the database query retrieves the single session record.",
+      "Consider what happens if the queried user session does not exist in the database.",
+      "Replace the strict result requirement with a method that handles missing records gracefully."
+    ]
+  },
+  {
+    "id": "ex-g0971",
+    "language": "python",
+    "title": "Unsafe CSV Append in Threaded Environment",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nimport threading\n\ndef append_row(filepath, data):\n    with open(filepath, 'a', newline='') as f:\n        writer = csv.writer(f)\n        writer.writerow(data)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -5,3 +5,4 @@\n     with open(filepath, 'a', newline='') as f:\n+        lock = threading.Lock()\n+        with lock:\n             writer = csv.writer(f)\n             writer.writerow(data)",
+    "reference": "When multiple threads write to the same file simultaneously without synchronization, their outputs can interleave and corrupt the data. Using a threading.Lock ensures that only one thread can execute the write operation at a time, making the critical section thread-safe.",
+    "hints": [
+      "Consider what happens if multiple threads call this function at the same time.",
+      "The file is opened in append mode, but nothing protects the write operations from interleaving.",
+      "Introduce a threading.Lock object and wrap the file writing operations inside a context manager using that lock."
+    ]
+  },
+  {
+    "id": "ex-g0972",
+    "language": "python",
+    "title": "Unsynchronized Config Dictionary Update",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import threading\n\nclass ConfigLoader:\n    def __init__(self):\n        self._config = {}\n        self._lock = threading.Lock()\n\n    def update(self, new_data: dict):\n        self._config.update(new_data)\n\n    def get(self, key: str):\n        with self._lock:\n            return self._config.get(key)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -9,2 +9,3 @@\n     def update(self, new_data: dict):\n-        self._config.update(new_data)\n+        with self._lock:\n+            self._config.update(new_data)",
+    "reference": "The update method modifies the shared configuration dictionary without acquiring the reentrant lock _lock, leading to a race condition when concurrent threads read and write configuration values. While the get method properly uses a context manager on the lock, the write operation bypasses it entirely, potentially causing dictionary corruption or inconsistent reads. Wrapping the update call inside the lock context manager ensures thread-safe mutation of the shared state.",
+    "hints": [
+      "Look closely at how thread synchronization primitives are used across different methods in the class.",
+      "Compare the concurrency protection in the read method versus the write method.",
+      "The update method modifies shared state without acquiring the instance's lock."
+    ]
+  },
+  {
+    "id": "ex-g0973",
+    "language": "python",
+    "title": "Safe File Extension Validation",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\nALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}\n\ndef allowed_file(filename):\n    return '.' in filename and \\\n           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses standard extension validation. Although using string splitting for extensions can sometimes be risky if not combined with proper sanitization or content-type checks, here it strictly checks against a whitelist of safe image extensions and safely handles case-insensitivity. This is a false positive.",
+    "hints": [
+      "Check how the file extension is extracted and if it is compared against a restricted set.",
+      "Verify if the extension check is case-sensitive, which could otherwise be bypassed."
+    ]
+  },
+  {
+    "id": "ex-g0974",
+    "language": "python",
+    "title": "SQL Injection in Report Filter",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "import sqlite3\n\ndef generate_user_report(db_path, user_role):\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"SELECT * FROM users WHERE role = '\" + user_role + \"'\"\n    cursor.execute(query)\n    results = cursor.fetchall()\n    conn.close()\n    return results\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM users WHERE role = '\" + user_role + \"'\"\n+    query = \"SELECT * FROM users WHERE role = ?\"\n+    cursor.execute(query, (user_role,))",
+    "reference": "This code is vulnerable to SQL injection because user-provided input is directly concatenated into the SQL query string. An attacker can manipulate the 'user_role' parameter to bypass authentication or extract unauthorized data from the database. The fix is to use parameterized queries, which safely separate user input from the SQL command structure.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the usage of string concatenation with the 'user_role' variable.",
+      "Replace string concatenation with parameterized queries using placeholders (e.g., '?')."
+    ]
+  },
+  {
+    "id": "ex-g0975",
+    "language": "python",
+    "title": "Timing-safe Token Comparison in Authentication",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef verify_auth_token(client_token: str, stored_token: str) -> bool:\n    if not client_token or not stored_token:\n        return False\n    return hmac.compare_digest(client_token.encode('utf-8'), stored_token.encode('utf-8'))\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and secure. The use of hmac.compare_digest prevents timing attacks by ensuring constant-time comparison of the tokens. While manual encoding of string inputs might look slightly unusual to some, it is necessary here because hmac.compare_digest expects bytes-like objects or ASCII-only strings, and encoding handles potential unicode characters safely. Flagging this as a vulnerability is a false positive.",
+    "hints": [
+      "Check how the string comparison is actually being performed.",
+      "Look up the documentation for hmac.compare_digest regarding its resistance to timing attacks."
+    ]
+  },
+  {
+    "id": "ex-g0976",
+    "language": "python",
+    "title": "Closing Webhook Connection",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import urllib.request\nimport json\n\ndef send_webhook(url, data):\n    payload = json.dumps(data).encode('utf-8')\n    req = urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'})\n    response = urllib.request.urlopen(req)\n    return response.read()\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,2 @@\n-    return response.read()\n+    with response:\n+        return response.read()",
+    "reference": "When making HTTP requests using urllib.request.urlopen, the returned response object is a file-like object that holds an open network connection. Failing to properly close or manage this resource can lead to socket leaks under high loads. Using a context manager like 'with' ensures the connection is promptly and safely closed after reading the data.",
+    "hints": [
+      "Look at how the network response object is handled after the request.",
+      "Think about resource management and connection cleanup in Python.",
+      "Wrap the response in a context manager using the 'with' statement to ensure it closes properly."
+    ]
+  },
+  {
+    "id": "ex-g0977",
+    "language": "python",
+    "title": "Search Query Wildcard Handling",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def build_search_query(term: str) -> str:\n    safe_term = term.strip().replace(\"%\", \"\\\\%\").replace(\"_\", \"\\\\_\")\n    query = f\"SELECT * FROM items WHERE name LIKE '%{safe_term}%' ESCAPE '\\\\';\"\n    return query\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code looks like it might be vulnerable to SQL injection because of string formatting into a SQL query. However, the input term is strictly sanitized by escaping SQL LIKE wildcards (% and _), and the function is designed to be used with parameterized queries at the execution layer where safe_term is passed as a bind variable, or the escaping completely neutralizes wildcard injection risks. This is a false positive.",
+    "hints": [
+      "Check how SQL wildcard characters are being escaped in the term variable.",
+      "Verify if the returned query string is actually executed directly or passed securely to a database cursor."
+    ]
+  },
+  {
+    "id": "ex-g0978",
+    "language": "python",
+    "title": "Unauthenticated File Deletion",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "views.py",
+    "code": "def delete_user_file(request, file_id):\n    user_file = File.objects.get(id=file_id)\n    if request.method == \"POST\":\n        user_file.delete()\n        return JsonResponse({\"status\": \"success\"})\n    return JsonResponse({\"status\": \"error\"}, status=400)\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    user_file = File.objects.get(id=file_id)\n+    user_file = File.objects.get(id=file_id, user=request.user)",
+    "reference": "The function retrieves and deletes a file based solely on the provided file_id without verifying whether the currently authenticated user actually owns the file. This creates an Insecure Direct Object Reference (IDOR) vulnerability, allowing any user to delete arbitrary files by guessing or enumerating IDs. To fix this, the query must also filter by the current user to ensure proper authorization.",
+    "hints": [
+      "Examine how the file object is retrieved from the database.",
+      "Check if the function verifies who owns the file before performing a destructive action.",
+      "Ensure the query includes a check against the currently authenticated user in the request."
+    ]
+  },
+  {
+    "id": "ex-g0979",
+    "language": "python",
+    "title": "Missing Response Status in Access Log",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import time\nimport logging\n\ndef log_request(request, response):\n    start_time = time.time()\n    duration = time.time() - start_time\n    status = response.code\n    logging.info(\"Path: %s | Status: %d | Duration: %.4fs\", request.path, status, duration)\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    start_time = time.time()\n-    duration = time.time() - start_time\n+    start_time = getattr(request, 'start_time', time.time())\n+    duration = time.time() - start_time",
+    "reference": "The function attempts to calculate request duration, but it records the start time right inside the logging function instead of when the request actually began. Because of this, the duration will always measure how long it takes to execute the logger itself, which is near zero. To fix this, the start timestamp should be attached to the request object earlier in the lifecycle and retrieved here.",
+    "hints": [
+      "Look closely at how the request duration is being measured.",
+      "Check when 'start_time' is initialized relative to the actual request lifecycle.",
+      "Measuring duration requires a start time from the beginning of the request, not the moment logging occurs."
+    ]
+  },
+  {
+    "id": "ex-g0980",
+    "language": "python",
+    "title": "Hardcoded Secret Fallback in Config Loader",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import os\n\ndef load_database_config():\n    db_user = os.getenv(\"DB_USER\", \"admin\")\n    db_pass = os.getenv(\"DB_PASS\", \"secret123\")\n    return {\"user\": db_user, \"password\": db_pass}\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    db_pass = os.getenv(\"DB_PASS\", \"secret123\")\n+    db_pass = os.getenv(\"DB_PASS\")\n+    if not db_pass:\n+        raise ValueError(\"DB_PASS environment variable is required\")",
+    "reference": "Providing fallback values for sensitive credentials like passwords in configuration loaders is a critical security risk. If the environment variable is not set in production, the application will silently fall back to a weak, predictable default secret. Credentials should instead be treated as mandatory and missing values should cause an immediate failure.",
+    "hints": [
+      "Examine how missing environment variables are handled.",
+      "Look closely at the default values assigned in the environment lookups.",
+      "Using a default fallback for passwords introduces a security vulnerability."
+    ]
+  },
+  {
+    "id": "ex-g0981",
+    "language": "python",
+    "title": "Incorrect Inventory Total Calculation",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def calculate_total_value(inventory):\n    total = 0.0\n    for item in inventory:\n        total += item['price'] * item.get('quantity', 1)\n    return round(total, 2)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- inventory.py\n+++ inventory.py\n@@ -4,1 +4,1 \u09aa\u09b6\u09cd\u099a\u09bf\u09ae\u09ac\u0999\u09cd\u0997\u09c7\u09b0\n-        total += item['price'] * item.get('quantity', 1)\n+        total += item['price'] * int(item.get('quantity', 1))",
+    "reference": "The function calculates the total monetary value of an inventory by multiplying each item's price by its quantity. However, if the quantity is supplied as a string from an external JSON payload or CSV import, the multiplication will either raise a TypeError or behave unexpectedly depending on Python versions. Explicitly casting the quantity to an integer prevents potential type mismatches during arithmetic operations.",
+    "hints": [
+      "Examine the data types involved in the multiplication operation.",
+      "Consider what happens if dictionary values originate from external text-based parsers.",
+      "Ensure the quantity value is explicitly converted to an integer before multiplying."
+    ]
+  },
+  {
+    "id": "ex-g0982",
+    "language": "python",
+    "title": "SQL Injection in Payment Search",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import sqlite3\n\ndef get_payment_by_reference(db_conn: sqlite3.Connection, ref_id: str):\n    cursor = db_conn.cursor()\n    query = \"SELECT * FROM payments WHERE reference_id = '\" + ref_id + \"'\"\n    cursor.execute(query)\n    return cursor.fetchone()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM payments WHERE reference_id = '\" + ref_id + \"'\"\n+    query = \"SELECT * FROM payments WHERE reference_id = ?\"\n+    cursor.execute(query, (ref_id,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL command string. An attacker can manipulate the reference_id parameter to alter the query logic and extract unauthorized data. The fix is to use parameterized queries, which safely separate SQL code from user data.",
+    "hints": [
+      "Look closely at how the SQL query string is constructed.",
+      "Consider what happens if the input contains a single quote.",
+      "Replace string concatenation with parameterized query placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0983",
+    "language": "python",
+    "title": "SMTP Exception Catching Defect",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_service.py",
+    "code": "import smtplib\n\ndef send_alert(recipient, message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    try:\n        server.sendmail('alert@example.com', recipient, message)\n    except smtplib.SMTPException as e:\n        raise RuntimeError(\"Failed to send email\") from e\n    finally:\n        server.quit()\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "@@ -4,2 +4,3 @@\n+    try:\n         server = smtplib.SMTP('smtp.example.com', 587)\n         server.starttls()\n-    try:\n         server.sendmail('alert@example.com', recipient, message)",
+    "reference": "The error-handling block only wraps the `sendmail` call, but connection initialization via `SMTP()` and `starttls()` can also raise `SMTPException` or socket errors. If an exception occurs during connection setup, the `try-except` block is bypassed, leaving the socket unclosed and preventing proper exception chaining. Expanding the `try` block to encompass the entire SMTP lifecycle ensures all network operations are safely handled and cleaned up.",
+    "hints": [
+      "Examine which operations can raise network-related exceptions.",
+      "Look closely at where the `try` block begins relative to the SMTP connection setup.",
+      "Include the connection and handshake steps inside the `try` block to ensure robust cleanup and error handling."
+    ]
   }
 ]
