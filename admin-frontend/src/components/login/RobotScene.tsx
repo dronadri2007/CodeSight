@@ -11,120 +11,144 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// 12x12 Pixel Art Matrix Bitmaps (12 Columns x 12 Rows)
-type Matrix12 = number[][];
+// 16x16 Pixel Art Matrix Bitmaps (16 Columns x 16 Rows)
+type Matrix16 = number[][];
 
-function parse12x12(pattern: string[]): Matrix12 {
+function parse16x16(pattern: string[]): Matrix16 {
   return pattern.map((row) =>
     Array.from(row).map((char) => (char === '#' ? 1 : 0))
   );
 }
 
-const PIXEL_EXPRESSIONS_12X12: Record<ExpressionType, Matrix12> = {
-  // f) Neutral (Resting): Two 3x3 open eyes + subtle small smile
-  neutral: parse12x12([
-    "............",
-    "............",
-    ".###....###.",
-    ".###....###.",
-    "............",
-    "............",
-    "............",
-    "............",
-    "....####....",
-    ".....##.....",
-    "............",
-    "............",
+const PIXEL_EXPRESSIONS_16X16: Record<ExpressionType, Matrix16> = {
+  // f) Neutral (Resting): Two 4x4 rounded open eyes + subtle 4px small smile
+  neutral: parse16x16([
+    "................",
+    "................",
+    "..####....####..",
+    ".######..######.",
+    ".######..######.",
+    "..####....####..",
+    "................",
+    "................",
+    "................",
+    "................",
+    ".....######.....",
+    "......####......",
+    "................",
+    "................",
+    "................",
+    "................",
   ]),
 
-  // a) >.< (Playful Squint): Chevrons / squint shapes + small smile
-  squint: parse12x12([
-    "............",
-    "............",
-    ".#.#....#.#.",
-    "..#......#..",
-    ".#.#....#.#.",
-    "............",
-    "............",
-    "............",
-    "....####....",
-    "............",
-    "............",
-    "............",
+  // a) >.< (Playful Squint): Angled downward squints (4-5px wide) + small smile (3-4px)
+  squint: parse16x16([
+    "................",
+    "................",
+    "..##........##..",
+    "...##......##...",
+    "....##....##....",
+    "...##......##...",
+    "..##........##..",
+    "................",
+    "................",
+    "................",
+    "......######....",
+    ".......####.....",
+    "................",
+    "................",
+    "................",
+    "................",
   ]),
 
-  // b) :O (Surprised): Two large circles (4x4) + large oval 'O' mouth (4x4)
-  surprised: parse12x12([
-    "............",
-    ".##......##.",
-    "#..#....#..#",
-    "#..#....#..#",
-    ".##......##.",
-    "............",
-    "............",
-    "....####....",
-    "...#....#...",
-    "...#....#...",
-    "....####....",
-    "............",
+  // b) :O (Surprised): Two large circles (5x5/6x6) + large oval 'O' shape (6x6)
+  surprised: parse16x16([
+    "................",
+    "..####....####..",
+    ".##..##..##..##.",
+    ".##..##..##..##.",
+    ".##..##..##..##.",
+    "..####....####..",
+    "................",
+    "................",
+    ".....######.....",
+    "....##....##....",
+    "....##....##....",
+    ".....######.....",
+    "................",
+    "................",
+    "................",
+    "................",
   ]),
 
-  // c) ^_^ (Happy): Two curved upward arcs (chevrons) + wide smile (6-8px)
-  happy: parse12x12([
-    "............",
-    "..#......#..",
-    ".#.#....#.#.",
-    "#...#..#...#",
-    "............",
-    "............",
-    "............",
-    "............",
-    "#..........#",
-    ".##########.",
-    "..########..",
-    "............",
+  // c) ^_^ (Happy): Two curved upward arcs (chevron shapes 5-6px) + wide smile (8-10px)
+  happy: parse16x16([
+    "................",
+    "...##......##...",
+    "..####....####..",
+    ".##..##..##..##.",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "....########....",
+    "...##########...",
+    "....########....",
+    "................",
+    "................",
+    "................",
+    "................",
   ]),
 
-  // d) ;) (Wink): Left horizontal line (closed 4-5px) + Right open circle + Smirk
-  wink: parse12x12([
-    "............",
-    "............",
-    "####....###.",
-    "........###.",
-    "........###.",
-    "............",
-    "............",
-    "............",
-    ".....###....",
-    "......##....",
-    "............",
-    "............",
+  // d) ;) (Wink): Left horizontal line (5-6px closed) + Right open circle (4x4) + Smirk
+  wink: parse16x16([
+    "................",
+    "................",
+    "................",
+    ".######...####..",
+    ".........######.",
+    "..........####..",
+    "................",
+    "................",
+    "................",
+    "......######....",
+    "........######..",
+    "..........####..",
+    "................",
+    "................",
+    "................",
+    "................",
   ]),
 
-  // e) -_- (Suspicious): Two flat horizontal lines (4-5px) + straight neutral line (3-4px)
-  suspicious: parse12x12([
-    "............",
-    "............",
-    "####....####",
-    "............",
-    "............",
-    "............",
-    "............",
-    "............",
-    "....####....",
-    "............",
-    "............",
-    "............",
+  // e) -_- (Suspicious): Two flat horizontal lines (5-6px) + straight neutral line (4-5px)
+  suspicious: parse16x16([
+    "................",
+    "................",
+    "................",
+    ".######..######.",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    ".....######.....",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
   ]),
 };
 
-// 12x12 Pixel Art Texture Manager with crisp block rendering
-class Pixel12Manager {
+// 16x16 Pixel Art Texture Manager with crisp block rendering
+class Pixel16Manager {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
 
-  readonly GRID_SIZE = 12;
+  readonly GRID_SIZE = 16;
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -158,12 +182,12 @@ class Pixel12Manager {
 
     const cellW = boxW / GRID_SIZE;
     const cellH = boxH / GRID_SIZE;
-    const gap = 1.0;
+    const gap = 0.9;
 
-    const fromGrid = PIXEL_EXPRESSIONS_12X12[fromExpr];
-    const toGrid = PIXEL_EXPRESSIONS_12X12[toExpr];
+    const fromGrid = PIXEL_EXPRESSIONS_16X16[fromExpr];
+    const toGrid = PIXEL_EXPRESSIONS_16X16[toExpr];
 
-    // Render 12x12 Pixel Grid
+    // Render 16x16 Pixel Grid
     for (let r = 0; r < GRID_SIZE; r++) {
       for (let c = 0; c < GRID_SIZE; c++) {
         const x = Math.round(startX + c * cellW);
@@ -178,21 +202,21 @@ class Pixel12Manager {
         const intensity = valFrom * (1 - t) + valTo * t;
 
         if (intensity > 0.05) {
-          // Soft Neon Glow Layer (#00F0FF with opacity)
+          // Soft Neon Glow Layer (#00F0FF with 20% opacity)
           ctx.shadowColor = '#00F0FF';
-          ctx.shadowBlur = 10 * intensity;
+          ctx.shadowBlur = 8 * intensity;
 
           // Outer Glow
-          ctx.fillStyle = `rgba(0, 240, 255, ${0.25 * intensity})`;
+          ctx.fillStyle = `rgba(0, 240, 255, ${0.20 * intensity})`;
           ctx.fillRect(x - 1, y - 1, pw + 2, ph + 2);
 
           // Bright Cyan Pixel (#00F0FF)
           ctx.fillStyle = `rgba(0, 240, 255, ${0.95 * intensity})`;
           ctx.fillRect(x, y, pw, ph);
 
-          // Bright Pixel Highlight
-          ctx.fillStyle = `rgba(230, 255, 255, ${0.9 * intensity})`;
-          ctx.fillRect(x + 2, y + 2, Math.max(1, pw - 4), Math.max(1, ph - 4));
+          // Bright Pixel Core Highlight
+          ctx.fillStyle = `rgba(235, 255, 255, ${0.85 * intensity})`;
+          ctx.fillRect(x + 1, y + 1, Math.max(1, pw - 2), Math.max(1, ph - 2));
         } else {
           // Inactive pixel unlit matrix dot
           ctx.shadowBlur = 0;
@@ -210,13 +234,13 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF('/assets/greeting_robot.glb');
 
-  const pixelMgr = useMemo(() => new Pixel12Manager(), []);
+  const pixelMgr = useMemo(() => new Pixel16Manager(), []);
 
   // Expression State Tracking
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
 
-  // Apply colors & 12x12 pixel art texture map
+  // Apply colors & 16x16 pixel art texture map
   const styledScene = useMemo(() => {
     const cloned = scene.clone(true);
 
@@ -281,7 +305,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       metalness: 0.8,
     });
 
-    // 6. 12x12 Pixel Art Visor Material
+    // 6. 16x16 Pixel Art Visor Material
     const faceVisorMat = new THREE.MeshBasicMaterial({
       map: pixelMgr.texture,
       transparent: true,
@@ -310,7 +334,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         mesh.receiveShadow = true;
 
         if (name.includes('head_2')) {
-          // Apply 12x12 pixel art texture directly to the front face visor plate
+          // Apply 16x16 pixel art texture directly to the front face visor plate
           mesh.material = faceVisorMat;
           mesh.visible = true;
         } else if (fullName.includes('circle') || fullName.includes('core')) {
@@ -371,7 +395,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       );
     }
 
-    // 2. 7-Second 12x12 Pixel Art Animation Loop:
+    // 2. 7-Second 16x16 Pixel Art Animation Loop:
     // - 0.0s - 0.5s: Smooth transition to random expression
     // - 0.5s - 2.0s: Hold expression (1.5s)
     // - 2.0s - 2.5s: Smooth transition back to neutral
@@ -415,10 +439,10 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   );
 }
 
-// Procedural 3D Robot Fallback with 12x12 Pixel Art Face
+// Procedural 3D Robot Fallback with 16x16 Pixel Art Face
 function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const headRef = useRef<THREE.Group>(null);
-  const pixelMgr = useMemo(() => new Pixel12Manager(), []);
+  const pixelMgr = useMemo(() => new Pixel16Manager(), []);
 
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
@@ -465,7 +489,7 @@ function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
         <meshStandardMaterial color="#F5F0E8" roughness={0.18} metalness={0.25} />
       </mesh>
 
-      {/* Face Visor Plate with 12x12 Pixel Art */}
+      {/* Face Visor Plate with 16x16 Pixel Art */}
       <mesh position={[0, 0.42, 0.46]}>
         <planeGeometry args={[0.9, 0.48]} />
         <meshBasicMaterial map={pixelMgr.texture} transparent opacity={0.98} />
