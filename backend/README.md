@@ -26,6 +26,15 @@ half degrades to a reference-based fallback.
     RUN_NETWORK_TESTS=1 python -m pytest tests/test_concept_links.py -q
                                 # checks every concepts.json YouTube link resolves
 
+## Grader benchmark
+
+    python scripts/run_benchmark.py
+
+Runs the explanation grader over `benchmark/gold_set.json` (28 human-labelled
+student submissions) and reports how often its verdict + score band match the
+label. Localisation is checked separately (deterministic). Results cache to
+`benchmark/cache.json`; details in `benchmark/README.md`.
+
 ## Checking concept video links
 
     python scripts/check_concept_links.py

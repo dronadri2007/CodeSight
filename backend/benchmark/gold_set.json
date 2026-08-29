@@ -1,0 +1,150 @@
+{
+  "about": "Human-labelled gold set for the explanation grader. Each case is a student submission against a curated exercise with an expected localisation verdict, an expected explanation verdict, and an explanation-score band. scripts/run_benchmark.py runs the real grader over these and reports agreement.",
+  "score_bands": {
+    "strong": "0.65 - 1.00",
+    "partial": "0.30 - 0.75",
+    "weak": "0.00 - 0.40"
+  },
+  "cases": [
+    {
+      "id": "g01", "exercise_id": "ex-001", "selected_lines": [2], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "Line 2 builds the query by putting email straight into the SQL string with an f-string. A value like ' OR '1'='1 breaks out of the string literal and changes the WHERE clause, so an attacker can match any row or dump the table. Fix: use a parameterised query - execute(\"... WHERE email = %s\", (email,)) - so the driver treats email as data, not SQL."
+    },
+    {
+      "id": "g02", "exercise_id": "ex-001", "selected_lines": [2], "quality": "partial",
+      "expect_localisation": "hit", "expect_verdict": "partial", "score_min": 0.3, "score_max": 0.75,
+      "explanation": "This is SQL injection because the user input goes into the query."
+    },
+    {
+      "id": "g03", "exercise_id": "ex-001", "selected_lines": [2], "quality": "weak",
+      "expect_localisation": "hit", "expect_verdict": "weak", "score_min": 0.0, "score_max": 0.4,
+      "explanation": "This line returns the raw database row to the caller, which leaks internal columns and is a security problem. It should map the row to a DTO first."
+    },
+    {
+      "id": "g04", "exercise_id": "ex-004", "selected_lines": [4], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "Line 4 passes a string built from host to the shell, so a value like '8.8.8.8; rm -rf /' runs as a second command. Fix: pass an argument list with shell=False so host is treated as a single argv entry, never parsed by the shell."
+    },
+    {
+      "id": "g05", "exercise_id": "ex-004", "selected_lines": [4], "quality": "partial",
+      "expect_localisation": "hit", "expect_verdict": "partial", "score_min": 0.3, "score_max": 0.75,
+      "explanation": "Command injection - host is not validated before it is run."
+    },
+    {
+      "id": "g06", "exercise_id": "ex-005", "selected_lines": [2], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "Line 2 joins filename onto the base directory with no checks, so '../../etc/passwd' climbs out of the uploads folder (path traversal). Fix: reject names containing path separators or '..', or resolve the final path and confirm it is still inside the uploads directory."
+    },
+    {
+      "id": "g07", "exercise_id": "ex-006", "selected_lines": [2, 3], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "Nothing checks that the note belongs to the current user before deleting it, so any logged-in user can delete anyone's note by guessing the id (broken access control). Fix: load the note, verify note.owner_id == current_user.id, and 404 otherwise before deleting."
+    },
+    {
+      "id": "g08", "exercise_id": "ex-006", "selected_lines": [3], "quality": "partial",
+      "expect_localisation": "hit", "expect_verdict": "partial", "score_min": 0.3, "score_max": 0.75,
+      "explanation": "The delete is missing an ownership check."
+    },
+    {
+      "id": "g09", "exercise_id": "ex-006", "selected_lines": [2, 3], "quality": "weak",
+      "expect_localisation": "hit", "expect_verdict": "weak", "score_min": 0.0, "score_max": 0.4,
+      "explanation": "This should run inside a transaction so the delete can be rolled back if something fails."
+    },
+    {
+      "id": "g10", "exercise_id": "ex-007", "selected_lines": [3], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "The query filters only by invoice id, so passing any id returns another user's invoice (IDOR). Fix: add Invoice.user_id == user.id to the filter so a foreign id returns nothing."
+    },
+    {
+      "id": "g11", "exercise_id": "ex-008", "selected_lines": [2], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "user.role == \"admin\" or \"editor\" parses as (user.role == \"admin\") or \"editor\", and the non-empty string \"editor\" is always truthy, so every user passes the check. Fix: user.role in (\"admin\", \"editor\")."
+    },
+    {
+      "id": "g12", "exercise_id": "ex-008", "selected_lines": [2], "quality": "partial",
+      "expect_localisation": "hit", "expect_verdict": "partial", "score_min": 0.3, "score_max": 0.75,
+      "explanation": "The or in the condition is wrong and makes it always return true."
+    },
+    {
+      "id": "g13", "exercise_id": "ex-002", "selected_lines": [5, 6], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "except Exception: pass swallows every error with no backoff and no signal to the caller - a failing URL just returns None silently. Fix: catch the specific request exception, keep the last error, sleep between attempts, and raise after the final try."
+    },
+    {
+      "id": "g14", "exercise_id": "ex-002", "selected_lines": [5, 6], "quality": "partial",
+      "expect_localisation": "hit", "expect_verdict": "partial", "score_min": 0.3, "score_max": 0.75,
+      "explanation": "A bare except is bad practice because it hides errors."
+    },
+    {
+      "id": "g15", "exercise_id": "ex-009", "selected_lines": [4], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "subprocess.run here has no check=True and never inspects returncode, so a failed pg_dump is ignored and upload() then ships a truncated or empty backup. Fix: pass check=True (or check returncode) and abort the upload on a non-zero exit."
+    },
+    {
+      "id": "g16", "exercise_id": "ex-010", "selected_lines": [6], "quality": "partial",
+      "expect_localisation": "hit", "expect_verdict": "partial", "score_min": 0.3, "score_max": 0.75,
+      "explanation": "If the parse fails the code blows up on the next line with a confusing TypeError instead of a clear message."
+    },
+    {
+      "id": "g17", "exercise_id": "ex-011", "selected_lines": [1], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "rows=[] in the signature is created once when the function is defined and shared by every call that does not pass its own list, so rows accumulate across unrelated calls. Fix: default to None and set rows = [] inside the function."
+    },
+    {
+      "id": "g18", "exercise_id": "ex-011", "selected_lines": [1], "quality": "weak",
+      "expect_localisation": "hit", "expect_verdict": "weak", "score_min": 0.0, "score_max": 0.4,
+      "explanation": "You need a lock around the append so two threads cannot corrupt the list at the same time."
+    },
+    {
+      "id": "g19", "exercise_id": "ex-012", "selected_lines": [2, 3], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "Between the 'key not in cache' check and the assignment, another thread can run the same check and also call factory(), so it runs twice and one result is lost (check-then-act race). Fix: hold a lock around the check-and-set, or use an atomic get-or-create."
+    },
+    {
+      "id": "g20", "exercise_id": "ex-013", "selected_lines": [2, 3], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "On the last iteration i == len(arr) - 1, so arr[i + 1] is out of range and raises IndexError. Fix: iterate to len(arr) - 1."
+    },
+    {
+      "id": "g21", "exercise_id": "ex-014", "selected_lines": [2], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "age > 18 excludes people who are exactly 18, who are adults. It should be age >= 18."
+    },
+    {
+      "id": "g22", "exercise_id": "ex-014", "selected_lines": [2], "quality": "weak",
+      "expect_localisation": "hit", "expect_verdict": "weak", "score_min": 0.0, "score_max": 0.4,
+      "explanation": "The variable name age is not descriptive and there is no check that it is an integer."
+    },
+    {
+      "id": "g23", "exercise_id": "ex-015", "selected_lines": [2], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.7, "score_max": 1.0,
+      "explanation": "The condition is inverted: the 10% discount is given to non-members and withheld from members. It should be if is_member:."
+    },
+    {
+      "id": "g24", "exercise_id": "ex-016", "selected_lines": [4, 5], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "Each connect(host) opens a connection that is never closed, so a long host list exhausts sockets and file descriptors. Fix: use the connection as a context manager (with connect(host) as c:) so it is closed every iteration."
+    },
+    {
+      "id": "g25", "exercise_id": "ex-017", "selected_lines": [2, 4], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.65, "score_max": 1.0,
+      "explanation": "item not in out is O(n) on a list and it runs inside an O(n) loop, so dedupe is O(n^2) and slow on large inputs. Fix: track membership in a set for O(1) lookups."
+    },
+    {
+      "id": "g26", "exercise_id": "ex-003", "selected_lines": [4], "quality": "weak",
+      "expect_localisation": "false_positive", "expect_verdict": "weak", "score_min": 0.0, "score_max": 0.4,
+      "explanation": "Dividing by len(nums) on line 4 could be a division by zero if the list is empty."
+    },
+    {
+      "id": "g27", "exercise_id": "ex-003", "selected_lines": [], "quality": "strong",
+      "expect_localisation": "hit", "expect_verdict": "strong", "score_min": 0.55, "score_max": 1.0,
+      "explanation": "This function is correct. The empty-list guard returns 0.0 before any division, and for a non-empty numeric list sum/len is a safe average. There is no defect to flag."
+    },
+    {
+      "id": "g28", "exercise_id": "ex-019", "selected_lines": [2], "quality": "weak",
+      "expect_localisation": "false_positive", "expect_verdict": "weak", "score_min": 0.0, "score_max": 0.4,
+      "explanation": "Line 2 looks like SQL injection because the name value is used in the query."
+    }
+  ]
+}

@@ -1,0 +1,549 @@
+{
+  "summary": {
+    "model": "gemini-3.6-flash",
+    "cases": 28,
+    "scored": 18,
+    "voided_quota": 10,
+    "grader_live": true,
+    "fresh_calls": 29,
+    "localisation_match": "28/28",
+    "explanation_verdict_match": "13/18",
+    "score_in_band": "13/18",
+    "overall_agreement": "13/18",
+    "overall_agreement_pct": 72.2
+  },
+  "rows": [
+    {
+      "id": "g01",
+      "exercise_id": "ex-001",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g02",
+      "exercise_id": "ex-001",
+      "quality": "partial",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "partial",
+      "verdict_got": "strong",
+      "verdict_ok": false,
+      "band": [
+        0.3,
+        0.75
+      ],
+      "score_got": 1.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": false
+    },
+    {
+      "id": "g03",
+      "exercise_id": "ex-001",
+      "quality": "weak",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "weak",
+      "verdict_got": "weak",
+      "verdict_ok": true,
+      "band": [
+        0.0,
+        0.4
+      ],
+      "score_got": 0.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g04",
+      "exercise_id": "ex-004",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g05",
+      "exercise_id": "ex-004",
+      "quality": "partial",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "partial",
+      "verdict_got": "strong",
+      "verdict_ok": false,
+      "band": [
+        0.3,
+        0.75
+      ],
+      "score_got": 0.95,
+      "band_ok": false,
+      "agree": false,
+      "voided": false
+    },
+    {
+      "id": "g06",
+      "exercise_id": "ex-005",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g07",
+      "exercise_id": "ex-006",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g08",
+      "exercise_id": "ex-006",
+      "quality": "partial",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "partial",
+      "verdict_got": "strong",
+      "verdict_ok": false,
+      "band": [
+        0.3,
+        0.75
+      ],
+      "score_got": 1.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": false
+    },
+    {
+      "id": "g09",
+      "exercise_id": "ex-006",
+      "quality": "weak",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "weak",
+      "verdict_got": "weak",
+      "verdict_ok": true,
+      "band": [
+        0.0,
+        0.4
+      ],
+      "score_got": 0.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g10",
+      "exercise_id": "ex-007",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g11",
+      "exercise_id": "ex-008",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g12",
+      "exercise_id": "ex-008",
+      "quality": "partial",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "partial",
+      "verdict_got": "strong",
+      "verdict_ok": false,
+      "band": [
+        0.3,
+        0.75
+      ],
+      "score_got": 0.9,
+      "band_ok": false,
+      "agree": false,
+      "voided": false
+    },
+    {
+      "id": "g13",
+      "exercise_id": "ex-002",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g14",
+      "exercise_id": "ex-002",
+      "quality": "partial",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "partial",
+      "verdict_got": "partial",
+      "verdict_ok": true,
+      "band": [
+        0.3,
+        0.75
+      ],
+      "score_got": 0.5,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g15",
+      "exercise_id": "ex-009",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g16",
+      "exercise_id": "ex-010",
+      "quality": "partial",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "partial",
+      "verdict_got": "strong",
+      "verdict_ok": false,
+      "band": [
+        0.3,
+        0.75
+      ],
+      "score_got": 1.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": false
+    },
+    {
+      "id": "g17",
+      "exercise_id": "ex-011",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "strong",
+      "verdict_ok": true,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 1.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g18",
+      "exercise_id": "ex-011",
+      "quality": "weak",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "weak",
+      "verdict_got": "weak",
+      "verdict_ok": true,
+      "band": [
+        0.0,
+        0.4
+      ],
+      "score_got": 0.0,
+      "band_ok": true,
+      "agree": true,
+      "voided": false
+    },
+    {
+      "id": "g19",
+      "exercise_id": "ex-012",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g20",
+      "exercise_id": "ex-013",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g21",
+      "exercise_id": "ex-014",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g22",
+      "exercise_id": "ex-014",
+      "quality": "weak",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "weak",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.0,
+        0.4
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g23",
+      "exercise_id": "ex-015",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.7,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g24",
+      "exercise_id": "ex-016",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g25",
+      "exercise_id": "ex-017",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.65,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g26",
+      "exercise_id": "ex-003",
+      "quality": "weak",
+      "loc_expected": "false_positive",
+      "loc_got": "false_positive",
+      "loc_ok": true,
+      "verdict_expected": "weak",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.0,
+        0.4
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g27",
+      "exercise_id": "ex-003",
+      "quality": "strong",
+      "loc_expected": "hit",
+      "loc_got": "hit",
+      "loc_ok": true,
+      "verdict_expected": "strong",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.55,
+        1.0
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    },
+    {
+      "id": "g28",
+      "exercise_id": "ex-019",
+      "quality": "weak",
+      "loc_expected": "false_positive",
+      "loc_got": "false_positive",
+      "loc_ok": true,
+      "verdict_expected": "weak",
+      "verdict_got": "weak",
+      "verdict_ok": false,
+      "band": [
+        0.0,
+        0.4
+      ],
+      "score_got": 0.0,
+      "band_ok": false,
+      "agree": false,
+      "voided": true
+    }
+  ]
+}
