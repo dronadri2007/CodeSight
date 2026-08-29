@@ -6,8 +6,8 @@
     "example_bad": "q = f\"SELECT * FROM users WHERE email = '{email}'\"\ndb.execute(q)",
     "example_good": "db.execute(\"SELECT * FROM users WHERE email = ?\", (email,))",
     "videos": [
-      { "title": "SQL Injection - Computerphile", "url": "https://www.youtube.com/watch?v=ciNHn38EyRc", "verify": true },
-      { "title": "Command Injection explained - PwnFunction", "url": "https://www.youtube.com/watch?v=qsAy8I0V-Eg", "verify": true }
+      { "title": "Running an SQL Injection Attack - Computerphile", "url": "https://www.youtube.com/watch?v=ciNHn38EyRc" },
+      { "title": "Command Injection - Complete Guide (Rana Khalil)", "url": "https://www.youtube.com/watch?v=UBWMLFbjPBc" }
     ],
     "practice_exercise_ids": ["ex-001", "ex-004", "ex-005"]
   },
@@ -18,8 +18,8 @@
     "example_bad": "return db.query(Invoice).filter(Invoice.id == invoice_id).first()",
     "example_good": "return db.query(Invoice).filter(\n    Invoice.id == invoice_id, Invoice.user_id == user.id\n).first()",
     "videos": [
-      { "title": "Broken Access Control - OWASP Top 10", "url": "https://www.youtube.com/watch?v=P38at6Tp8Ms", "verify": true },
-      { "title": "IDOR explained - PwnFunction", "url": "https://www.youtube.com/watch?v=rloqMGcPMkI", "verify": true }
+      { "title": "Broken Access Control - OWASP Top 10 (F5 DevCentral)", "url": "https://www.youtube.com/watch?v=P38at6Tp8Ms" },
+      { "title": "Insecure Direct Object Reference (IDOR) Explained - PwnFunction", "url": "https://www.youtube.com/watch?v=rloqMGcPMkI" }
     ],
     "practice_exercise_ids": ["ex-006", "ex-007", "ex-008"]
   },
@@ -30,7 +30,7 @@
     "example_bad": "try:\n    return requests.get(url)\nexcept Exception:\n    pass",
     "example_good": "try:\n    return requests.get(url)\nexcept requests.RequestException as e:\n    last_error = e\n    time.sleep(1)\n...\nraise last_error",
     "videos": [
-      { "title": "Python Exception Handling - Corey Schafer", "url": "https://www.youtube.com/watch?v=NIWwJbo-9_8", "verify": true }
+      { "title": "Using Try/Except Blocks for Error Handling - Corey Schafer", "url": "https://www.youtube.com/watch?v=NIWwJbo-9_8" }
     ],
     "practice_exercise_ids": ["ex-002", "ex-009", "ex-010"]
   },
@@ -41,8 +41,8 @@
     "example_bad": "if key not in cache:\n    cache[key] = factory()",
     "example_good": "with lock:\n    if key not in cache:\n        cache[key] = factory()",
     "videos": [
-      { "title": "Race Conditions - Computerphile", "url": "https://www.youtube.com/watch?v=7ENFeb-J75k", "verify": true },
-      { "title": "Python mutable default arguments - mCoding", "url": "https://www.youtube.com/watch?v=_JGmemuINww", "verify": true }
+      { "title": "Multithreading Code - Computerphile", "url": "https://www.youtube.com/watch?v=7ENFeb-J75k" },
+      { "title": "Clarifying the Issues with Mutable Default Arguments - Corey Schafer", "url": "https://www.youtube.com/watch?v=_JGmemuINww" }
     ],
     "practice_exercise_ids": ["ex-011", "ex-012"]
   },
@@ -53,7 +53,7 @@
     "example_bad": "for i in range(len(arr)):\n    if arr[i] == arr[i + 1]:  # IndexError on the last i",
     "example_good": "for i in range(len(arr) - 1):\n    if arr[i] == arr[i + 1]:",
     "videos": [
-      { "title": "Off-by-one errors - Computerphile", "url": "https://www.youtube.com/watch?v=Q3G_L37eBmw", "verify": true }
+      { "title": "Bounds Checking & Off-by-One Errors in Arrays", "url": "https://www.youtube.com/watch?v=e_kFg_Ep3EQ" }
     ],
     "practice_exercise_ids": ["ex-013", "ex-014", "ex-015"]
   },
@@ -64,8 +64,8 @@
     "example_bad": "for item in items:\n    if item not in out:   # O(n) inside O(n)\n        out.append(item)",
     "example_good": "seen = set()\nfor item in items:\n    if item not in seen:\n        seen.add(item)\n        out.append(item)",
     "videos": [
-      { "title": "Big O Notation - CS Dojo", "url": "https://www.youtube.com/watch?v=D6xkbGLQesk", "verify": true },
-      { "title": "Context managers / with statement - Corey Schafer", "url": "https://www.youtube.com/watch?v=-aKFBoZpiqA", "verify": true }
+      { "title": "Introduction to Big O Notation and Time Complexity - CS Dojo", "url": "https://www.youtube.com/watch?v=D6xkbGLQesk" },
+      { "title": "Context Managers - Efficiently Managing Resources - Corey Schafer", "url": "https://www.youtube.com/watch?v=-aKFBoZpiqA" }
     ],
     "practice_exercise_ids": ["ex-016", "ex-017"]
   }
