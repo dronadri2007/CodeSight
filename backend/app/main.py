@@ -5,7 +5,7 @@ Endpoints (see CONTRACT.md):
   GET  /exercises [?tier= &source=] · GET /exercises/{id} · GET /exercises/{id}/hints/{n}
   POST /grade · POST /ai-review · POST /exercises/{id}/report
   GET  /profile/{session_id} · GET /progress/{session_id} · GET /leaderboard
-  GET  /session/{session_id}
+  GET  /session/{session_id} · GET /session/{session_id}/integrity
   GET  /concepts · GET /concept/{id}
   GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
   GET  /promotion-test/{session_id} · POST /promotion-test/{session_id}/evaluate
@@ -28,7 +28,7 @@ from app.config import (
 from app.db import get_db, init_db
 from app.grader import diagnostics, grade_explanation
 from app.hints import score_multiplier
-from app.integrity import score_integrity
+from app.integrity import build_session_integrity, score_integrity
 from app.localisation import score_localisation
 from app.models import Attempt
 from app.profile import build_profile
@@ -48,6 +48,7 @@ from app.schemas import (
     MicroCheckRequest,
     MicroCheckResult,
     ProgressReport,
+    SessionIntegrity,
     PromotionResult,
     PromotionTest,
     ReportRequest,
@@ -274,6 +275,21 @@ def submit_micro_check(concept_id: str, req: MicroCheckRequest):
 @app.get("/session/{session_id}", response_model=SessionInfo)
 def get_session(session_id: str, db: Session = Depends(get_db)):
     return tiers.session_info(db, session_id)
+
+
+@app.get("/session/{session_id}/integrity", response_model=SessionIntegrity)
+def get_session_integrity(
+    session_id: str,
+    verdict: str | None = Query(None),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Mentor view: telemetry-carrying attempts for this session with their
+    integrity verdict + flags, newest first. `verdict` filters to
+    clean|review|flagged."""
+    if verdict is not None and verdict not in {"clean", "review", "flagged"}:
+        raise HTTPException(status_code=422, detail="verdict must be clean|review|flagged")
+    return build_session_integrity(db, session_id, verdict=verdict, limit=limit)
 
 
 @app.get("/promotion-test/{session_id}", response_model=PromotionTest)

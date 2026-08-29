@@ -57,7 +57,7 @@ demo or on a CI schedule.
 | `app/grader.py` | Gemini call for explanation + teaching, hash-cached, safe fallback |
 | `app/ai_review.py` | Gemini as an independent reviewer; diffs AI vs student vs ground truth |
 | `app/hints.py` | progressive-hint score decay (1.0 / 0.9 / 0.75 / 0.5) |
-| `app/integrity.py` | optional `/grade` telemetry → integrity score + flags (advisory, never rescores) |
+| `app/integrity.py` | optional `/grade` telemetry → integrity score + flags (advisory, never rescores); mentor view for `GET /session/{id}/integrity` |
 | `app/profile.py` | aggregate a session's attempts → weakest class + next step |
 | `app/progress.py` | attempt timeline + running catch-rate + per-class first-vs-latest |
 | `app/leaderboard.py` | rank sessions by `0.7*catch_rate + 0.3*avg_explanation` (min attempts, tier filter, `you` row) |
@@ -104,6 +104,6 @@ fields never leave the server — only `/grade` reads them.
 `GET /profile/{session_id}` · `GET /progress/{session_id}` · `GET /leaderboard` ·
 `GET /concepts` · `GET /concept/{id}` ·
 `GET /concept/{id}/micro-check` · `POST /concept/{id}/micro-check` ·
-`GET /session/{id}` ·
+`GET /session/{id}` · `GET /session/{id}/integrity` ·
 `GET /promotion-test/{id}` · `POST /promotion-test/{id}/evaluate` ·
 `POST /exercises/{id}/report` — full shapes in `../CONTRACT.md`.

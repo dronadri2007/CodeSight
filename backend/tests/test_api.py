@@ -439,6 +439,70 @@ def test_leaderboard_tier_filter(client):
     assert client.get("/leaderboard?tier=wizard").status_code == 422
 
 
+# --- GET /session/{id}/integrity (mentor view) -----------------
+_CLEAN_TEL = {"time_to_submit_ms": 95000, "paste_count": 0, "pasted_chars": 0,
+              "tab_blur_count": 0, "tab_blur_ms": 0, "keystroke_count": 400}
+_DIRTY_TEL = {"time_to_submit_ms": 4000, "paste_count": 1, "pasted_chars": 200,
+              "tab_blur_count": 1, "tab_blur_ms": 40000, "keystroke_count": 2}
+_LONG_EXPL = "x" * 200
+
+
+def _grade(client, sid, tel=None, expl="user input is interpolated into the SQL string"):
+    body = {"session_id": sid, "exercise_id": "ex-001", "selected_lines": [2], "explanation": expl}
+    if tel is not None:
+        body["telemetry"] = tel
+    return client.post("/grade", json=body)
+
+
+def test_session_integrity_empty(client):
+    d = client.get("/session/nobody/integrity").json()
+    assert d == {
+        "session_id": "nobody", "total_attempts": 0, "tracked": 0, "untracked": 0,
+        "by_verdict": {"clean": 0, "review": 0, "flagged": 0}, "attempts": [],
+    }
+
+
+def test_session_integrity_counts_tracked_vs_untracked(client):
+    _grade(client, "s", tel=_CLEAN_TEL)
+    _grade(client, "s")                       # no telemetry
+    _grade(client, "s", tel=_DIRTY_TEL, expl=_LONG_EXPL)
+    d = client.get("/session/s/integrity").json()
+    assert d["total_attempts"] == 3
+    assert d["tracked"] == 2
+    assert d["untracked"] == 1
+    assert d["by_verdict"]["clean"] == 1
+    assert d["by_verdict"]["flagged"] == 1
+    assert len(d["attempts"]) == 2
+
+
+def test_session_integrity_newest_first_and_flags(client):
+    _grade(client, "s", tel=_CLEAN_TEL)
+    _grade(client, "s", tel=_DIRTY_TEL, expl=_LONG_EXPL)
+    rows = client.get("/session/s/integrity").json()["attempts"]
+    assert rows[0]["integrity_verdict"] == "flagged"          # most recent first
+    assert rows[0]["flags"] and any("pasted" in f for f in rows[0]["flags"])
+    assert rows[0]["telemetry"]["paste_count"] == 1
+    assert rows[1]["integrity_verdict"] == "clean"
+    assert rows[1]["flags"] == []
+
+
+def test_session_integrity_verdict_filter(client):
+    _grade(client, "s", tel=_CLEAN_TEL)
+    _grade(client, "s", tel=_DIRTY_TEL, expl=_LONG_EXPL)
+    d = client.get("/session/s/integrity?verdict=flagged").json()
+    assert [a["integrity_verdict"] for a in d["attempts"]] == ["flagged"]
+    assert d["tracked"] == 2                  # counts still reflect everything
+    assert client.get("/session/s/integrity?verdict=bogus").status_code == 422
+
+
+def test_session_integrity_limit_caps_rows_not_counts(client):
+    for _ in range(4):
+        _grade(client, "s", tel=_CLEAN_TEL)
+    d = client.get("/session/s/integrity?limit=2").json()
+    assert len(d["attempts"]) == 2
+    assert d["tracked"] == 4
+
+
 # --- concepts (recommendation engine) --------------------------------
 def test_concepts_list(client):
     ids = {c["id"] for c in client.get("/concepts").json()}

@@ -66,6 +66,29 @@ class IntegritySignal(BaseModel):
     flags: list[str]                                # human-readable reasons, may be empty
 
 
+# --- GET /session/{id}/integrity (mentor view) --------------------
+class IntegrityAttempt(BaseModel):
+    attempt_id: str
+    exercise_id: str
+    defect_class: str
+    created_at: str
+    localisation_score: float
+    explanation_score: float
+    integrity_score: float | None
+    integrity_verdict: str            # "clean" | "review" | "flagged"
+    flags: list[str]
+    telemetry: dict | None
+
+
+class SessionIntegrity(BaseModel):
+    session_id: str
+    total_attempts: int
+    tracked: int                     # attempts that carried telemetry
+    untracked: int                   # attempts graded without telemetry
+    by_verdict: dict[str, int]       # counts among tracked attempts
+    attempts: list[IntegrityAttempt] # tracked, newest first, after verdict/limit
+
+
 class LocalisationResult(BaseModel):
     score: float
     verdict: str

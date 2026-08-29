@@ -461,6 +461,54 @@ Response 200:
 
 ---
 
+## GET /session/{session_id}/integrity
+
+Mentor view of a session's submissions that carried integrity telemetry
+(see `POST /grade`). Newest first.
+
+Query params (optional):
+
+| param | default | meaning |
+|---|---|---|
+| `verdict` | — | filter attempts to `clean` \| `review` \| `flagged`; 422 if other |
+| `limit` | 50 | max rows in `attempts` (1–200) |
+
+Response 200:
+
+    {
+      "session_id": "web-8f3a2c",
+      "total_attempts": 12,
+      "tracked": 9,
+      "untracked": 3,
+      "by_verdict": { "clean": 6, "review": 2, "flagged": 1 },
+      "attempts": [
+        {
+          "attempt_id": "b1e2...",
+          "exercise_id": "ex-007",
+          "defect_class": "auth",
+          "created_at": "2026-08-29T18:41:03+00:00",
+          "localisation_score": 1.0,
+          "explanation_score": 0.4,
+          "integrity_score": 0.2,
+          "integrity_verdict": "flagged",
+          "flags": ["most of the explanation (~180 chars) was pasted, not typed",
+                    "tab was not focused for ~40s during the attempt"],
+          "telemetry": { "time_to_submit_ms": 4200, "paste_count": 1, "pasted_chars": 180,
+                         "tab_blur_count": 1, "tab_blur_ms": 40000, "keystroke_count": 3 }
+        }
+      ]
+    }
+
+- `tracked` = attempts with telemetry; `untracked` = graded without it.
+- `by_verdict` counts across **all** tracked attempts, not just the page.
+- `flags` are re-derived from the stored `telemetry` on read, so they track
+  the current scorer; `integrity_score` / `integrity_verdict` are the values
+  recorded at submit time.
+- Advisory only — this endpoint reports, it does not gate anything.
+- Unknown session → all zeros, `attempts: []`.
+
+---
+
 ## GET /promotion-test/{session_id}
 
 The 3 curated exercises from the next tier up that make up the promotion test.
