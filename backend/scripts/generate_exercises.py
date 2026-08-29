@@ -93,24 +93,37 @@ def _is_quota(e: Exception) -> bool:
 
 
 def _is_daily(e: Exception) -> bool:
+    """True only for the *per-day* free-tier cap. A per-minute throttle is
+    also a 429/RESOURCE_EXHAUSTED and must NOT count — it clears on its own."""
     s = str(e)
-    return "PerDay" in s or "per day" in s or "free_tier_requests" in s
+    if "PerMinute" in s or "per minute" in s or "PerMin" in s:
+        return False
+    return (
+        "PerDay" in s
+        or "per day" in s
+        or "GenerateRequestsPerDayPerProjectPerModel" in s
+        or "PerProjectPerDay" in s
+    )
 
 
 def _once(pool: KeyPool, **kw):
-    """One generate_content on the current key, with per-minute backoff.
-    Raises _DailyExhausted if the key hit its per-day free-tier limit."""
+    """One generate_content on the current key. Backs off through per-minute
+    throttles and 5xx; raises _DailyExhausted only on the per-day cap."""
     last = None
-    for attempt in range(4):
+    for attempt in range(7):
         try:
             return pool.client.models.generate_content(**kw)
         except genai_errors.APIError as e:
             last = e
             if _is_quota(e) and _is_daily(e):
-                raise _DailyExhausted() from e
-            transient = _is_quota(e) or isinstance(e, genai_errors.ServerError)
-            if transient and attempt < 3:
-                time.sleep(6 * (attempt + 1) if _is_quota(e) else 2 ** attempt)
+                raise _DailyExhausted(str(e)[:200]) from e
+            if _is_quota(e):                       # per-minute throttle
+                wait = min(60, 15 * (attempt + 1))
+                print(f"  {pool.label} rate-limited, sleeping {wait}s (try {attempt + 1}/7)")
+                time.sleep(wait)
+                continue
+            if isinstance(e, genai_errors.ServerError) and attempt < 6:
+                time.sleep(2 ** attempt)
                 continue
             raise
     raise last  # pragma: no cover
@@ -123,9 +136,9 @@ def _generate(pool: KeyPool, **kw):
         try:
             return _once(pool, **kw)
         except _DailyExhausted as e:
-            print(f"  {pool.label} out of daily quota")
+            print(f"  {pool.label} hit its per-DAY cap ({e})")
             if not pool.rotate():
-                raise AllKeysExhausted("every Gemini key is out of daily quota") from e
+                raise AllKeysExhausted("every Gemini key is out of per-day quota") from e
             print(f"  -> switched to {pool.label}")
 
 
