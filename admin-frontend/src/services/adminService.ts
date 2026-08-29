@@ -43,8 +43,6 @@ function rowToProblem(r: AdminExerciseRow): Problem {
   }
 }
 
-const NO_MUTATION =
-  'Exercises are managed in the repo (app/data/*.json + scripts/review_exercises.py). This dashboard is read-only against the live backend.'
 
 function getStoredProblems(): Problem[] {
   try {
@@ -63,18 +61,29 @@ function saveProblems(problems: Problem[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(problems));
 }
 
+// backend tier <-> dashboard difficulty
+const TIER_TO_DIFF: Record<string, Problem['difficulty']> = { beginner: 'Easy', intermediate: 'Medium', pro: 'Hard' };
+const DIFF_TO_TIER: Record<string, string> = { Easy: 'beginner', Medium: 'intermediate', Hard: 'pro' };
+// dashboard status <-> backend review_status
+const STATUS_TO_REVIEW: Record<string, string> = { Approved: 'approved', Pending: 'unreviewed', Draft: 'edited', Archived: 'rejected' };
+
 export const adminService = {
-  // Admin login. The CodeSight backend has no auth, so this is a client-side
-  // gate in every mode — any credentials mint a local token.
-  async login(email: string, _password: string): Promise<{ token: string; user: AdminUser }> {
-    await new Promise((res) => setTimeout(res, 400));
-    const user: AdminUser = {
-      id: 'usr_admin_001',
-      name: (email.split('@')[0] || 'Admin').toUpperCase(),
-      email,
-      role: 'admin',
-    };
-    const token = `local_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  // POST /admin/login — the password is the shared ADMIN_PASSWORD (email is
+  // display only). Mock mode keeps a client-only gate.
+  async login(email: string, password: string): Promise<{ token: string; user: AdminUser }> {
+    const user: AdminUser = { id: 'usr_admin_001', name: (email.split('@')[0] || 'Admin').toUpperCase(), email, role: 'admin' };
+    if (apiConfig.useMock) {
+      await new Promise((res) => setTimeout(res, 300));
+      return { token: `local_${Date.now()}`, user };
+    }
+    const res = await fetch(`${apiConfig.baseUrl}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (res.status === 503) throw new Error('Admin API is disabled on the server (ADMIN_PASSWORD not set).');
+    if (!res.ok) throw new Error('Wrong admin password.');
+    const { token } = (await res.json()) as { token: string };
     return { token, user };
   },
 
@@ -131,7 +140,27 @@ export const adminService = {
       return newProblem;
     }
 
-    throw new Error(NO_MUTATION);
+    const KNOWN = ['injection', 'auth', 'error-handling', 'concurrency', 'logic', 'resource', 'clean'];
+    const dc = (problemData.tags || []).map((t) => t.toLowerCase()).find((t) => KNOWN.includes(t)) || 'logic';
+    const code = problemData.starterCode?.python || problemData.starterCode?.javascript || problemData.statement || '';
+    const res = await fetch(`${apiConfig.baseUrl}/admin/exercises`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        title: problemData.title,
+        defect_class: dc,
+        difficulty: DIFF_TO_TIER[problemData.difficulty] || 'beginner',
+        code,
+        reference: problemData.statement || '',
+        review_status: STATUS_TO_REVIEW[problemData.status] || 'approved',
+      }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.detail || `Create failed (${res.status}). The form needs a real buggy-code snippet + defect class.`);
+    }
+    const { id } = (await res.json()) as { id: string };
+    return { ...(problemData as Problem), id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   },
 
   // Update problem
@@ -151,7 +180,23 @@ export const adminService = {
       return updated;
     }
 
-    throw new Error(NO_MUTATION);
+    if (updates.title !== undefined || updates.difficulty !== undefined) {
+      const body: Record<string, unknown> = {};
+      if (updates.title !== undefined) body.title = updates.title;
+      if (updates.difficulty !== undefined) body.difficulty = DIFF_TO_TIER[updates.difficulty] || 'beginner';
+      const res = await fetch(`${apiConfig.baseUrl}/admin/exercises/${id}`, {
+        method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`Update failed (${res.status})`);
+    }
+    if (updates.status !== undefined) {
+      const res = await fetch(`${apiConfig.baseUrl}/admin/exercises/${id}/review`, {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ status: STATUS_TO_REVIEW[updates.status] || 'unreviewed' }),
+      });
+      if (!res.ok) throw new Error(`Status change failed (${res.status})`);
+    }
+    return { id, ...updates, updatedAt: new Date().toISOString() } as Problem;
   },
 
   // Delete problem
@@ -163,7 +208,11 @@ export const adminService = {
       return true;
     }
 
-    throw new Error(NO_MUTATION);
+    const res = await fetch(`${apiConfig.baseUrl}/admin/exercises/${id}`, {
+      method: 'DELETE', headers: getAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+    return true;
   },
 
   // Approve problem
@@ -172,6 +221,10 @@ export const adminService = {
       return this.updateProblem(id, { status: 'Approved' });
     }
 
-    throw new Error(NO_MUTATION);
+    const res = await fetch(`${apiConfig.baseUrl}/admin/exercises/${id}/review`, {
+      method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ status: 'approved' }),
+    });
+    if (!res.ok) throw new Error(`Approve failed (${res.status})`);
+    return { id, status: 'Approved' } as Problem;
   },
 };
