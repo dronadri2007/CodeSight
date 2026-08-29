@@ -11,137 +11,152 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// 24x32 UV-Calibrated Grid: 100% Square Pixels in UV Space (Width = Height = 6px)
-type Matrix24x32 = number[][];
+// 64-Bit High-Density Matrix (48 Columns x 64 Rows)
+// 0 = Background, 1 = Neon Cyan (#00F0FF), 2 = Ice Highlight (#FFFFFF), 3 = Deep Cyan (#00889E)
+type Matrix64Bit = number[][];
 
-function parse24x32(pattern: string[]): Matrix24x32 {
+function parse64Bit(pattern: string[]): Matrix64Bit {
   return pattern.map((row) =>
     Array.from(row).map((char) => {
       if (char === '*') return 2;
+      if (char === '+') return 3;
       if (char === '#') return 1;
       return 0;
     })
   );
 }
 
-function create24x32Pattern(builder: (g: string[][]) => void): Matrix24x32 {
-  const g: string[][] = Array.from({ length: 32 }, () => Array(24).fill('.'));
+function create64BitPattern(builder: (g: string[][]) => void): Matrix64Bit {
+  const g: string[][] = Array.from({ length: 64 }, () => Array(48).fill('.'));
   builder(g);
-  return parse24x32(g.map((r) => r.join('')));
+  return parse64Bit(g.map((r) => r.join('')));
 }
 
-function drawRect24x32(g: string[][], r: number, c: number, h: number, w: number, char = '#') {
+function drawRect64(g: string[][], r: number, c: number, h: number, w: number, char = '#') {
   for (let i = r; i < r + h; i++) {
     for (let j = c; j < c + w; j++) {
-      if (i >= 0 && i < 32 && j >= 0 && j < 24) {
+      if (i >= 0 && i < 64 && j >= 0 && j < 48) {
         g[i][j] = char;
       }
     }
   }
 }
 
-function drawCircle24x32(g: string[][], cr: number, cc: number, radius: number, char = '#', fill = true, highlight = false) {
-  for (let r = 0; r < 32; r++) {
-    for (let c = 0; c < 24; c++) {
+function drawCircle64(g: string[][], cr: number, cc: number, radius: number, char = '#', fill = true, highlight = false) {
+  for (let r = 0; r < 64; r++) {
+    for (let c = 0; c < 48; c++) {
       const d = Math.sqrt((r - cr) ** 2 + (c - cc) ** 2);
       if (fill) {
-        if (d <= radius) g[r][c] = char;
+        if (d <= radius) {
+          if (d >= radius - 1.0) {
+            g[r][c] = '+';
+          } else {
+            g[r][c] = char;
+          }
+        }
       } else {
-        if (radius - 1.3 <= d && d <= radius + 0.3) g[r][c] = char;
+        if (radius - 1.8 <= d && d <= radius + 0.4) {
+          g[r][c] = char;
+        }
       }
     }
   }
-  if (highlight && fill && cr - 1 >= 0 && cc - 1 >= 0) {
-    g[cr - 1][cc - 1] = '*';
-    g[cr - 1][cc] = '*';
+  if (highlight && fill) {
+    for (let dr = -2; dr <= 0; dr++) {
+      for (let dc = -2; dc <= 0; dc++) {
+        if (cr + dr >= 0 && cr + dr < 64 && cc + dc >= 0 && cc + dc < 48) {
+          g[cr + dr][cc + dc] = '*';
+        }
+      }
+    }
   }
 }
 
-// 24x32 Pixel Art Expressions with 100% Square Pixel Aspect Ratio
-const PIXEL_EXPRESSIONS_24X32: Record<ExpressionType, Matrix24x32> = {
-  // f) Neutral (Resting): Two 7x7 round eyes with catchlights + 8px small smile with dimples
-  neutral: create24x32Pattern((g) => {
-    drawCircle24x32(g, 10, 6, 3.5, '#', true, true);
-    drawCircle24x32(g, 10, 17, 3.5, '#', true, true);
-    drawRect24x32(g, 22, 8, 2, 8, '#');
-    drawRect24x32(g, 21, 7, 2, 1, '*');
-    drawRect24x32(g, 21, 16, 2, 1, '*');
+// 64-Bit Pixel Art Expressions
+const PIXEL_EXPRESSIONS_64BIT: Record<ExpressionType, Matrix64Bit> = {
+  // f) Neutral (Resting): Two 16x16 high-res round eyes with dual-glint pupils + curved smile with dimples
+  neutral: create64BitPattern((g) => {
+    drawCircle64(g, 20, 12, 7.5, '#', true, true);
+    drawCircle64(g, 20, 35, 7.5, '#', true, true);
+    drawRect64(g, 44, 16, 4, 16, '#');
+    drawRect64(g, 42, 14, 4, 2, '*');
+    drawRect64(g, 42, 32, 4, 2, '*');
   }),
 
-  // a) >.< (Playful Squint): Angled downward chevrons + small smile
-  squint: create24x32Pattern((g) => {
-    for (let i = 0; i < 5; i++) {
-      g[8 + i][4 + i] = '#';
-      g[8 + i][4 + i + 1] = '*';
-      g[12 + i][8 - i] = '#';
-      g[12 + i][8 - i + 1] = '*';
+  // a) >.< (Playful Squint): High-density chevrons with anti-aliased edges + cute 64-bit smile
+  squint: create64BitPattern((g) => {
+    for (let i = 0; i < 10; i++) {
+      g[15 + i][7 + i] = '#';
+      g[15 + i][7 + i + 1] = '*';
+      g[25 + i][16 - i] = '#';
+      g[25 + i][16 - i + 1] = '*';
 
-      g[8 + i][19 - i] = '#';
-      g[8 + i][19 - i - 1] = '*';
-      g[12 + i][15 + i] = '#';
-      g[12 + i][15 + i - 1] = '*';
+      g[15 + i][40 - i] = '#';
+      g[15 + i][40 - i - 1] = '*';
+      g[25 + i][31 + i] = '#';
+      g[25 + i][31 + i - 1] = '*';
     }
-    drawRect24x32(g, 23, 9, 2, 6, '#');
-    drawRect24x32(g, 22, 8, 2, 1, '*');
-    drawRect24x32(g, 22, 15, 2, 1, '*');
+    drawRect64(g, 45, 18, 4, 12, '#');
+    drawRect64(g, 43, 16, 4, 2, '*');
+    drawRect64(g, 43, 30, 4, 2, '*');
   }),
 
-  // b) :O (Surprised): Large 8x8 dual-layer open circles + large 8x8 open O mouth
-  surprised: create24x32Pattern((g) => {
-    drawCircle24x32(g, 10, 6, 4.2, '#', false);
-    drawCircle24x32(g, 10, 6, 2.8, '*', false);
-    drawCircle24x32(g, 10, 17, 4.2, '#', false);
-    drawCircle24x32(g, 10, 17, 2.8, '*', false);
+  // b) :O (Surprised): Two large 18x18 detailed open circles + large 16x16 open O mouth
+  surprised: create64BitPattern((g) => {
+    drawCircle64(g, 20, 12, 8.5, '#', false);
+    drawCircle64(g, 20, 12, 6.0, '*', false);
+    drawCircle64(g, 20, 35, 8.5, '#', false);
+    drawCircle64(g, 20, 35, 6.0, '*', false);
 
-    drawCircle24x32(g, 22, 11, 3.8, '#', false);
-    drawCircle24x32(g, 22, 11, 2.5, '*', false);
+    drawCircle64(g, 44, 24, 8.0, '#', false);
+    drawCircle64(g, 44, 24, 5.5, '*', false);
   }),
 
-  // c) ^_^ (Happy): Large chevron arches + wide 14px smile with dimples
-  happy: create24x32Pattern((g) => {
-    for (let i = 0; i < 5; i++) {
-      g[12 - i][4 + i] = '#';
-      g[11 - i][4 + i] = '*';
-      g[8 + i][8 + i] = '#';
-      g[7 + i][8 + i] = '*';
+  // c) ^_^ (Happy): Detailed curved chevron arches + wide 28px smile with dimples
+  happy: create64BitPattern((g) => {
+    for (let i = 0; i < 10; i++) {
+      g[24 - i][7 + i] = '#';
+      g[23 - i][7 + i] = '*';
+      g[15 + i][16 + i] = '#';
+      g[14 + i][16 + i] = '*';
 
-      g[12 - i][15 + i] = '#';
-      g[11 - i][15 + i] = '*';
-      g[8 + i][19 + i] = '#';
-      g[7 + i][19 + i] = '*';
+      g[24 - i][31 + i] = '#';
+      g[23 - i][31 + i] = '*';
+      g[15 + i][40 + i] = '#';
+      g[14 + i][40 + i] = '*';
     }
-    drawRect24x32(g, 23, 5, 2, 14, '#');
-    drawRect24x32(g, 22, 4, 2, 1, '*');
-    drawRect24x32(g, 22, 19, 2, 1, '*');
+    drawRect64(g, 45, 10, 4, 28, '#');
+    drawRect64(g, 43, 8, 4, 3, '*');
+    drawRect64(g, 43, 37, 4, 3, '*');
   }),
 
-  // d) ;) (Wink): Closed horizontal bar (8px) + Large open 7x7 eye with catchlight + Smirk
-  wink: create24x32Pattern((g) => {
-    drawRect24x32(g, 10, 3, 2, 8, '#');
-    drawRect24x32(g, 9, 3, 1, 8, '*');
-    drawCircle24x32(g, 10, 17, 3.5, '#', true, true);
-    drawRect24x32(g, 23, 8, 2, 8, '#');
-    drawRect24x32(g, 21, 16, 2, 2, '*');
+  // d) ;) (Wink): Closed horizontal bar (16px) + Large open 16x16 eye with catchlight + Smirk
+  wink: create64BitPattern((g) => {
+    drawRect64(g, 20, 6, 4, 16, '#');
+    drawRect64(g, 18, 6, 2, 16, '*');
+    drawCircle64(g, 20, 35, 7.5, '#', true, true);
+    drawRect64(g, 45, 16, 4, 16, '#');
+    drawRect64(g, 41, 31, 4, 3, '*');
   }),
 
-  // e) -_- (Suspicious): Twin 8px flat horizontal lines + straight 10px mouth
-  suspicious: create24x32Pattern((g) => {
-    drawRect24x32(g, 10, 3, 2, 8, '#');
-    drawRect24x32(g, 9, 3, 1, 8, '*');
-    drawRect24x32(g, 10, 13, 2, 8, '#');
-    drawRect24x32(g, 9, 13, 1, 8, '*');
-    drawRect24x32(g, 23, 7, 2, 10, '#');
+  // e) -_- (Suspicious): Twin 16px flat horizontal lines with top highlight + straight 20px mouth
+  suspicious: create64BitPattern((g) => {
+    drawRect64(g, 20, 6, 4, 16, '#');
+    drawRect64(g, 18, 6, 2, 16, '*');
+    drawRect64(g, 20, 26, 4, 16, '#');
+    drawRect64(g, 18, 26, 2, 16, '*');
+    drawRect64(g, 45, 14, 4, 20, '#');
   }),
 };
 
-// UV-Calibrated Square Pixel Visor Texture Manager
-class UVCalibratedVisorManager {
+// 64-Bit High-Density Visor Texture Manager
+class Visor64BitManager {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;
   texture: THREE.CanvasTexture;
 
-  readonly COLS = 24;
-  readonly ROWS = 32;
+  readonly COLS = 48;
+  readonly ROWS = 64;
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -154,7 +169,6 @@ class UVCalibratedVisorManager {
     this.texture.minFilter = THREE.NearestFilter;
     this.texture.magFilter = THREE.NearestFilter;
 
-    // Strict UV mapping parameters requested:
     this.texture.wrapS = THREE.ClampToEdgeWrapping;
     this.texture.wrapT = THREE.ClampToEdgeWrapping;
     this.texture.repeat.set(1, 1);
@@ -173,18 +187,17 @@ class UVCalibratedVisorManager {
     ctx.fillStyle = '#0A0A0F';
     ctx.fillRect(0, 0, w, h);
 
-    // Active Face Visor UV Coordinates on 512x512 Canvas:
-    // Centered at X=256, Y=252 with uniform 6.0px x 6.0px cell size
-    const cellSize = 6.0; // 100% Square in UV space
+    // Active Face Visor UV Coordinates on 512x512 Canvas (3.0px x 3.0px per pixel block)
+    const cellSize = 3.0; // 100% Square in UV space
     const startX = Math.round(256 - (COLS * cellSize) / 2); // 184
     const startY = Math.round(252 - (ROWS * cellSize) / 2); // 156
-    const gap = 1.0;
-    const pixelSize = cellSize - gap; // 5.0px x 5.0px
+    const gap = 0.4;
+    const pixelSize = cellSize - gap; // 2.6px x 2.6px
 
-    const fromGrid = PIXEL_EXPRESSIONS_24X32[fromExpr];
-    const toGrid = PIXEL_EXPRESSIONS_24X32[toExpr];
+    const fromGrid = PIXEL_EXPRESSIONS_64BIT[fromExpr];
+    const toGrid = PIXEL_EXPRESSIONS_64BIT[toExpr];
 
-    // Render 24x32 Pixel Grid (100% Euclidean Square Pixels in UV space)
+    // Render 64-Bit High-Density Matrix (48x64)
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const x = Math.round(startX + c * cellSize);
@@ -194,33 +207,28 @@ class UVCalibratedVisorManager {
         const valTo = toGrid[r][c];
 
         const intensity = (valFrom > 0 ? 1 : 0) * (1 - t) + (valTo > 0 ? 1 : 0) * t;
-        const isHighlight = (valFrom === 2 ? 1 : 0) * (1 - t) + (valTo === 2 ? 1 : 0) * t > 0.5;
+        const mode = t > 0.5 ? valTo : valFrom;
 
         if (intensity > 0.05) {
-          // Soft Neon Glow Layer (#00F0FF with 20% opacity)
+          // Soft Neon Glow Layer (#00F0FF)
           ctx.shadowColor = '#00F0FF';
-          ctx.shadowBlur = 8 * intensity;
+          ctx.shadowBlur = 6 * intensity;
 
-          // Outer Glow
-          ctx.fillStyle = `rgba(0, 240, 255, ${0.20 * intensity})`;
-          ctx.fillRect(x - 2, y - 2, pixelSize + 4, pixelSize + 4);
-
-          if (isHighlight) {
-            // Edge Highlight: Lighter Cyan (#66F5FF)
-            ctx.fillStyle = `rgba(102, 245, 255, ${0.98 * intensity})`;
+          if (mode === 2) {
+            // Ice White Highlight (#FFFFFF / #80F7FF)
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.98 * intensity})`;
+          } else if (mode === 3) {
+            // Deep Cyan Accent (#00889E)
+            ctx.fillStyle = `rgba(0, 160, 190, ${0.90 * intensity})`;
           } else {
-            // Main Pixel: Bright Cyan (#00F0FF)
-            ctx.fillStyle = `rgba(0, 240, 255, ${0.92 * intensity})`;
+            // Main Neon Cyan (#00F0FF)
+            ctx.fillStyle = `rgba(0, 240, 255, ${0.95 * intensity})`;
           }
           ctx.fillRect(x, y, pixelSize, pixelSize);
-
-          // Subtle inner pixel core
-          ctx.fillStyle = `rgba(240, 255, 255, ${0.85 * intensity})`;
-          ctx.fillRect(x + 1, y + 1, Math.max(1, pixelSize - 2), Math.max(1, pixelSize - 2));
         } else {
-          // Unlit LED pixel grid dot
+          // Unlit LED matrix dot
           ctx.shadowBlur = 0;
-          ctx.fillStyle = 'rgba(0, 240, 255, 0.03)';
+          ctx.fillStyle = 'rgba(0, 240, 255, 0.025)';
           ctx.fillRect(x, y, pixelSize, pixelSize);
         }
       }
@@ -234,13 +242,13 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF('/assets/greeting_robot.glb');
 
-  const visorMgr = useMemo(() => new UVCalibratedVisorManager(), []);
+  const visorMgr = useMemo(() => new Visor64BitManager(), []);
 
   // Expression State Tracking
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
 
-  // Apply colors & exact UV-calibrated texture
+  // Apply colors & 64-bit texture map
   const styledScene = useMemo(() => {
     const cloned = scene.clone(true);
 
@@ -305,14 +313,14 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       metalness: 0.8,
     });
 
-    // 6. UV-Calibrated Square Pixel Visor Material
+    // 6. 64-Bit High-Density Visor Material
     const faceVisorMat = new THREE.MeshBasicMaterial({
       map: visorMgr.texture,
       transparent: true,
       opacity: 0.99,
     });
 
-    // Hide original 3D mouth, eyes, eyebrows meshes so ONLY the square pixel art appears
+    // Hide original 3D mouth, eyes, eyebrows meshes so ONLY the 64-bit pixel art appears
     cloned.traverse((child) => {
       const name = (child.name || '').toLowerCase();
       const parentName = (child.parent?.name || '').toLowerCase();
@@ -394,7 +402,7 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
       );
     }
 
-    // 2. 7-Second Animation Loop:
+    // 2. 7-Second 64-Bit Animation Loop:
     // - 0.0s - 0.5s: Smooth transition to random expression
     // - 0.5s - 2.0s: Hold expression (1.5s)
     // - 2.0s - 2.5s: Smooth transition back to neutral
@@ -438,10 +446,10 @@ function RobotModel({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   );
 }
 
-// Procedural 3D Robot Fallback with UV-Calibrated Visor Face
+// Procedural 3D Robot Fallback with 64-Bit Visor Face
 function ProceduralBot({ mouseX, mouseY }: { mouseX: number; mouseY: number }) {
   const headRef = useRef<THREE.Group>(null);
-  const visorMgr = useMemo(() => new UVCalibratedVisorManager(), []);
+  const visorMgr = useMemo(() => new Visor64BitManager(), []);
 
   const currentExprRef = useRef<ExpressionType>('happy');
   const lastCycleRef = useRef<number>(-1);
