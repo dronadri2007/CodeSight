@@ -18142,5 +18142,402 @@
       "Consider what happens when the current time is exactly equal to the expiration timestamp.",
       "Tokens should typically remain valid up to and including the exact expiration second, so the operator needs to allow for equality."
     ]
+  },
+  {
+    "id": "ex-g0920",
+    "language": "python",
+    "title": "Unauthenticated Rate Limiter Reset",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "def reset_rate_limit(request):\n    user_id = request.args.get('user_id')\n    if not user_id:\n        return {'error': 'Missing user_id'}, 400\n    \n    # Clear the rate limit history for the user\n    cache.delete(f'ratelimit:{user_id}')\n    return {'status': 'success'}, 200\n",
+    "real_lines": [
+      2,
+      6
+    ],
+    "fix_diff": "--- ratelimit.py\n+++ ratelimit.py\n@@ -1,6 +1,6 @@\n def reset_rate_limit(request):\n-    user_id = request.args.get('user_id')\n+    user_id = current_user.id\n     if not user_id:\n         return {'error': 'Missing user_id'}, 400\n     \n     # Clear the rate limit history for the user\n     cache.delete(f'ratelimit:{user_id}')\n     return {'status': 'success'}, 200",
+    "reference": "This function allows an administrative action to be performed based on user-supplied input from request arguments rather than verified session credentials. This leads to an Insecure Direct Object Reference (IDOR) vulnerability, allowing any user to reset the rate limit for any other user ID by manipulating the parameter. The fix is to derive the target user identifier securely from the authenticated session context instead of trusting client-provided input.",
+    "hints": [
+      "Look closely at where the function gets the target user's identifier.",
+      "Consider whether trusting input directly from URL arguments is safe for sensitive state-changing operations.",
+      "Replace the client-controlled request argument with the securely verified currently logged-in user's identifier."
+    ]
+  },
+  {
+    "id": "ex-g0921",
+    "language": "python",
+    "title": "Unused Import or Redefinition Illusion",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "from typing import TYPE_CHECKING, List, Dict, Any\n\nif TYPE_CHECKING:\n    from .models import Dataset\n\ndef generate_summary(datasets: List[\"Dataset\"]) -> Dict[str, Any]:\n    summary = {}\n    for ds in datasets:\n        summary[ds.name] = ds.row_count\n    return summary\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of forward declarations via string literals (\"Dataset\") inside TYPE_CHECKING blocks is a standard performance and circular-import prevention pattern in Python typing. The code is fully correct and robust.",
+    "hints": [
+      "Check how the 'Dataset' type is referenced in the function signature.",
+      "Look at the imports section and see why TYPE_CHECKING is being utilized."
+    ]
+  },
+  {
+    "id": "ex-g0922",
+    "language": "python",
+    "title": "Unthreadsafe Token Bucket Rate Limiter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth_limiter.py",
+    "code": "import time\n\nclass LoginRateLimiter:\n    def __init__(self, capacity=5, refill_rate=1.0):\n        self.capacity = capacity\n        self.tokens = capacity\n        self.last_refill = time.time()\n\n    def acquire(self):\n        now = time.time()\n        elapsed = now - self.last_refill\n        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n        self.last_refill = now\n        if self.tokens >= 1.0:\n            self.tokens -= 1.0\n            return True\n        return False\n",
+    "real_lines": [
+      11
+    ],
+    "fix_diff": "@@ -11,1 +11,1 @@\n-        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n+        with self._lock:\n+            self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)",
+    "reference": "This code implements a token bucket rate limiter to prevent brute-force authentication attacks, but it lacks thread synchronization. Because multiple threads handling concurrent login requests can read and mutate 'self.tokens' and 'self.last_refill' simultaneously, a race condition can cause tokens to be incorrectly calculated or duplicated. Adding a threading lock around the critical section ensures that state updates remain atomic and thread-safe.",
+    "hints": [
+      "Consider what happens when multiple web requests hit this authentication endpoint simultaneously.",
+      "Look closely at shared mutable state inside the instance attributes.",
+      "Introduce a threading Lock to protect the token calculation and decrement logic."
+    ]
+  },
+  {
+    "id": "ex-g0923",
+    "language": "python",
+    "title": "Mutable Default Argument in Cache",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class SimpleCache:\n    def __init__(self):\n        self.store = {}\n\n    def get_or_set(self, key, factory, default={}):\n        if key not in self.store:\n            self.store[key] = factory()\n        return self.store.get(key, default)\n",
+    "real_lines": [
+      5,
+      8
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -5,4 +5,4 @@\n-    def get_or_set(self, key, factory, default={}):\n+    def get_or_set(self, key, factory, default=None):\n         if key not in self.store:\n             self.store[key] = factory()\n-        return self.store.get(key, default)\n+        return self.store.get(key, default)",
+    "reference": "Python evaluates default arguments only once when the function is defined, meaning using a mutable dictionary like `{}` as a default argument shares that single instance across all calls. If a caller relies on the default fallback and modifies it, those changes will inadvertently persist and affect subsequent cache misses. The fix is to use an immutable sentinel value like `None` and instantiate a fresh object inside the method body if needed.",
+    "hints": [
+      "Examine how default function arguments are handled in Python.",
+      "Look closely at the parameter list of the 'get_or_set' method.",
+      "Using a mutable object as a default argument can lead to shared state across multiple method calls."
+    ]
+  },
+  {
+    "id": "ex-g0924",
+    "language": "python",
+    "title": "Suspicious-Looking Middleware Request Sanitization",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logging_middleware.py",
+    "code": "import logging\n\nlogger = logging.getLogger(__name__)\n\ndef log_request_payload(payload: dict) -> None:\n    safe_payload = payload.copy()\n    if \"password\" in safe_payload:\n        safe_payload[\"password\"] = \"[REDACTED]\"\n    logger.info(\"Incoming request payload: %s\", safe_payload)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although modifying a dictionary copy might look like it could affect the original payload if nested structures are involved, this function operates on a shallow copy to prevent mutating the caller's dictionary, and the sensitive key check directly targets the top-level 'password' field safely. This is a clean implementation and flags raised here are false positives.",
+    "hints": [
+      "Check whether the dictionary operation creates a new instance before making modifications.",
+      "Verify if the modification affects the original reference passed into the function."
+    ]
+  },
+  {
+    "id": "ex-g0925",
+    "language": "python",
+    "title": "Uncaught OSError in Thumbnail Generator",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\nfrom PIL import Image\n\ndef create_thumbnail(image_path, output_path, size=(128, 128)):\n    img = Image.open(image_path)\n    img.thumbnail(size)\n    img.save(output_path)\n    img.close()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    img = Image.open(image_path)\n+    try:\n+        img = Image.open(image_path)\n+    except OSError:\n+        raise ValueError(f\"Invalid or unreadable image file: {image_path}\")",
+    "reference": "The function attempts to open an image file using Pillow without handling potential file system or decoding errors. If the file is missing, corrupted, or not a valid image format, Image.open() raises an OSError. Wrapping the file opening operation in a try-except block allows the application to gracefully catch this exception and raise a more informative error.",
+    "hints": [
+      "Consider what happens if the provided file path does not exist or points to a corrupted file.",
+      "Which function call interacts directly with the file system to read the image data?",
+      "Wrap the Image.open() call in a try-except block to catch OSError and raise a descriptive ValueError."
+    ]
+  },
+  {
+    "id": "ex-g0926",
+    "language": "python",
+    "title": "Insecure Session Token Comparison",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "session_auth.py",
+    "code": "import hmac\n\ndef validate_session(user_token, expected_token):\n    if user_token == expected_token:\n        return True\n    return False\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    if user_token == expected_token:\n+    if hmac.compare_digest(user_token, expected_token):",
+    "reference": "Using standard equality operators like '==' for comparing secret session tokens or hashes is vulnerable to timing attacks. An attacker can measure the time it takes for the comparison to fail and incrementally deduce the correct token. Using 'hmac.compare_digest' ensures a constant-time comparison, preventing this vulnerability.",
+    "hints": [
+      "Look closely at how the two tokens are being compared.",
+      "Standard comparison operators in Python short-circuit when a mismatch is found, which leaks timing information.",
+      "Use the 'hmac' module to perform a secure, constant-time string comparison."
+    ]
+  },
+  {
+    "id": "ex-g0927",
+    "language": "python",
+    "title": "Insecure Session Validation",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def get_current_user(session):\n    if session:\n        user_id = session.get(\"user_id\")\n        return user_id\n    return None\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if session:\n+    if session and \"user_id\" in session:",
+    "reference": "The original code merely checks if the session object itself exists and is truthy, but it fails to verify whether the session has been authenticated or actually contains a valid user identifier. An empty or unauthenticated session dictionary could still evaluate to true if it contains other metadata, leading to unauthorized access. The fix ensures that the specific 'user_id' key is explicitly present in the session before granting access.",
+    "hints": [
+      "Check how the session's contents are validated before extracting data.",
+      "Consider what happens if an empty or dummy session dictionary is passed.",
+      "Verify that the 'user_id' key actually exists within the session dictionary."
+    ]
+  },
+  {
+    "id": "ex-g0928",
+    "language": "python",
+    "title": "Missing File Handling in Thumbnailer",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(image_path, output_path):\n    img = Image.open(image_path)\n    img.thumbnail((128, 128))\n    img.save(output_path)\n    print(\"Thumbnail created successfully\")\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    img = Image.open(image_path)\n+    try:\n+        img = Image.open(image_path)\n+    except FileNotFoundError:\n+        print(\"The specified image file was not found.\")\n+        return",
+    "reference": "The function attempts to open an image file directly without handling the possibility that the file does not exist. If an invalid path is passed, Image.open will raise a FileNotFoundError and crash the program. Adding a try-except block allows the function to gracefully handle missing files and inform the user.",
+    "hints": [
+      "Consider what happens if the input file path does not exist.",
+      "Image.open() can raise an exception when a file is missing.",
+      "Wrap the file opening logic in a try-except block targeting FileNotFoundError."
+    ]
+  },
+  {
+    "id": "ex-g0929",
+    "language": "python",
+    "title": "Missing Exception Type in Inventory Check",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def get_item_count(inventory, item_name):\n    try:\n        return inventory[item_name]\n    except:\n        return 0\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-    except:\n+    except KeyError:\n         return 0",
+    "reference": "Using a bare 'except:' clause catches all exceptions, including system-exiting errors like KeyboardInterrupt or SystemExit, which can make debugging very difficult. It is best practice to catch specific exceptions, such as KeyError in this dictionary lookup scenario, to ensure unexpected errors are not silently swallowed.",
+    "hints": [
+      "Look closely at the except statement in the function.",
+      "Consider what exceptions might actually be thrown when looking up a missing key in a dictionary.",
+      "Replace the generic except clause with a specific exception type like KeyError."
+    ]
+  },
+  {
+    "id": "ex-g0930",
+    "language": "python",
+    "title": "Unusual looking HTTP request logging middleware",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "middleware.py",
+    "code": "import time\nimport logging\n\nlogger = logging.getLogger(\"http.access\")\n\ndef log_request_middleware(request, get_response):\n    start_time = time.perf_counter()\n    try:\n        response = request.body\n        return get_response(request)\n    finally:\n        duration = time.perf_counter() - start_time\n        logger.info(\"Method: %s Path: %s Duration: %.4fs\", request.method, request.path, duration)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "A novice reviewer might look at 'response = request.body' and suspect that it is a bug or redundant since the variable is never used again. However, in Django and similar frameworks, accessing 'request.body' forces the underlying WSGI/ASGI input stream to be read and cached. Doing this in logging middleware ensures that request body consumption happens predictably and avoids stream exhaustion issues downstream. The code is entirely correct and safe.",
+    "hints": [
+      "Look closely at the line where request.body is accessed before get_response is called.",
+      "Consider how request streams work in web frameworks and whether forcing a read could be a deliberate performance or caching pattern."
+    ]
+  },
+  {
+    "id": "ex-g0931",
+    "language": "python",
+    "title": "Handling Missing Inventory Keys",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def get_item_price(inventory, item_name):\n    try:\n        return inventory[item_name]\n    except KeyError:\n        return None\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-        return inventory[item_name]\n+        return inventory[item_name][\"price\"]",
+    "reference": "The original function attempts to return the entire dictionary value for the given item name, but the caller expects specifically the price field. Accessing a missing nested key or returning the wrong structure can cause downstream attribute errors in the inventory service. By directly accessing the price key inside the try block, the function correctly retrieves the targeted data while still catching unexpected lookup failures.",
+    "hints": [
+      "Check what the function is supposed to return.",
+      "Look closely at the data structure stored inside the inventory dictionary.",
+      "Ensure you are extracting the specific 'price' field from the item data."
+    ]
+  },
+  {
+    "id": "ex-g0932",
+    "language": "python",
+    "title": "Unauthenticated CSV Import",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\nfrom flask import request, abort\n\ndef import_users_csv():\n    if not request.files:\n        abort(400)\n    file = request.files['file']\n    reader = csv.reader(file.read().decode('utf-8').splitlines())\n    for row in reader:\n        db.save_user(row[0], row[1])\n    return \"Success\"\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,2 @@\n+@login_required\n def import_users_csv():",
+    "reference": "This endpoint performs a sensitive state-changing action by importing user data from a CSV file into the database, but it lacks authentication checks. Without verifying the identity and privileges of the caller via decorators like @login_required, any anonymous user can execute this import and potentially corrupt or populate database records. Securing the endpoint ensures that only authorized users have access to import functionality.",
+    "hints": [
+      "Examine the function decorators in use.",
+      "Consider who is allowed to import data into the database.",
+      "Add an authentication decorator to restrict access to this function."
+    ]
+  },
+  {
+    "id": "ex-g0933",
+    "language": "python",
+    "title": "Global Accumulator Race Condition in Report Generation",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "import threading\n\ntotal_revenue = 0\n\ndef process_branch_sales(sales_data):\n    global total_revenue\n    for sale in sales_data:\n        total_revenue += sale\n\ndef generate_sales_report(branches):\n    threads = [threading.Thread(target=process_branch_sales, args=(data,)) for data in branches]\n    for t in threads: t.start()\n    for t in threads: t.join()\n    return f\"Total Revenue: {total_revenue}\"\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- report_generator.py\n+++ report_generator.py\n@@ -9,1 +9,2 @@\n-        total_revenue += sale\n+        with threading.Lock():\n+            total_revenue += sale",
+    "reference": "This code suffers from a race condition because multiple threads concurrently read, modify, and write to the shared global variable `total_revenue` without synchronization. In Python, the `+=` operation is not atomic, meaning the underlying bytecode instructions can be interleaved, leading to lost updates. To fix this, a threading.Lock should be used to ensure exclusive access to the critical section where the accumulator is updated.",
+    "hints": [
+      "Examine how shared state is modified across multiple threads.",
+      "Look closely at the `+=` operator inside the `process_branch_sales` function.",
+      "Consider wrapping the accumulation step in a context manager to ensure mutual exclusion."
+    ]
+  },
+  {
+    "id": "ex-g0934",
+    "language": "python",
+    "title": "Unclosed Database Cursor in Search Endpoint",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_items(query, db_conn):\n    cursor = db_conn.cursor()\n    sql = \"SELECT id, name FROM items WHERE name LIKE %s\"\n    cursor.execute(sql, ('%' + query + '%',))\n    results = cursor.fetchall()\n    return results\n",
+    "real_lines": [
+      2,
+      6
+    ],
+    "fix_diff": "@@ -2,5 +2,6 @@\n     cursor = db_conn.cursor()\n     sql = \"SELECT id, name FROM items WHERE name LIKE %s\"\n     cursor.execute(sql, ('%' + query + '%',))\n     results = cursor.fetchall()\n+    cursor.close()\n     return results",
+    "reference": "When executing database queries within a function, resources like cursors must be explicitly closed or managed via context managers to prevent connection pool exhaustion. In high-throughput search endpoints, leaving cursors unclosed can quickly deplete available database handles, leading to application slowdowns or connection failures. Using a 'with' statement or explicitly calling 'cursor.close()' ensures the resource is properly released back to the pool after the query executes.",
+    "hints": [
+      "Consider the lifecycle of database resources inside the function.",
+      "Look at how the cursor object is instantiated and whether its state is cleaned up before the function returns.",
+      "Explicitly closing the cursor or utilizing a context manager prevents resource leaks under heavy traffic."
+    ]
+  },
+  {
+    "id": "ex-g0935",
+    "language": "python",
+    "title": "Unbounded LRU Cache Memory Leak",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "from collections import OrderedDict\n\nclass SimpleCache:\n    def __init__(self, capacity: int = 128):\n        self.capacity = capacity\n        self.store = OrderedDict()\n\n    def get(self, key):\n        if key not in self.store:\n            return None\n        self.store.move_to_end(key)\n        return self.store[key]\n\n    def put(self, key, value):\n        self.store[key] = value\n        self.store.move_to_end(key)\n        if len(self.store) > self.capacity:\n            self.store.popitem(last=False)\n",
+    "real_lines": [
+      16
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -15,2 +15,3 @@\n         self.store[key] = value\n+        self.store.move_to_end(key)\n         if len(self.store) > self.capacity:\n",
+    "reference": "The put method attempts to maintain the cache capacity by evicting the oldest item when the size exceeds the limit. However, the logic for marking the newly inserted or updated item as recently used is invoked out of order or redundantly. Specifically, using OrderedDict requires ensuring that the insertion and movement are correctly coordinated with capacity checks to prevent memory leaks or incorrect eviction orders.",
+    "hints": [
+      "Examine how the cache tracks recently used items during a put operation.",
+      "Look closely at the order of operations when updating an existing key versus inserting a new one.",
+      "The move_to_end call is duplicated or placed redundantly relative to dictionary assignment."
+    ]
+  },
+  {
+    "id": "ex-g0936",
+    "language": "python",
+    "title": "Uncaught Exception in Report Exporter",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "exporter.py",
+    "code": "import json\n\ndef export_report(data, filepath):\n    try:\n        with open(filepath, 'w') as f:\n            json.dump(data, f)\n    except IOError as e:\n        print(f\"IO error occurred: {e}\")\n    except:\n        print(\"An unexpected error occurred\")\n        raise\n",
+    "real_lines": [
+      7,
+      8,
+      9,
+      10
+    ],
+    "fix_diff": "@@ -7,4 +7,3 @@\n-    except:\n-        print(\"An unexpected error occurred\")\n-        raise\n+    except Exception as e:\n+        print(f\"An unexpected error occurred: {e}\")",
+    "reference": "A bare 'except:' clause catches all exceptions, including system-exiting ones like SystemExit and KeyboardInterrupt, which should typically not be intercepted during routine error handling. Catching 'Exception' instead ensures that only standard runtime errors are caught while allowing vital system signals to propagate correctly.",
+    "hints": [
+      "Look closely at the exception handling clauses used in the function.",
+      "Consider what types of exceptions are caught by an empty except statement compared to a specific base class.",
+      "Replace the bare except with 'except Exception as e' to safely catch only standard runtime errors."
+    ]
+  },
+  {
+    "id": "ex-g0937",
+    "language": "python",
+    "title": "File Resource Leak in Inventory Export",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def export_inventory(items, filename):\n    f = open(filename, 'w')\n    for item in items:\n        f.write(str(item) + '\\n')\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    f = open(filename, 'w')\n+    with open(filename, 'w') as f:",
+    "reference": "Opening a file without using a context manager or explicitly closing it can lead to resource leaks if the function terminates unexpectedly or when garbage collection is delayed. Using a 'with' statement ensures that the file handle is automatically and safely closed as soon as the block is exited, regardless of whether an exception occurs.",
+    "hints": [
+      "Check how external resources like files are being acquired in the function.",
+      "Consider what happens to the file handle if an error occurs during the loop.",
+      "Use a context manager ('with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0938",
+    "language": "python",
+    "title": "Insecure Password Hashing",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hashlib\n\ndef verify_password(stored_password, provided_password):\n    hashed_provided = hashlib.md5(provided_password.encode()).hexdigest()\n    return hashed_provided == stored_password\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    hashed_provided = hashlib.md5(provided_password.encode()).hexdigest()\n+    hashed_provided = hashlib.sha256(provided_password.encode()).hexdigest()",
+    "reference": "The function uses the MD5 hashing algorithm to verify passwords, which is cryptographically broken and vulnerable to collision attacks and rapid brute-force cracking using modern hardware. Passwords should instead be hashed using a slow, salted cryptographic key derivation function designed for password hashing, such as bcrypt, Argon2, or PBKDF2.",
+    "hints": [
+      "Consider the cryptographic strength of the hashing algorithm being used.",
+      "MD5 is considered insecure for sensitive operations like password storage and verification.",
+      "Replace hashlib.md5 with a secure alternative or a dedicated password-hashing library."
+    ]
+  },
+  {
+    "id": "ex-g0939",
+    "language": "python",
+    "title": "Redis Cache Connection Leak",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\nclass CacheLayer:\n    def __init__(self, host='localhost'):\n        self.client = redis.Redis(host=host)\n\n    def get_data(self, key):\n        pipe = self.client.pipeline()\n        pipe.get(key)\n        pipe.ttl(key)\n        return pipe.execute()\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -9,1 +9,1 @@\n-        return pipe.execute()\n+        return pipe.execute()",
+    "reference": "Redis Python client pipelines accumulate commands in memory until execute() is called, but long-lived or unmanaged pipeline contexts can sometimes lead to socket leaks if connections aren't properly returned to the pool. Using a context manager ensures that the underlying connection resources are reliably cleaned up and released back to the connection pool regardless of execution success.",
+    "hints": [
+      "Examine how the Redis pipeline object manages its underlying network resources.",
+      "Consider whether the pipeline relies on automatic garbage collection or explicit lifecycle management.",
+      "Wrap the pipeline initialization in a context manager using the 'with' statement."
+    ]
   }
 ]
