@@ -1,0 +1,66 @@
+rules_version = '2';
+
+// CodeSight — Firestore security rules.
+//
+// One document per user at users/{uid}. A signed-in user may:
+//   - read only their own doc
+//   - create their own doc on sign-up, with the safe fields + zeroed stats
+//   - update only the "profile choice" fields (track, level tier, promo flag)
+//
+// Score fields (totalXP, eloRating, globalRank, problemsSolved, currentStreak,
+// weaknessCatchRates, recentSubmissions, level, levelIndex) are written ONLY by
+// the backend via the Admin SDK, which bypasses these rules. The client can
+// never raise its own XP or rank.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid} {
+
+      function isOwner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+
+      // fields the client is allowed to set when first creating its doc
+      function createFields() {
+        return [
+          'uid', 'email', 'displayName', 'photoURL', 'provider',
+          'createdAt', 'updatedAt',
+          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest',
+          'level', 'levelIndex',
+          'totalXP', 'eloRating', 'globalRank', 'currentStreak', 'problemsSolved',
+          'weaknessCatchRates', 'recentSubmissions'
+        ];
+      }
+
+      // fields the client may change after creation
+      function editableFields() {
+        return [
+          'displayName', 'photoURL',
+          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest',
+          'updatedAt'
+        ];
+      }
+
+      allow read: if isOwner();
+
+      allow create: if isOwner()
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(createFields())
+        && request.resource.data.totalXP == 0
+        && request.resource.data.eloRating == 1000
+        && request.resource.data.problemsSolved == 0
+        && request.resource.data.recentSubmissions.size() == 0;
+
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(editableFields());
+
+      allow delete: if false;
+    }
+
+    // everything else is closed to clients
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

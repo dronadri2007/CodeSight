@@ -6,6 +6,8 @@
  * offline. Point it at the deployed backend to go live:
  *   VITE_API_BASE_URL=https://codesight-code-review-production.up.railway.app
  */
+import { getIdToken } from '../lib/authToken'
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 export const USE_MOCK = !BASE_URL
@@ -33,8 +35,13 @@ function withQuery(path: string, query?: Query): string {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = await getIdToken()
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
     ...options,
   })
   if (!res.ok) {

@@ -12,6 +12,11 @@ GRADER_MODEL: str = os.getenv("GRADER_MODEL", "gemini-3.6-flash")
 ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_TOKEN_TTL_HOURS: int = int(os.getenv("ADMIN_TOKEN_TTL_HOURS", "12"))
 
+# Firebase Admin SDK service-account JSON (the whole file, as one string).
+# Unset -> Firebase auth is disabled: /grade and /promotion-test keep working
+# on anonymous sessions only, with no Firestore profile writes.
+FIREBASE_SERVICE_ACCOUNT_JSON: str = os.getenv("FIREBASE_SERVICE_ACCOUNT_JSON", "")
+
 ALLOWED_ORIGINS: list[str] = [
     o.strip()
     for o in os.getenv(

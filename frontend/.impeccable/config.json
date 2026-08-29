@@ -23,6 +23,15 @@
         ],
         "createdAt": "2026-08-29T19:25:56.741Z",
         "reason": "pre-existing hero headline gradient in the component the user repeatedly told me not to disturb ('do not disturb the background video'); not introduced by this edit, which only removed a footer label"
+      },
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-08-29T20:42:08.357Z",
+        "reason": "pre-existing .text-gradient-* global utility classes; not introduced by this work and not used by the Firebase auth changes (index.css was only re-scanned because main.tsx imports it)"
       }
     ]
   }

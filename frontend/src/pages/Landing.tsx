@@ -125,7 +125,7 @@ export default function Landing() {
                 you left behind.
               </p>
               <Link
-                to="/role-select"
+                to="/auth?mode=signup"
                 className="group mt-9 inline-flex items-center gap-2 rounded text-sm font-bold text-[#E5DFC9] outline-none transition-[gap] hover:gap-3 focus-visible:ring-2 focus-visible:ring-[#E5DFC9]/60 focus-visible:ring-offset-4 focus-visible:ring-offset-[#000000]"
               >
                 <span>Get Started</span>

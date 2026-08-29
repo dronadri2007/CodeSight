@@ -44,8 +44,8 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate('/')
   }
 
@@ -219,10 +219,10 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
               className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl bg-[#1A130D] border border-[#3A2F1D] hover:border-[#E5DFC9]/40 transition-colors"
             >
               <div className="w-6 h-6 rounded-lg bg-[#000000] border border-[#3A2F1D] text-[#E5DFC9] text-2xs font-bold flex items-center justify-center">
-                {user?.avatar || 'AF'}
+                {user?.avatar || 'U'}
               </div>
               <span className="text-xs font-semibold text-[#E5DFC9] hidden sm:inline max-w-[90px] truncate">
-                {user?.name || 'Afrid'}
+                {user?.name || 'Reviewer'}
               </span>
               <ChevronDown size={12} className="text-[#E5DFC9]/50" />
             </button>
@@ -231,8 +231,8 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl py-2 text-xs space-y-1 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
                 <div className="px-4 py-2 border-b border-[#3A2F1D]">
-                  <p className="font-bold text-[#E5DFC9] truncate">{user?.name || 'Afrid Shaik'}</p>
-                  <p className="text-2xs text-[#E5DFC9]/60 truncate font-mono">{user?.level || 'Student Intermediate'}</p>
+                  <p className="font-bold text-[#E5DFC9] truncate">{user?.name || 'Reviewer'}</p>
+                  <p className="text-2xs text-[#E5DFC9]/60 truncate font-mono">{user?.level || 'Student Beginner'}</p>
                 </div>
 
                 <Link

@@ -230,7 +230,7 @@ export function FullscreenPixelHero() {
             <Button
               size="lg"
               variant="primary"
-              onClick={() => navigate('/role-select?mode=signup')}
+              onClick={() => navigate('/auth?mode=signup')}
               iconRight={<ArrowRight size={16} />}
               className="text-sm font-bold shadow-[0_2px_16px_rgba(0,0,0,0.6)] hover:scale-[1.02] active:translate-y-[1px] transition-all"
             >
@@ -240,7 +240,7 @@ export function FullscreenPixelHero() {
             <Button
               size="lg"
               variant="dark"
-              onClick={() => navigate('/role-select?mode=login')}
+              onClick={() => navigate('/auth?mode=login')}
               className="text-sm font-semibold border-[#3A2F1D] bg-[#1A130D]/90 backdrop-blur-md text-[#E5DFC9] hover:bg-[#3A2F1D] hover:border-[#E5DFC9]/30 active:translate-y-[1px] transition-all"
             >
               Login

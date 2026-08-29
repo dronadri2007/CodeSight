@@ -31,6 +31,7 @@ from app.config import (
     GRADER_MODEL,
 )
 from app.db import get_db, init_db
+from app.firebaseauth import maybe_user, record_graded_submission
 from app.grader import diagnostics, grade_explanation
 from app.hints import score_multiplier
 from app.integrity import build_session_integrity, score_integrity
@@ -163,7 +164,11 @@ def get_hint(exercise_id: str, index: int):
 
 
 @app.post("/grade", response_model=GradeResponse)
-def grade(req: GradeRequest, db: Session = Depends(get_db)):
+def grade(
+    req: GradeRequest,
+    db: Session = Depends(get_db),
+    user: dict | None = Depends(maybe_user),
+):
     answer = ex.get_answer(req.exercise_id)
 
     loc = score_localisation(req.selected_lines, answer["real_lines"])
@@ -206,6 +211,28 @@ def grade(req: GradeRequest, db: Session = Depends(get_db)):
         )
     )
     db.commit()
+
+    # Server-authoritative profile write for signed-in users (Firestore, Admin
+    # SDK). No-op when Firebase is unconfigured or the request is anonymous.
+    if user and user.get("uid"):
+        from datetime import datetime, timezone
+
+        record_graded_submission(
+            user["uid"],
+            defect_class=answer["defect_class"],
+            localisation_score=loc["score"],
+            total_score=int(round(score_after_hints)),
+            passed=combined >= 0.6,
+            submission={
+                "exerciseId": req.exercise_id,
+                "defectClass": answer["defect_class"],
+                "localisationScore": loc["score"],
+                "explanationScore": expl["explanation_score"],
+                "scoreAfterHints": score_after_hints,
+                "pass": combined >= 0.6,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
 
     return GradeResponse(
         localisation=loc,
