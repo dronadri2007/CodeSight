@@ -10373,5 +10373,406 @@
       "Consider what happens if another thread runs during the time.sleep call.",
       "Reading a shared value and writing it back later without synchronization causes lost updates."
     ]
+  },
+  {
+    "id": "ex-g0527",
+    "language": "python",
+    "title": "Unclosed File Resource in Request Logger",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request_data):\n    f = open(\"requests.log\", \"a\")\n    f.write(request_data + \"\\n\")\n    print(\"Request logged successfully.\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,2 +2,2 @@\n-    f = open(\"requests.log\", \"a\")\n+    with open(\"requests.log\", \"a\") as f:",
+    "reference": "The function opens a file to append request data but never explicitly closes it, which can lead to file descriptor leaks. In Python, relying solely on garbage collection to close files is unpredictable and can exhaust system resources over time. Using a context manager ('with' statement) ensures the file is automatically and safely closed as soon as the block exits, regardless of whether exceptions occur.",
+    "hints": [
+      "Look at how external system resources like files are acquired.",
+      "Consider what happens to the file handle after it is opened and written to.",
+      "Use a context manager like the 'with' statement to manage the file lifecycle automatically."
+    ]
+  },
+  {
+    "id": "ex-g0528",
+    "language": "python",
+    "title": "Missing Authorization Check on Search",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_documents(request, query):\n    user = get_current_user(request)\n    if not user:\n        return {\"error\": \"Unauthorized\"}, 401\n    \n    results = Document.objects.filter(title__icontains=query)\n    return {\"results\": list(results)}, 200\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    results = Document.objects.filter(title__icontains=query)\n+    results = Document.objects.filter(owner=user, title__icontains=query)",
+    "reference": "The search function correctly authenticates the user, but it fails to authorize whether the user should have access to the returned documents. Without filtering by the document owner or checking permissions, any authenticated user can query and view restricted documents belonging to other users. To fix this, add an authorization constraint to the database query ensuring it only returns documents permitted for the current user.",
+    "hints": [
+      "Look closely at what happens after the user is successfully authenticated.",
+      "Examine the query being executed to retrieve the search results.",
+      "Check if the query restricts the results to only those owned by the authenticated user."
+    ]
+  },
+  {
+    "id": "ex-g0529",
+    "language": "python",
+    "title": "Missing Authorization Check in Refund Flow",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def process_refund(request, transaction_id):\n    transaction = get_transaction(transaction_id)\n    refund_amount = request.POST.get('amount')\n    \n    if transaction.status == 'completed':\n        issue_refund(transaction, refund_amount)\n        return {'status': 'success'}\n        \n    return {'status': 'failed'}\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -6,1 +6,1 @@\n-    if transaction.status == 'completed':\n+    if request.user.is_authenticated and transaction.status == 'completed':",
+    "reference": "The function processes a financial refund without verifying if the user making the request is authenticated or authorized to perform this sensitive action. This allows any unauthenticated attacker to trigger refunds by simply calling the endpoint with a valid transaction ID. To fix this, you must add an explicit check to verify the user's authentication and permissions before executing the refund.",
+    "hints": [
+      "Look closely at the parameters passed into the function.",
+      "Consider what validation is missing regarding the person making the request.",
+      "Check if the `request.user` is verified before performing the sensitive state change."
+    ]
+  },
+  {
+    "id": "ex-g0530",
+    "language": "python",
+    "title": "Hardcoded SMTP Credentials",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_welcome_email(recipient):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    server.login('admin@example.com', 'SuperSecretPassword123')\n    server.sendmail('admin@example.com', recipient, 'Subject: Welcome\\n\\nHello!')\n    server.quit()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    server.login('admin@example.com', 'SuperSecretPassword123')\n+    server.login(os.environ.get('SMTP_USER'), os.environ.get('SMTP_PASS'))",
+    "reference": "Hardcoding sensitive authentication credentials directly into source code poses a massive security risk. If the code repository is exposed or shared publicly, unauthorized individuals immediately gain access to the email account. Authentication secrets should instead be retrieved securely from environment variables or a dedicated secrets manager.",
+    "hints": [
+      "Look closely at the parameters being passed into the login method.",
+      "Are the credentials being retrieved securely, or are they written directly in the file?",
+      "Consider using the 'os' module to fetch authentication details from environment variables."
+    ]
+  },
+  {
+    "id": "ex-g0531",
+    "language": "python",
+    "title": "Uncached Report Aggregator",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_summary(data: list[dict], threshold: float = 0.5) -> dict:\n    return {\n        \"total\": len(data),\n        \"filtered\": [item for item in data if item.get(\"score\", 0) > threshold]\n    }\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This function is completely correct. The use of a mutable default argument or caching might be suspected by a novice, but 'threshold' is a primitive float, which avoids the classic mutable default argument trap. The function is pure, deterministic, and safely processes the input data.",
+    "hints": [
+      "Check the type of the default parameter threshold.",
+      "Verify if the function causes side effects on the input list."
+    ]
+  },
+  {
+    "id": "ex-g0532",
+    "language": "python",
+    "title": "Exception Swallowing in File Upload",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\ndef save_uploaded_file(file_obj, destination_path):\n    try:\n        with open(destination_path, 'wb+') as destination:\n            for chunk in file_obj.chunks():\n                destination.write(chunk)\n    except IOError:\n        os.remove(destination_path)\n        raise\n",
+    "real_lines": [
+      7,
+      8,
+      9
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -7,3 +7,4 @@\n     except IOError:\n-        os.remove(destination_path)\n-        raise\n+        if os.path.exists(destination_path):\n+            os.remove(destination_path)\n+        raise",
+    "reference": "When an IOError occurs mid-write, the code attempts to clean up the partially written destination file using os.remove(). However, if the error occurs before the file is successfully created on disk, os.remove() will raise a FileNotFoundError, shadowing the original upload exception. Checking for the file's existence before removal ensures robust cleanup without obscuring the root cause.",
+    "hints": [
+      "Look closely at the exception handling block during a write failure.",
+      "Consider what happens if the exception occurs before the destination file is actually created.",
+      "Use os.path.exists() to guard the file removal operation."
+    ]
+  },
+  {
+    "id": "ex-g0533",
+    "language": "python",
+    "title": "Missing User Context in Rate Limiter",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "def check_rate_limit(request):\n    client_ip = request.remote_addr\n    current_requests = cache.get(client_ip) or 0\n    if current_requests >= 5:\n        return False\n    cache.set(client_ip, current_requests + 1, timeout=60)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    client_ip = request.remote_addr\n+    client_ip = request.headers.get('X-User-Id') or request.remote_addr",
+    "reference": "Relying solely on the remote IP address for rate limiting can cause issues in environments behind a shared NAT, proxy, or load balancer where multiple distinct users share the same IP. Furthermore, if the goal is to limit authenticated users rather than network connections, attackers can easily bypass IP-based limits by rotating through proxies. Incorporating a unique user identifier from the authenticated request headers ensures that limits are correctly scoped to individual accounts.",
+    "hints": [
+      "Consider what happens when multiple users access the service from behind the same network router or corporate proxy.",
+      "Look at how the client identifier is currently determined on the second line of the function.",
+      "Combine the user's authenticated session identifier with the IP fallback to accurately track individual limits."
+    ]
+  },
+  {
+    "id": "ex-g0534",
+    "language": "python",
+    "title": "Unsafe Shared Accumulator in Thread Pool",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "from concurrent.futures import ThreadPoolExecutor\n\ntotal_revenue = 0\n\ndef process_shard(shard):\n    global total_revenue\n    for val in shard:\n        total_revenue += val\n\ndef generate_revenue_report(data_shards):\n    with ThreadPoolExecutor(max_workers=4) as executor:\n        executor.map(process_shard, data_shards)\n    return total_revenue\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "-        total_revenue += val\n+        with threading.Lock():\n+            total_revenue += val",
+    "reference": "The code uses a multithreading executor to aggregate revenue into a global variable without synchronization. The in-place addition operator (`+=`) in Python is not atomic, meaning concurrent threads reading and writing to `total_revenue` simultaneously will cause race conditions and lost updates. Wrapping the critical section in a threading lock ensures thread-safe updates to the shared resource.",
+    "hints": [
+      "Look closely at how data is aggregated across multiple threads.",
+      "Consider the atomicity of operations on shared global state in Python.",
+      "Use a threading.Lock to synchronize access to the total_revenue accumulator."
+    ]
+  },
+  {
+    "id": "ex-g0535",
+    "language": "python",
+    "title": "Unhandled File Upload Exception",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_upload(file_obj, destination_path):\n    try:\n        content = file_obj.read()\n        with open(destination_path, 'wb') as f:\n            f.write(content)\n    except IOError:\n        print(\"Failed to save file\")\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -6,2 +6,2 @@\n-    except IOError:\n-        print(\"Failed to save file\")\n+    except (IOError, OSError) as e:\n+        print(f\"Failed to save file: {e}\")",
+    "reference": "Catching only the IOError exception is insufficient for file operations because underlying disk issues, permission problems, or OS-level errors often raise an OSError instead. In Python 3, IOError is an alias of OSError, but catching specific generic exceptions or logging the actual exception object helps diagnose failures correctly.",
+    "hints": [
+      "Look closely at the exception type being caught in the except block.",
+      "What other system-related exceptions might occur when interacting with the file system?",
+      "Change the exception to include OSError and consider printing the exception message for better debugging."
+    ]
+  },
+  {
+    "id": "ex-g0536",
+    "language": "python",
+    "title": "Mutable Default Argument in Email Task",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import time\nimport threading\n\ndef send_batch_emails(email_list, attachment_list=[]):\n    for email in email_list:\n        attachment_list.append(email)\n    time.sleep(1)\n    print(f\"Sent batch with {len(attachment_list)} items\")\n\nt1 = threading.Thread(target=send_batch_emails, args=([\"a@test.com\"],))\nt2 = threading.Thread(target=send_batch_emails, args=([\"b@test.com\"],))\nt1.start()\nt2.start()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "- def send_batch_emails(email_list, attachment_list=[]):\n+ def send_batch_emails(email_list, attachment_list=None):\n+     if attachment_list is None:\n+         attachment_list = []",
+    "reference": "Python evaluates default arguments only once when the function is defined, not each time it is called. When multiple threads call this function concurrently without providing a second argument, they all share reference to the exact same list object. This leads to race conditions and unexpected data sharing between threads as they concurrently append items to the shared list.",
+    "hints": [
+      "Look closely at how function arguments are initialized in Python.",
+      "Consider what happens when a mutable object like a list is used as a default parameter value.",
+      "Initialize the parameter to None and create a new list inside the function body if it is None."
+    ]
+  },
+  {
+    "id": "ex-g0537",
+    "language": "python",
+    "title": "Silent Authentication Failure",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def authenticate(username, password):\n    try:\n        user = database.get_user(username)\n        if user.password == password:\n            return True\n    except UserNotFound:\n        return False\n    return False\n",
+    "real_lines": [
+      3,
+      4
+    ],
+    "fix_diff": "@@ -3,2 +3,2 @@\n-        user = database.get_user(username)\n+        user = database.get_user(username)\n         if user.password == password:",
+    "reference": "The try-except block catches UserNotFound, but database connection errors or missing attributes could still cause unhandled exceptions. Furthermore, catching broad or specific exceptions and returning False without logging can obscure critical system failures. Ensure you handle expected exceptions gracefully while allowing unexpected errors to propagate or be logged properly.",
+    "hints": [
+      "Look closely at the operations performed inside the try block.",
+      "Consider what happens if database.get_user(username) raises an exception other than UserNotFound.",
+      "The try block is too broad and catches potential bugs in subsequent lines as if they were authentication failures."
+    ]
+  },
+  {
+    "id": "ex-g0538",
+    "language": "python",
+    "title": "Handling SMTP Connection Errors",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_welcome_email(recipient, message):\n    try:\n        server = smtplib.SMTP('smtp.example.com', 587)\n        server.starttls()\n        server.sendmail('from@example.com', recipient, message)\n    except smtplib.SMTPException as e:\n        print(f\"Failed to send email: {e}\")\n    finally:\n        server.quit()\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "--- mailer.py\n+++ mailer.py\n@@ -10,1 +10,2 @@\n-    finally:\n+    if 'server' in locals():\n+        server.quit()",
+    "reference": "When dealing with network connections and context initialization inside a try block, an exception can occur before the resource variable is successfully bound. In this code, if smtplib.SMTP() or starttls() raises an exception, the server variable is never created, causing the finally block to throw a NameError when attempting server.quit(). Checking if the variable exists in locals() before calling quit ensures cleanup happens safely without masking the original exception.",
+    "hints": [
+      "Look closely at the cleanup logic in the finally block.",
+      "Consider what happens to the 'server' variable if an exception occurs on the very first line inside the try block.",
+      "Check if 'server' is defined before calling .quit() by using 'if 'server' in locals():'."
+    ]
+  },
+  {
+    "id": "ex-g0539",
+    "language": "python",
+    "title": "File Resource Leak in Inventory Export",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def export_inventory(items, filename):\n    f = open(filename, 'w')\n    for item in items:\n        f.write(str(item) + '\\n')\n    print('Export complete')\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(filename, 'w')\n+    with open(filename, 'w') as f:",
+    "reference": "The function opens a file for writing but never closes it, leading to a file descriptor leak and potential data loss if the buffer is not flushed. Using a context manager ('with' statement) ensures that the file is automatically and safely closed after the block executes, even if an exception occurs.",
+    "hints": [
+      "Look closely at how external resources like files are handled in Python.",
+      "Consider what happens to the file handle 'f' after the write operations finish.",
+      "Use a context manager ('with' statement) to automatically manage the file's lifecycle."
+    ]
+  },
+  {
+    "id": "ex-g0540",
+    "language": "python",
+    "title": "Uncaught Exception in Request Logging",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_request(request):\n    try:\n        headers = dict(request.headers)\n        logging.info(\"Incoming request: %s\", headers[\"Authorization\"])\n    except KeyError:\n        logging.warning(\"Request missing authorization header\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-        logging.info(\"Incoming request: %s\", headers[\"Authorization\"])\n+        logging.info(\"Incoming request: %s\", headers.get(\"Authorization\"))",
+    "reference": "The code attempts to access the Authorization header using dictionary key lookup, which raises a KeyError if the key is missing. Although there is an except KeyError block, it wraps both the dictionary conversion and the logging call, meaning if any other error occurs or if the KeyError is raised inside the log statement (though here it's on line 5), it behaves correctly, but using direct bracket notation on a derived dictionary is risky. More importantly, the catch block logs a warning instead of letting the missing header be None, but if the KeyError comes from headers[\"Authorization\"], it is caught. However, a better fix is to use dict.get() to avoid raising the KeyError entirely.",
+    "hints": [
+      "Examine how dictionary values are accessed.",
+      "Look closely at line 5 where the headers dictionary is queried.",
+      "Replace bracket notation with a safer dictionary method that returns None instead of raising an exception."
+    ]
+  },
+  {
+    "id": "ex-g0541",
+    "language": "python",
+    "title": "Missing HTTP Method in Request Log",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request):\n    path = request.get(\"path\", \"/\")\n    status = request.get(\"status\", 200)\n    ip = request.get(\"ip\", \"127.0.0.1\")\n    print(f\"{ip} - - [{path}] {status}\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "@@ -5,1 +5,1 @@\n-    print(f\"{ip} - - [{path}] {status}\")\n+    print(f\"{ip} - - [{request.get('method', 'GET')} {path}] {status}\")",
+    "reference": "Web server logs typically record the HTTP method (like GET or POST) alongside the requested path to provide complete context for each transaction. The original code omitted the method variable inside the formatted print string. Fixing this ensures that the log output conforms to standard access log formats.",
+    "hints": [
+      "Look closely at the components typically found in a standard web server log entry.",
+      "Check all keys being extracted from the request dictionary versus what is actually printed.",
+      "The HTTP method (e.g., GET, POST) is missing from the formatted string on the last line."
+    ]
+  },
+  {
+    "id": "ex-g0542",
+    "language": "python",
+    "title": "Inventory Stock Check Race Condition",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import time\nimport threading\n\nstock_levels = {\"apple\": 10}\nstock_lock = threading.Lock()\n\ndef purchase_item(item, quantity):\n    if stock_levels.get(item, 0) >= quantity:\n        time.sleep(0.01)\n        stock_levels[item] -= quantity\n        return True\n    return False\n",
+    "real_lines": [
+      9,
+      10,
+      11
+    ],
+    "fix_diff": "@@ -8,4 +8,4 @@\n def purchase_item(item, quantity):\n-    if stock_levels.get(item, 0) >= quantity:\n-        time.sleep(0.01)\n-        stock_levels[item] -= quantity\n+    with stock_lock:\n+        if stock_levels.get(item, 0) >= quantity:\n+            stock_levels[item] -= quantity",
+    "reference": "This code suffers from a classic check-then-act race condition where multiple threads can simultaneously pass the stock availability check before any of them updates the dictionary. Because the critical section spans both the read and the write without synchronization, inventory can be oversold. Wrapping the entire check and update block in a threading.Lock context manager ensures atomic execution.",
+    "hints": [
+      "Look closely at how shared state is accessed and modified across multiple threads.",
+      "Examine the lines where the dictionary is read and subsequently written to.",
+      "Consider wrapping the check-then-act logic inside the available threading.Lock."
+    ]
+  },
+  {
+    "id": "ex-g0543",
+    "language": "python",
+    "title": "Uncaught Specific Exception in Inventory Adjustment",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def adjust_stock(item_id: str, delta: int) -> int:\n    try:\n        current = database.get_stock(item_id)\n        new_stock = current + delta\n        database.set_stock(item_id, new_stock)\n        return new_stock\n    except DatabaseConnectionError as e:\n        logger.error(f\"Failed to update stock: {e}\")\n        raise\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    except DatabaseConnectionError as e:\n+    except (DatabaseConnectionError, ValueError) as e:",
+    "reference": "The function attempts to perform arithmetic on the retrieved stock and update the database. If the retrieved stock is invalid or cannot be parsed as an integer, Python will raise a ValueError instead of a DatabaseConnectionError. Catching only database errors leaves ValueError unhandled, which can bypass logging and cause unexpected crashes upstream. Broadening the exception tuple to include ValueError ensures robust error handling for both storage and data integrity issues.",
+    "hints": [
+      "Look closely at the types of exceptions that can occur during arithmetic operations.",
+      "Consider what happens if database.get_stock returns a malformed string or incompatible type.",
+      "The except clause catches a very specific database error, but misses potential data formatting exceptions."
+    ]
+  },
+  {
+    "id": "ex-g0544",
+    "language": "python",
+    "title": "Unclosed Database Connection in Inventory Lookup",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import sqlite3\n\ndef get_stock_level(item_id: int) -> int:\n    conn = sqlite3.connect(\"inventory.db\")\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT quantity FROM stock WHERE item_id = ?\", (item_id,))\n    row = cursor.fetchone()\n    return row[0] if row else 0\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,4 +4,5 @@\n     conn = sqlite3.connect(\"inventory.db\")\n+    with conn:\n     cursor = conn.cursor()",
+    "reference": "Opening a database connection without a context manager or explicit closing can lead to resource leaks, eventually exhausting available database connections. Utilizing a context manager ensures that the connection and its underlying resources are properly cleaned up even if exceptions occur during execution.",
+    "hints": [
+      "Examine how external resources are initialized inside the function.",
+      "Consider what happens to the database connection after the query is executed and returned.",
+      "Use a context manager like 'with' on the connection object to guarantee proper cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0545",
+    "language": "python",
+    "title": "Deferred Execution with Thread-Local State",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import threading\nfrom typing import Callable, Any\n\n_local_state = threading.local()\n\ndef enqueue_with_context(task: Callable[..., Any], *args: Any, **kwargs: Any) -> Callable[[], Any]:\n    _local_state.current_payload = (task, args, kwargs)\n    def wrapper() -> Any:\n        t, a, kw = _local_state.current_payload\n        return t(*a, **kw)\n    return wrapper\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of a module-level threading.local() instance might look suspicious for shared mutable state in a concurrent environment, but threading.local() is explicitly designed to maintain separate state per thread. Since the wrapper immediately captures the assigned tuple during definition, there is no cross-thread contamination or race condition here. This is a clean, albeit slightly unusual, pattern for closure generation.",
+    "hints": [
+      "Check how Python's threading.local() behaves across different threads.",
+      "Examine when the payload is read relative to when the wrapper is created and invoked."
+    ]
+  },
+  {
+    "id": "ex-g0546",
+    "language": "python",
+    "title": "Generic Exception Catching",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(message):\n    try:\n        server = smtplib.SMTP('smtp.example.com', 587)\n        server.sendmail('alert@example.com', 'admin@example.com', message)\n    except:\n        server.quit()\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "-    except:\n-        server.quit()\n+    except smtplib.SMTPException as e:\n+        logger.error(f\"Failed to send email: {e}\")\n+    finally:\n+        server.quit()",
+    "reference": "Catching a bare except statement intercepts all exceptions including system exits and keyboard interrupts, masking critical failures and making debugging difficult. Additionally, calling server.quit() inside the except block fails to guarantee cleanup if an exception occurs before server initialization or if the block completes successfully. Using a specific exception type combined with a finally block ensures reliable resource cleanup and proper error handling.",
+    "hints": [
+      "Look closely at the exception handling structure.",
+      "Consider what happens if an exception occurs during the SMTP connection phase before the server variable is bound.",
+      "Avoid catching bare exceptions and ensure cleanup happens regardless of success or failure."
+    ]
   }
 ]
