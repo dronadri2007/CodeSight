@@ -8405,5 +8405,397 @@
       "Consider what happens to the file descriptor if the function executes repeatedly over time.",
       "Use a context manager like the 'with' statement to ensure the file is automatically closed."
     ]
+  },
+  {
+    "id": "ex-g0427",
+    "language": "python",
+    "title": "False Positive in Image Thumbnailer Dimension Calculation",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size=128):\n    \"\"\"Calculates the new dimensions while preserving aspect ratio.\"\"\"\n    if original_width <= 0 or original_height <= 0:\n        raise ValueError(\"Dimensions must be positive integers\")\n    \n    ratio = min(max_size / original_width, max_size / original_height)\n    new_width = int(original_width * ratio)\n    new_height = int(original_height * ratio)\n    \n    return (new_width, new_height)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses integer truncation via int() after multiplying by the ratio, which might look like potential precision loss or integer division bugs to a novice. However, this is standard and correct for pixel dimensions in image processing where fractional pixels do not exist, and the aspect ratio is properly preserved by applying the same uniform ratio to both dimensions.",
+    "hints": [
+      "Check if the aspect ratio is maintained correctly by applying the uniform scale factor to both dimensions.",
+      "Consider whether image pixel coordinates and dimensions require integer values rather than floats."
+    ]
+  },
+  {
+    "id": "ex-g0428",
+    "language": "python",
+    "title": "Thread-Unsafe Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import time\n\nrequest_count = 0\n\ndef log_request(endpoint: str) -> None:\n    global request_count\n    current_id = request_count\n    request_count += 1\n    print(f\"[{current_id}] Handled {endpoint} at {time.time()}\")\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -5,3 +5,3 @@\n     global request_count\n-    current_id = request_count\n-    request_count += 1\n+    with lock:\n+        current_id = request_count\n+        request_count += 1",
+    "reference": "The function reads and updates a shared global counter without synchronization, leading to a classic read-modify-write race condition under concurrent execution. In a multi-threaded web server, two threads can read the same request_count simultaneously, resulting in duplicate ID assignments and lost increments. Wrapping the critical section in a threading.Lock ensures atomic access and correct counting.",
+    "hints": [
+      "Consider how multiple threads executing this function simultaneously might interact with shared state.",
+      "Look closely at the read and write operations performed on the global variable 'request_count'.",
+      "Use a threading lock to ensure that reading and incrementing the counter happens atomically."
+    ]
+  },
+  {
+    "id": "ex-g0429",
+    "language": "python",
+    "title": "Unmasked API Token in Request Logs",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_request(request):\n    token = request.headers.get(\"Authorization\")\n    logging.info(\"Incoming request from %s with token %s\", request.remote_addr, token)\n    # Process request further...\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    logging.info(\"Incoming request from %s with token %s\", request.remote_addr, token)\n+    masked_token = token[:4] + \"...\" if token else \"None\"\n+    logging.info(\"Incoming request from %s with token %s\", request.remote_addr, masked_token)",
+    "reference": "Logging sensitive authentication tokens in plain text exposes credentials to anyone with read access to the application logs, leading to potential account takeovers or unauthorized access. Authentication credentials like API keys or Bearer tokens should always be masked, hashed, or omitted entirely before writing them to log files.",
+    "hints": [
+      "Examine what data is being recorded in the log message.",
+      "Look closely at the 'token' variable and how it is passed to logging.info.",
+      "Mask the token by only showing a few prefix characters and redacting the rest."
+    ]
+  },
+  {
+    "id": "ex-g0430",
+    "language": "python",
+    "title": "Uncached Exchange Rate Fetch",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "currency.py",
+    "code": "import requests\n\ndef convert_currency(amount, source_currency, target_currency):\n    if source_currency == target_currency:\n        return amount\n    response = requests.get(f\"https://api.exchangerate-api.com/v4/latest/{source_currency}\")\n    rates = response.json()[\"rates\"]\n    rate = rates[target_currency]\n    return round(amount * rate, 2)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "While making an external HTTP call inside a payment conversion function might look suspicious due to lack of caching or potential latency, this is actually a design choice to ensure real-time exchange rates are used rather than stale cached values, preventing arbitrage risks. The code is clean and handles edge cases like matching source and target currencies.",
+    "hints": [
+      "Check if the same source and target currency case is handled efficiently.",
+      "Consider whether using real-time rates is an intentional requirement for preventing stale exchange rate exploits."
+    ]
+  },
+  {
+    "id": "ex-g0431",
+    "language": "python",
+    "title": "Aspect Ratio Calculation Flaw",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size):\n    ratio = min(max_size / original_width, max_size / original_height)\n    if ratio > 1:\n        return original_width, original_height\n    new_width = int(original_width * ratio)\n    new_height = int(original_height * ratio)\n    return new_width, new_height\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -3,1 +3,1 f\n-    if ratio > 1:\n+    if ratio >= 1:",
+    "reference": "The function calculates a scaling ratio to downscale an image to fit within a maximum bounding box. However, using a strict greater-than operator (ratio > 1) means that images smaller than the maximum size are incorrectly subjected to downscaling when the ratio equals 1. Changing this condition to allow ratios greater than or equal to 1 correctly bypasses resizing for images that already fit the constraints.",
+    "hints": [
+      "Look closely at the condition used to determine whether the image needs resizing.",
+      "Consider what happens when the original image dimensions exactly match the max_size.",
+      "The ratio for an image equal to max_size will evaluate to 1, which currently triggers the resizing logic incorrectly."
+    ]
+  },
+  {
+    "id": "ex-g0432",
+    "language": "python",
+    "title": "Unclosed Database Connection in Auth Lookup",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef authenticate_user(username, password):\n    conn = sqlite3.connect('users.db')\n    cursor = conn.cursor()\n    cursor.execute('SELECT password_hash FROM users WHERE username = ?', (username,))\n    row = cursor.fetchone()\n    if not row or row[0] != password:\n        return False\n    return True\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,1 @@\n-    conn = sqlite3.connect('users.db')\n+    with sqlite3.connect('users.db') as conn:",
+    "reference": "Opening database connections without properly closing them can lead to connection leaks, eventually exhausting the database server's connection pool and causing denial of service. Using a context manager ensures that the connection is safely closed even if exceptions occur during execution.",
+    "hints": [
+      "Consider how external resources like database connections are managed throughout their lifecycle.",
+      "Look at the way the SQLite connection is opened at the beginning of the function.",
+      "Use a context manager (the 'with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0433",
+    "language": "python",
+    "title": "SQL Injection in Job Status Update",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "queue_worker.py",
+    "code": "import sqlite3\n\ndef update_job_status(db_conn, job_id, status):\n    cursor = db_conn.cursor()\n    query = \"UPDATE jobs SET status = '%s' WHERE id = %s\" % (status, job_id)\n    cursor.execute(query)\n    db_conn.commit()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '%s' WHERE id = %s\" % (status, job_id)\n-    cursor.execute(query)\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "The original code uses Python string formatting to construct the SQL statement, which allows an attacker to manipulate the query structure if the inputs are tainted. By replacing string formatting with parameterized queries (using placeholders '?' and passing parameters separately), the database driver properly escapes the input values. This effectively prevents SQL injection attacks while maintaining correct execution.",
+    "hints": [
+      "Examine how the SQL query string is being constructed before it is executed.",
+      "Look closely at the use of string formatting operators (%s) with database inputs.",
+      "Replace the string formatting with parameterized query placeholders (?, ?) and pass the variables as a tuple to cursor.execute()."
+    ]
+  },
+  {
+    "id": "ex-g0434",
+    "language": "python",
+    "title": "Database Connection Leak in Inventory Restock",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def restock_item(db_pool, item_id, quantity):\n    conn = db_pool.get_connection()\n    cursor = conn.cursor()\n    cursor.execute(\"UPDATE inventory SET stock = stock + %s WHERE id = %s\", (quantity, item_id))\n    conn.commit()\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,5 +2,6 @@\n     conn = db_pool.get_connection()\n-    cursor = conn.cursor()\n-    cursor.execute(\"UPDATE inventory SET stock = stock + %s WHERE id = %s\", (quantity, item_id))\n-    conn.commit()\n-    return True\n+    try:\n+        cursor = conn.cursor()\n+        cursor.execute(\"UPDATE inventory SET stock = stock + %s WHERE id = %s\", (quantity, item_id))\n+        conn.commit()\n+        return True\n+    finally:\n+        db_pool.release_connection(conn)",
+    "reference": "This code acquires a database connection from a connection pool but never releases it back, especially if an exception occurs during the cursor execution or commit. Over time, repeated calls will exhaust the connection pool and cause the application to hang or crash. Using a try-finally block or a context manager ensures that the connection is properly returned to the pool regardless of success or failure.",
+    "hints": [
+      "Examine how resources are managed when acquired from an external pool.",
+      "Consider what happens to the database connection if an error occurs during the execution step.",
+      "Ensure the connection is always released back to the pool using a finally block."
+    ]
+  },
+  {
+    "id": "ex-g0435",
+    "language": "python",
+    "title": "Unclosed File Resource in Report Export",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "exporter.py",
+    "code": "def export_monthly_report(data, filename):\n    f = open(filename, \"w\")\n    report_content = f\"Monthly Report\\n{data}\"\n    f.write(report_content)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(filename, \"w\")\n+    with open(filename, \"w\") as f:",
+    "reference": "The function opens a file to write the report content but never closes it, leading to a potential file descriptor leak. In Python, file objects should be managed using context managers like the 'with' statement to ensure they are properly closed even if exceptions occur. Using 'with open(...) as f:' automatically handles resource cleanup upon exiting the block.",
+    "hints": [
+      "Check how external system resources are acquired and if they are always released.",
+      "Look closely at the file handling mechanism on line 2.",
+      "Refactor the file opening logic to use a context manager ('with' statement) to guarantee closure."
+    ]
+  },
+  {
+    "id": "ex-g0436",
+    "language": "python",
+    "title": "Unbounded Rate Limiter Dictionary Growth",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\nrequest_counts = {}\n\ndef is_allowed(user_id):\n    current_time = time.time()\n    if user_id not in request_counts:\n        request_counts[user_id] = []\n    request_counts[user_id].append(current_time)\n    request_counts[user_id] = [t for t in request_counts[user_id] if current_time - t < 60]\n    return len(request_counts[user_id]) <= 5\n",
+    "real_lines": [
+      3,
+      9
+    ],
+    "fix_diff": "--- ratelimit.py\n+++ ratelimit.py\n@@ -3,3 +3,3 @@\n \n-request_counts = {}\n+from collections import defaultdict\n+request_counts = defaultdict(list)",
+    "reference": "This code implements a basic sliding-window rate limiter by storing request timestamps in a global dictionary. However, the dictionary `request_counts` grows indefinitely as new unique `user_id` values are encountered, eventually leading to a memory leak. In production environments, this should be mitigated by using a bounded cache, an expiration mechanism, or a Redis-backed store.",
+    "hints": [
+      "Look closely at where the state of the rate limiter is being stored.",
+      "Consider what happens to the global dictionary over a long period if millions of unique users make a single request.",
+      "The application lacks a mechanism to clean up keys for users who are no longer active."
+    ]
+  },
+  {
+    "id": "ex-g0437",
+    "language": "python",
+    "title": "Global State in Email Sender",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import time\n\nlast_recipient = \"\"\n\ndef send_email(recipient, message):\n    global last_recipient\n    time.sleep(0.1)\n    last_recipient = recipient\n    print(\"Sent to: \" + last_recipient)\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- email_sender.py\n+++ email_sender.py\n@@ -4,4 +4,4 @@\n def send_email(recipient, message):\n     global last_recipient\n     time.sleep(0.1)\n-    last_recipient = recipient\n+    # Remove global state or use thread locks",
+    "reference": "This code suffers from a race condition due to the use of a mutable global variable across potentially concurrent function calls. When multiple threads invoke send_email simultaneously, the global last_recipient can be overwritten unpredictably during the sleep interval. To fix this, avoid shared global state and instead return the recipient or handle state locally within each thread.",
+    "hints": [
+      "Look at how state is tracked across function calls.",
+      "Consider what happens if two threads call this function at the same time.",
+      "The global variable 'last_recipient' is modified without synchronization or thread safety."
+    ]
+  },
+  {
+    "id": "ex-g0438",
+    "language": "python",
+    "title": "Email Header Injection via Subject",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, subject, body):\n    msg = EmailMessage()\n    msg[\"Subject\"] = subject\n    msg[\"From\"] = \"admin@company.com\"\n    msg[\"To\"] = recipient\n    msg.set_content(body)\n    with smtplib.SMTP(\"localhost\") as smtp:\n        smtp.send_message(msg)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    msg[\"Subject\"] = subject\n+    msg[\"Subject\"] = subject.replace(\"\\n\", \"\").replace(\"\\r\", \"\")",
+    "reference": "This code is vulnerable to Email Header Injection (CRLF injection) because user-supplied input in the subject field is written directly into the email headers without sanitization. An attacker can inject newline characters (\\r\\n) to append arbitrary headers such as 'Bcc' or completely forge the body. The fix strips carriage returns and newlines from the subject string to ensure the input remains on a single line.",
+    "hints": [
+      "Examine how user-controlled data is assigned to email headers.",
+      "Consider what happens if the input string contains newline characters.",
+      "Sanitize the subject variable by removing '\\r' and '\\n' before assignment."
+    ]
+  },
+  {
+    "id": "ex-g0439",
+    "language": "python",
+    "title": "Insecure SMTP Transport without TLS",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, subject, body):\n    msg = EmailMessage()\n    msg.set_content(body)\n    msg.Subject = subject\n    msg.From = \"admin@example.com\"\n    msg.To = recipient\n    with smtplib.SMTP(\"smtp.example.com\", 587) as server:\n        server.login(\"admin@example.com\", \"password123\")\n        server.send_message(msg)\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "-        server.login(\"admin@example.com\", \"password123\")\n+        server.starttls()\n+        server.login(\"admin@example.com\", \"password123\")",
+    "reference": "The code connects to port 587, which is typically the submission port designated for encrypted STARTTLS communication. However, it attempts to authenticate via server.login() immediately after connecting, sending credentials in plaintext over the unencrypted socket. To fix this, you must invoke server.starttls() to upgrade the plain connection to a secure TLS tunnel before transmitting sensitive authentication credentials.",
+    "hints": [
+      "Examine how the connection is secured before credentials are sent.",
+      "Port 587 usually requires a specific command to switch from plaintext to TLS.",
+      "Add server.starttls() right before calling server.login()."
+    ]
+  },
+  {
+    "id": "ex-g0440",
+    "language": "python",
+    "title": "Dynamic Email Header Injection Check",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_secure_notification(recipient: str, subject: str, body: str) -> None:\n    msg = EmailMessage()\n    msg['Subject'] = subject\n    msg['From'] = \"noreply@example.com\"\n    msg['To'] = recipient\n    msg.set_content(body)\n    \n    with smtplib.SMTP('smtp.example.com', 587) as server:\n        server.starttls()\n        server.login(\"user@example.com\", \"secret\")\n        server.send_message(msg)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Novice reviewers often flag direct string assignment to message headers like msg['Subject'] or msg['To'] as vulnerable to header injection. However, Python's built-in email.message.EmailMessage class automatically sanitizes and encodes header values, neutralizing newline characters and preventing SMTP header injection attacks.",
+    "hints": [
+      "Check how the standard library handles string formatting in headers internally.",
+      "Verify if the recipient and subject variables are passed into a raw SMTP command stream or encapsulated by an abstraction layer."
+    ]
+  },
+  {
+    "id": "ex-g0441",
+    "language": "python",
+    "title": "Exception Swallowing in Job Queue Worker",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import logging\nimport time\n\ndef process_jobs(queue):\n    while not queue.empty():\n        job = queue.get()\n        try:\n            job.execute()\n        except Exception:\n            logging.error(\"Failed to process job\")\n            raise\n        finally:\n            queue.task_done()\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-            raise\n+            queue.task_done()",
+    "reference": "In this background job queue worker, re-raising the exception inside the except block causes execution to jump straight out of the try statement, bypassing the finally block. Consequently, queue.task_done() is never called for failed jobs, which will cause join() on the queue to block indefinitely. Removing the raise statement or handling the task completion before re-raising ensures the queue state remains consistent.",
+    "hints": [
+      "Look closely at the control flow between the exception handler and the cleanup logic.",
+      "Consider what happens to the finally block when an exception is explicitly re-raised.",
+      "Ensure the queue tracking method is always called regardless of job success or failure."
+    ]
+  },
+  {
+    "id": "ex-g0442",
+    "language": "python",
+    "title": "Unclosed Database Session in Transaction Scope",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session_manager.py",
+    "code": "def process_user_payment(db_session, user_id, amount):\n    trans = db_session.begin()\n    try:\n        db_session.execute(\"UPDATE accounts SET balance = balance - :amt WHERE id = :id\", {\"amt\": amount, \"id\": user_id})\n        trans.commit()\n    except Exception:\n        trans.rollback()\n        raise\n",
+    "real_lines": [
+      2,
+      7
+    ],
+    "fix_diff": "@@ -2,6 +2,7 @@\n def process_user_payment(db_session, user_id, amount):\n     trans = db_session.begin()\n     try:\n         db_session.execute(\"UPDATE accounts SET balance = balance - :amt WHERE id = :id\", {\"amt\": amount, \"id\": user_id})\n         trans.commit()\n     except Exception:\n         trans.rollback()\n         raise\n+    db_session.close()",
+    "reference": "Database sessions acquire underlying connections and resources that must be explicitly released after use to prevent connection pool exhaustion. In this function, the session is neither used as a context manager nor explicitly closed in a finally block, leaving the connection open if an exception occurs or even upon successful completion. Adding a close call or utilizing a context manager ensures the session returns to the pool properly under all execution paths.",
+    "hints": [
+      "Look closely at how database resources are managed throughout their lifecycle.",
+      "Consider what happens to the connection pool if an operation finishes or fails without cleanup.",
+      "The session object needs to be closed or managed via a context manager to release acquired connections."
+    ]
+  },
+  {
+    "id": "ex-g0443",
+    "language": "python",
+    "title": "Swallowing Unexpected Exceptions in Cache Retrieval",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\ndef get_cached_user(client: redis.Redis, user_id: int):\n    try:\n        data = client.get(f\"user:{user_id}\")\n        return data.decode('utf-8') if data else None\n    except redis.ConnectionError:\n        return None\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    except redis.ConnectionError:\n+    except (redis.ConnectionError, AttributeError):\n         return None",
+    "reference": "The code attempts to decode the retrieved cache data assuming it is always bytes, but if a client misconfiguration or data corruption returns a non-bytes object or unexpected type, an AttributeError will occur. By catching only redis.ConnectionError, we fail to handle other runtime failures like AttributeError during decoding. Adding AttributeError to the caught exceptions ensures robust fallback behavior.",
+    "hints": [
+      "Look closely at the operations performed inside the try block after fetching data.",
+      "What happens if the object returned by the client does not have the expected decode method?",
+      "You need to catch both connection issues and decoding attribute errors gracefully."
+    ]
+  },
+  {
+    "id": "ex-g0444",
+    "language": "python",
+    "title": "Unsafe YAML Config Loading",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config_loader.py",
+    "code": "import yaml\n\n\ndef load_configuration(file_path):\n    with open(file_path, \"r\") as f:\n        config_data = yaml.load(f)\n    return config_data\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- config_loader.py\n+++ config_loader.py\n@@ -6,1 +6,1 \u0916\u093f\u0932\u093e\u0921\u093c\u0940\n-    config_data = yaml.load(f)\n+    config_data = yaml.safe_load(f)\n",
+    "reference": "The function uses the standard yaml.load() method which is capable of constructing arbitrary Python objects through the PyYAML parser. This creates a severe remote code execution vulnerability if an attacker can manipulate the configuration file contents. Using yaml.safe_load() restricts parsing to simple Python types, preventing the instantiation of arbitrary classes.",
+    "hints": [
+      "Examine how the YAML library parses the file contents.",
+      "Look closely at the specific function being called from the yaml module.",
+      "Consider replacing the loader function with its restricted counterpart to prevent arbitrary object instantiation."
+    ]
+  },
+  {
+    "id": "ex-g0445",
+    "language": "python",
+    "title": "Incorrect Logic in Email Recipient Filtering",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "def get_valid_recipients(recipients, blacklist):\n    valid = []\n    for email in recurrent in recipients:\n        if email not in blacklist:\n            valid.append(email)\n    return valid\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    for email in recurrent in recipients:\n+    for email in recipients:",
+    "reference": "The bug lies in the malformed for-loop syntax where 'recurrent in recipients' is mistakenly evaluated instead of iterating directly over the collection. This causes a syntax or runtime logic failure depending on variable scope. Correcting the expression to iterate strictly over 'recipients' ensures every email is properly checked against the blacklist.",
+    "hints": [
+      "Look closely at the for-loop declaration.",
+      "Check the variables being evaluated in the loop statement.",
+      "Remove the extraneous variable and condition from the 'in' expression."
+    ]
+  },
+  {
+    "id": "ex-g0446",
+    "language": "python",
+    "title": "Unusual Default Argument Value",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def check_item_availability(item_id, stock_dict={}):\n    if item_id in stock_dict:\n        return stock_dict[item_id] > 0\n    return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "While using a mutable default argument like a dictionary is generally considered a bad practice in Python due to state persistence across function calls, in this specific read-only lookup function, the default value is never modified. Therefore, this is a false positive and safe.",
+    "hints": [
+      "Look closely at how the stock_dict parameter is used inside the function body. Is it ever modified or written to?",
+      "Consider whether the function only performs read operations, making the persistence of the default argument harmless in this context."
+    ]
   }
 ]
