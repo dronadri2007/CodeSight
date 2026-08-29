@@ -9595,5 +9595,396 @@
       "Consider what happens when a default argument is a mutable object like a list.",
       "Initialize the history variable to None by default and create a new list inside the function if it is None."
     ]
+  },
+  {
+    "id": "ex-g0487",
+    "language": "python",
+    "title": "Unauthenticated Rate Limit Bypass",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "def check_rate_limit(request):\n    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)\n    current_count = cache.get(client_ip) or 0\n    if current_count > 100:\n        return False\n    cache.set(client_ip, current_count + 1, timeout=60)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)\n+    client_ip = request.remote_addr",
+    "reference": "Relying on the X-Forwarded-For header to identify a client for rate limiting creates a critical security vulnerability. An attacker can easily spoof this HTTP header to constantly change their apparent IP address and completely bypass the rate-limiting mechanism. Rate-limiting logic must rely on trusted network properties like remote_addr rather than user-controlled headers.",
+    "hints": [
+      "Examine how the client's identifier is retrieved for tracking requests.",
+      "Consider the trustworthiness of HTTP headers sent directly from clients.",
+      "Avoid using headers that can be arbitrarily modified by the end user to prevent spoofing."
+    ]
+  },
+  {
+    "id": "ex-g0488",
+    "language": "python",
+    "title": "Missing Tenant Authorization Check",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def update_stock(request, item_id: str, quantity: int) -> dict:\n    tenant_id = request.headers.get(\"X-Tenant-ID\")\n    item = database.find_item(item_id)\n    if not item:\n        raise ItemNotFoundError(item_id)\n    item.quantity = quantity\n    database.save(item)\n    return {\"status\": \"success\", \"item_id\": item_id}\n",
+    "real_lines": [
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "fix_diff": "@@ -3,4 +3,6 @@\n     item = database.find_item(item_id)\n     if not item:\n         raise ItemNotFoundError(item_id)\n+    if item.tenant_id != tenant_id:\n+        raise UnauthorizedError(\"Access denied\")\n     item.quantity = quantity",
+    "reference": "In multi-tenant applications, simply retrieving a resource by its unique identifier is insecure if you do not verify that the resource belongs to the currently authenticated tenant. Without this ownership check, an attacker can modify inventory items belonging to other tenants by guessing or enumerating IDs (Insecure Direct Object Reference). The fix adds an explicit validation step ensuring the retrieved item's tenant association matches the requesting tenant's context.",
+    "hints": [
+      "Examine how the tenant context is obtained at the beginning of the function.",
+      "Look closely at the database retrieval operation and what follows it.",
+      "Consider whether the retrieved item is validated against the requesting tenant before modification."
+    ]
+  },
+  {
+    "id": "ex-g0489",
+    "language": "python",
+    "title": "Unclosed Database Connection in Payment Rollback",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import sqlite3\n\ndef rollback_payment(payment_id: str, db_path: str) -> bool:\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    cursor.execute(\"UPDATE payments SET status = 'FAILED' WHERE id = ?\", (payment_id,))\n    conn.commit()\n    return True\n",
+    "real_lines": [
+      3,
+      4
+    ],
+    "fix_diff": "@@ -3,4 +3,5 @@\n def rollback_payment(payment_id: str, db_path: str) -> bool:\n-    conn = sqlite3.connect(db_path)\n-    cursor = conn.cursor()\n+    with sqlite3.connect(db_path) as conn:\n+        cursor = conn.cursor()\n+        cursor.execute(\"UPDATE payments SET status = 'FAILED' WHERE id = ?\", (payment_id,))\n+        conn.commit()\n     return True",
+    "reference": "This function opens a SQLite connection using sqlite3.connect() but never explicitly closes it, leading to a resource leak. Over time, unclosed connections can exhaust file descriptors and lock the database file, causing subsequent queries to hang or fail. Using a context manager ensures the connection is properly and safely closed even if an exception occurs.",
+    "hints": [
+      "Examine how external resources like files and database connections are managed throughout their lifecycle.",
+      "Check if resources opened inside the function are guaranteed to be released upon exiting the function scope.",
+      "Use a context manager (the 'with' statement) with the database connection to ensure automatic cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0490",
+    "language": "python",
+    "title": "Unclosed Request Log File",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(url):\n    log_file = open(\"requests.log\", \"a\")\n    log_file.write(f\"GET {url}\\n\")\n    print(\"Request logged successfully\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,3 +2,4 @@\n     log_file = open(\"requests.log\", \"a\")\n-    log_file.write(f\"GET {url}\\n\")\n-    print(\"Request logged successfully\")\n+    with open(\"requests.log\", \"a\") as log_file:\n+        log_file.write(f\"GET {url}\\n\")",
+    "reference": "Opening a file manually without closing it or using a context manager can lead to resource leaks and file lock issues. When the function finishes execution, the file descriptor remains open until garbage collection occurs, which is unpredictable. Using a 'with' statement ensures the file is properly and safely closed immediately after the write operation completes.",
+    "hints": [
+      "Check how system resources like files are being managed in the function.",
+      "Look closely at the open() function and consider if the file is ever closed.",
+      "Use a context manager (the 'with' statement) to handle opening and closing the file automatically."
+    ]
+  },
+  {
+    "id": "ex-g0491",
+    "language": "python",
+    "title": "Uncaught Exception in Inventory Lookup",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def get_item_quantity(inventory, item_id):\n    try:\n        return inventory[item_id]\n    except KeyError:\n        return \"Item not found\"\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    except KeyError:\n+    except (KeyError, TypeError):",
+    "reference": "The function attempts to retrieve an item from a dictionary, catching KeyError if the item_id is missing. However, if the inventory is None or item_id is of an unhashable type, it will raise a TypeError instead of a KeyError. Catching only KeyError leaves the function vulnerable to unhandled TypeErrors which can crash the application.",
+    "hints": [
+      "Consider what happens if the inventory object itself is invalid or the item_id has an incompatible type.",
+      "Look at the exception type being caught in the except block.",
+      "Add TypeError alongside KeyError in the except clause to handle unexpected input types gracefully."
+    ]
+  },
+  {
+    "id": "ex-g0492",
+    "language": "python",
+    "title": "False Positive in LRU Cache Implementation",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "from functools import lru_cache\n\nclass DataFetcher:\n    def __init__(self, api_client):\n        self.api_client = api_client\n\n    @lru_cache(maxsize=128)\n    def fetch_data(self, record_id: str) -> dict:\n        return self.api_client.get(record_id)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Using @lru_cache on a method usually traps 'self' in the cache, causing a memory leak if the instance changes or isn't garbage collected. However, since DataFetcher is a stateless wrapper around an api_client and instances are expected to be long-lived or singleton-like, caching based on instance and record_id behaves correctly here. Furthermore, in Python 3.9+, bound methods are handled correctly, or if the instance never changes, this is completely safe.",
+    "hints": [
+      "Check how Python's functools.lru_cache interacts with class methods and instance state.",
+      "Verify if the cached method actually depends on mutable instance attributes that could become stale."
+    ]
+  },
+  {
+    "id": "ex-g0493",
+    "language": "python",
+    "title": "Email Dispatcher with Base64 Encoding",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import base64\nimport smtplib\nfrom email.message import EmailMessage\n\ndef send_encoded_email(recipient: str, secret_message: str) -> None:\n    msg = EmailMessage()\n    msg['Subject'] = \"Confidential Update\"\n    msg['From'] = \"admin@example.com\"\n    msg['To'] = recipient\n    \n    encoded_bytes = base64.b64encode(secret_message.encode('utf-8'))\n    encoded_str = encoded_bytes.decode('utf-8')\n    \n    msg.set_content(f\"Here is your encoded token: {encoded_str}\")\n    \n    with smtplib.SMTP('localhost', 1025) as server:\n        server.send_message(msg)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of base64 encoding often triggers a false positive among junior reviewers who mistake it for obfuscation or malicious exfiltration. However, in this context, it is simply a standard way to format a string payload inside an email message body.",
+    "hints": [
+      "Check where the base64 encoded string is actually being used.",
+      "Verify if the sensitive-looking data is being sent externally or just displayed to the recipient."
+    ]
+  },
+  {
+    "id": "ex-g0494",
+    "language": "python",
+    "title": "Safe File Upload Extension Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}\n\ndef allowed_file(filename):\n    return '.' in filename and \\\n           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This implementation safely checks the file extension by splitting on the last dot and verifying the resulting extension against a strict whitelist in lowercase. Although string manipulation on filenames can sometimes be risky, this standard pattern is correct and secure.",
+    "hints": [
+      "Check how the file extension is extracted using rsplit.",
+      "Verify if the extracted extension is checked against a strict whitelist."
+    ]
+  },
+  {
+    "id": "ex-g0495",
+    "language": "python",
+    "title": "Incorrect Aspect Ratio Scaling",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size):\n    if original_width > max_size or original_height > max_size:\n        if original_width > original_height:\n            scaling_factor = max_size / original_width\n            new_width = max_size\n            new_height = original_height * scaling_factor\n        else:\n            scaling_factor = max_size / original_height\n            new_width = original_width * scaling_factor\n            new_height = max_size\n        return int(new_width), int(new_height)\n    return original_width, original_height\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-            new_height = original_height * scaling_factor\n+            new_width = original_width * scaling_factor\n+            new_height = max_size",
+    "reference": "When calculating the dimensions for the vertical orientation branch, the code incorrectly assigned max_size to new_height instead of new_width, and calculated new_height using the width's scaling factor. This causes the image dimensions to be swapped or incorrectly scaled when the original height is greater than the width. The fix correctly assigns the max_size to the height and computes the new width proportionally.",
+    "hints": [
+      "Look closely at how dimensions are calculated when the image is taller than it is wide.",
+      "Compare the variable assignments in the 'if' branch versus the 'else' branch.",
+      "The 'else' branch needs to set the new height to max_size and calculate the new width using the scaling factor."
+    ]
+  },
+  {
+    "id": "ex-g0496",
+    "language": "python",
+    "title": "Unclosed Database Connection in Job Worker",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import sqlite3\n\ndef process_jobs(job_ids):\n    for job_id in job_ids:\n        conn = sqlite3.connect('jobs.db')\n        cursor = conn.cursor()\n        cursor.execute('UPDATE jobs SET status = \"completed\" WHERE id = ?', (job_id,))\n        conn.commit()\n        print(f'Processed job {job_id}')\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- worker.py\n+++ worker.py\n@@ -5,3 +5,4 @@\n         conn = sqlite3.connect('jobs.db')\n+        with sqlite3.connect('jobs.db') as conn:\n             cursor = conn.cursor()\n             cursor.execute('UPDATE jobs SET status = \"completed\" WHERE id = ?', (job_id,))\n             conn.commit()",
+    "reference": "Opening database connections inside a tight loop without closing them can quickly exhaust the available file descriptors and database connection limits. Using a context manager such as a 'with' statement ensures that the connection is properly closed after each iteration, even if an exception occurs during execution.",
+    "hints": [
+      "Look closely at how external resources are managed inside the loop.",
+      "Consider what happens to the database connections over time when processing many jobs.",
+      "Use a context manager ('with' statement) to automatically clean up the connection resource."
+    ]
+  },
+  {
+    "id": "ex-g0497",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Update",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import sqlite3\n\ndef update_job_status(db_conn, job_id, status):\n    cursor = db_conn.cursor()\n    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n    cursor.execute(query)\n    db_conn.commit()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = \" + str(job_id)\n-    cursor.execute(query)\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input (the status variable) is directly concatenated into the SQL command string. An attacker could manipulate the status string to execute arbitrary SQL commands against the database. To fix this, use parameterized queries by passing the parameters as a tuple to cursor.execute(), which allows the database driver to properly escape the input.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look at how variables are combined into the 'query' string before execution.",
+      "Replace string concatenation with parameterized queries using question mark placeholders (?)"
+    ]
+  },
+  {
+    "id": "ex-g0498",
+    "language": "python",
+    "title": "Unthreadsafe Cache Initialization",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "class SimpleCache:\n    def __init__(self):\n        self._store = None\n\n    def get_store(self):\n        if self._store is None:\n            self._store = {}\n        return self._store\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -5,3 +5,3 @@\n         if self._store is None:\n-            self._store = {}\n+            self._store = dict()\n",
+    "reference": "This code suffers from a classic race condition known as the Check-Then-Act pattern. If two threads simultaneously evaluate the 'if self._store is None' condition as true, both will attempt to initialize the dictionary, leading to a lost update or inconsistent state. To fix this, you should use a threading lock or synchronization primitive to ensure that the initialization block is executed atomically.",
+    "hints": [
+      "Consider what happens if two threads call get_store at the exact same time when _store is None.",
+      "The check and the assignment are not performed as a single atomic operation.",
+      "Introduce a threading.Lock to synchronize access to the initialization logic."
+    ]
+  },
+  {
+    "id": "ex-g0499",
+    "language": "python",
+    "title": "Unclosed Database Connection in Inventory Restock",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def restock_item(item_id: int, quantity: int) -> None:\n    conn = db_pool.get_connection()\n    cursor = conn.cursor()\n    cursor.execute(\"UPDATE inventory SET stock = stock + %s WHERE id = %s\", (quantity, item_id))\n    conn.commit()\n    cursor.close()\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    conn = db_pool.get_connection()\n+    with db_pool.get_connection() as conn:\n         cursor = conn.cursor()",
+    "reference": "The database connection acquired from the connection pool is never released back to the pool because it lacks a cleanup mechanism or try-finally block. If exceptions occur during execution, or even on successful runs if not explicitly closed, connections will eventually leak and exhaust the pool. Using a context manager ensures the connection is properly returned to the pool regardless of runtime exceptions.",
+    "hints": [
+      "Examine how resources are acquired and if they are guaranteed to be released.",
+      "Look at the database connection variable and trace its lifecycle throughout the function.",
+      "Consider using a context manager (with statement) to automatically handle the resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0500",
+    "language": "python",
+    "title": "Unclosed File Resource in Request Logger",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request_data):\n    log_file = open(\"requests.log\", \"a\")\n    log_file.write(f\"{request_data}\\n\")\n    if \"error\" in request_data:\n        raise ValueError(\"Invalid request data\")\n    log_file.close()\n",
+    "real_lines": [
+      2,
+      6
+    ],
+    "fix_diff": "@@ -2,5 +2,5 @@\n def log_request(request_data):\n-    log_file = open(\"requests.log\", \"a\")\n-    log_file.write(f\"{request_data}\\n\")\n-    if \"error\" in request_data:\n-    +with open(\"requests.log\", \"a\") as log_file:\n-        log_file.write(f\"{request_data}\\n\")\n-        if \"error\" in request_data:\n-            raise ValueError(\"Invalid request data\")\n-    -    log_file.close()",
+    "reference": "Opening files without a context manager or explicit try-finally block can lead to resource leaks if an exception interrupts execution before the file is closed. In this function, if 'request_data' contains the word \"error\", a ValueError is raised and log_file.close() is skipped entirely. Using a 'with' statement ensures the file resource is reliably cleaned up regardless of whether exceptions occur.",
+    "hints": [
+      "Examine how external resources like files are acquired and released.",
+      "Trace what happens to the file handle when an exception is raised inside the function.",
+      "Refactor the file opening logic to use a context manager ('with' statement) to guarantee closure."
+    ]
+  },
+  {
+    "id": "ex-g0501",
+    "language": "python",
+    "title": "Insecure Rate Limiter Identifier",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "from flask import request, jsonify\nfrom redis import Redis\n\nredis_client = Redis()\n\ndef check_rate_limit(limit: int = 100) -> bool:\n    identifier = request.remote_addr\n    current = redis_client.incr(f\"rate_limit:{identifier}\")\n    if current == 1:\n        redis_client.expire(f\"rate_limit:{identifier}\", 60)\n    return current <= limit\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    identifier = request.remote_addr\n+    identifier = request.headers.get('X-Forwarded-For', request.remote_addr)",
+    "reference": "Relying solely on request.remote_addr for rate limiting behind a reverse proxy or load balancer can result in throttling the proxy itself instead of individual clients. Attackers can also spoof headers or bypass limits if the proxy configuration isn't properly trusted. Using an authenticated user ID or reliably parsing trusted proxy headers ensures accurate rate tracking.",
+    "hints": [
+      "Consider how the application receives incoming HTTP requests in a modern cloud environment.",
+      "Look at where the client identifier comes from and what happens if the app sits behind a load balancer.",
+      "Using request.remote_addr might capture the proxy IP rather than the user's IP; check for proxy forwarding headers."
+    ]
+  },
+  {
+    "id": "ex-g0502",
+    "language": "python",
+    "title": "SQL Injection in Inventory Search",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import sqlite3\n\ndef search_item(item_name):\n    conn = sqlite3.connect('inventory.db')\n    cursor = conn.cursor()\n    query = \"SELECT * FROM items WHERE name = '\" + item_name + \"'\"\n    cursor.execute(query)\n    return cursor.fetchall()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM items WHERE name = '\" + item_name + \"'\"\n+    query = \"SELECT * FROM items WHERE name = ?\"\n+    cursor.execute(query, (item_name,))",
+    "reference": "This code is vulnerable to SQL injection because user input is directly concatenated into the SQL command string. An attacker can manipulate the input to alter the structure of the query and access unauthorized data. The fix uses parameterized queries, which safely separate user data from the SQL command structure.",
+    "hints": [
+      "Look at how the SQL query string is constructed.",
+      "Pay attention to how user input is combined with the SQL statement.",
+      "Use parameterized queries with question mark placeholders instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0503",
+    "language": "python",
+    "title": "False Positive in CSV DictReader Fieldnames",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_csv_data(file_path):\n    with open(file_path, mode='r', encoding='utf-8') as f:\n        reader = csv.DictReader(f)\n        return list(reader)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses csv.DictReader without explicitly providing the fieldnames parameter. To a novice, this might look like a bug assuming fieldnames must always be passed. However, Python's csv.DictReader automatically uses the first row of the CSV file as the fieldnames if the parameter is omitted, making this implementation completely correct and standard.",
+    "hints": [
+      "Check how csv.DictReader behaves when the fieldnames parameter is omitted.",
+      "Verify whether the CSV file's first row is typically used as a header."
+    ]
+  },
+  {
+    "id": "ex-g0504",
+    "language": "python",
+    "title": "Log Injection Vulnerability",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "import logging\n\ndef log_user_action(username, action):\n    logger = logging.getLogger(\"audit\")\n    log_msg = f\"User {username} performed {action}\"\n    logger.info(log_msg)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    log_msg = f\"User {username} performed {action}\"\n+    safe_username = username.replace(\"\\n\", \"_\").replace(\"\\r\", \"_\")\n+    safe_action = action.replace(\"\\n\", \"_\").replace(\"\\r\", \"_\")\n+    log_msg = f\"User {safe_username} performed {safe_action}\"",
+    "reference": "This code is vulnerable to log injection because untrusted user input is directly formatted into the log message without sanitization. An attacker can supply newline characters in the username or action parameters to forge fake log entries, potentially misleading auditors or hiding malicious activity. The fix involves sanitizing newline and carriage return characters from the input before logging.",
+    "hints": [
+      "Examine how user-supplied variables are incorporated into the log message.",
+      "Consider what happens if a user includes special control characters like newlines in their input.",
+      "Sanitize the input by replacing or stripping out newline and carriage return characters before passing them to the logger."
+    ]
+  },
+  {
+    "id": "ex-g0505",
+    "language": "python",
+    "title": "Unused Import or Redundant Pass in Thumbnail Generator",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\nfrom PIL import Image\n\ndef create_thumbnail(input_path: str, output_path: str, size: tuple = (128, 128)) -> None:\n    \"\"\"Creates a square thumbnail from an image file.\"\"\"\n    with Image.open(input_path) as img:\n        img.thumbnail(size)\n        img.save(output_path)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The imported 'os' module is not strictly used in this specific function, which might make a novice reviewer think it's dead code or a forgotten import. However, it is entirely harmless, does not cause any runtime errors, and is often kept for modularity or future extensions in the same module.",
+    "hints": [
+      "Check if the unused import causes any syntax or runtime errors in Python.",
+      "Consider if the presence of 'os' is preparation for future file validation checks in the same module."
+    ]
+  },
+  {
+    "id": "ex-g0506",
+    "language": "python",
+    "title": "Unclosed File Resource in Report Generator",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def generate_csv_report(data, filepath):\n    f = open(filepath, 'w')\n    f.write(\"ID,Value\\n\")\n    for row in data:\n        f.write(f\"{row['id']},{row['value']}\\n\")\n    return filepath\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    f = open(filepath, 'w')\n+    with open(filepath, 'w') as f:",
+    "reference": "Opening a file without a context manager leaves the file descriptor open until garbage collection cleans it up, which can cause resource leaks and file locks. Using a 'with' statement ensures the file is properly closed as soon as the block is exited, even if exceptions occur during writing.",
+    "hints": [
+      "Check how external resources are acquired inside the function.",
+      "Look at the file object lifecycle and whether it is explicitly released.",
+      "Use a context manager (the 'with' statement) to handle file closure automatically."
+    ]
   }
 ]
