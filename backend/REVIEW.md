@@ -27,6 +27,25 @@ export REVIEWER=yourname
 
 (or pass `--reviewer yourname` each run).
 
+## Inside Antigravity / VS Code
+
+Antigravity is a VS Code build — this all works natively.
+
+- `File -> Open Folder` the cloned `codesight-code-review`.
+- Run every command below in the integrated terminal (`` Ctrl+` ``), after
+  `cd backend`.
+- For the `e` (edit) option, set `$env:EDITOR = "code -w"` so the record
+  opens as a tab in the same window and the script waits for you to close
+  it. If `code` isn't found, run "Shell Command: Install 'code' command in
+  PATH" from the Command Palette, or leave `$EDITOR` unset (falls back to
+  Notepad).
+- Read this file rendered with `Ctrl+Shift+V`.
+- Use the Source Control panel for the branch / stage / commit / push / PR
+  if you prefer it to the CLI — stage **only** `exercises.review.json`.
+- The AI agent is a helper for *sanity-checking* an exercise ("is there
+  really an auth bug on these lines?"), not the reviewer. Never let it
+  batch-edit `exercises.generated.json` or auto-fill verdicts.
+
 ## Each review session
 
 ```
