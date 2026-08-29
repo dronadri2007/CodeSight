@@ -8020,5 +8020,390 @@
       "Check if the function verifies who is making the HTTP POST request.",
       "Add a missing decorator like @login_required to secure the endpoint."
     ]
+  },
+  {
+    "id": "ex-g0407",
+    "language": "python",
+    "title": "SQL Injection in Redis Rate Limiter Key",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import redis\n\ndef check_rate_limit(redis_client: redis.Redis, user_id: str, limit: int) -> bool:\n    key = f\"ratelimit:{user_id}:requests\"\n    current = redis_client.eval(f\"return redis.call('INCR', '{key}')\", 0)\n    return int(current) <= limit\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -5,1 +5,1 @@\n-    current = redis_client.eval(f\"return redis.call('INCR', '{key}')\", 0)\n+    current = redis_client.eval(\"return redis.call('INCR', KEYS[1])\", 1, key)",
+    "reference": "This code is vulnerable to Redis command injection because user-supplied input is directly interpolated into the Lua script string via f-strings. An attacker could manipulate the user_id to inject arbitrary Redis commands executed within the EVAL context. The fix uses Redis EVAL key parameters properly by passing the key through KEYS array arguments instead of string interpolation.",
+    "hints": [
+      "Look closely at how the Lua script string is constructed before being sent to Redis.",
+      "Examine the way variables are injected into the script execution context.",
+      "Check the redis documentation on how to safely pass keys to the EVAL command."
+    ]
+  },
+  {
+    "id": "ex-g0408",
+    "language": "python",
+    "title": "Insecure Cache Key Generation",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_user_cache_data(request, cache_service):\n    token = request.headers.get(\"Authorization\")\n    if not token:\n        raise ValueError(\"Unauthorized\")\n    cache_key = f\"user_data\"\n    cached_result = cache_service.get(cache_key)\n    if cached_result:\n        return cached_result\n    data = fetch_expensive_user_data()\n    cache_service.set(cache_key, data)\n    return data\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -5,1 +5,1px\n-    cache_key = f\"user_data\"\n+    cache_key = f\"user_data:{token}\"",
+    "reference": "This code suffers from an authentication authorization isolation flaw where the cache key is static for all users. Because the cache key does not incorporate the authorization token or user identifier, the first user to query the endpoint populates the cache with their private data. Subsequent users receive the cached data belonging to the first user, leading to a severe cross-user data leak.",
+    "hints": [
+      "Examine how the cache key is constructed.",
+      "Check whether the cache key depends on the incoming request's credentials or user context.",
+      "Include the user's token or identifier in the cache key string to isolate cached entries per user."
+    ]
+  },
+  {
+    "id": "ex-g0409",
+    "language": "python",
+    "title": "Mutable Default Arguments in Cache",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_data(key: str, cache: dict = {}) -> str:\n    if key not in cache:\n        cache[key] = f\"data_{key}\"\n    return cache[key]\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def get_cached_data(key: str, cache: dict = {}) -> str:\n+ def get_cached_data(key: str, cache: Optional[dict] = None) -> str:\n+     if cache is None:\n+         cache = {}",
+    "reference": "Python evaluates default argument values once at function definition time, not every time the function is called. This means the default dictionary object is shared across all function calls, leading to persistent state leakage between different requests. Using None as the default and instantiating a new dictionary inside the function body ensures each invocation gets an isolated namespace.",
+    "hints": [
+      "Look closely at how function arguments are initialized.",
+      "Consider the lifecycle of default argument values in Python.",
+      "Replace the mutable default dictionary with None and initialize it inside the function."
+    ]
+  },
+  {
+    "id": "ex-g0410",
+    "language": "python",
+    "title": "Unauthenticated Rate Limit Bypass via Header Spoofing",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "def check_rate_limit(request, redis_client):\n    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)\n    key = f\"ratelimit:{client_ip}\"\n    current = redis_client.get(key)\n    if current and int(current) > 100:\n        return False\n    redis_client.incr(key)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- ratelimit.py\n+++ ratelimit.py\n@@ -2,1 +2,1 @@\n-    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)\n+    client_ip = request.remote_addr",
+    "reference": "Trusting the 'X-Forwarded-For' header without verifying if the request passed through a trusted reverse proxy allows malicious clients to spoof their IP address. An attacker can rotate arbitrary IP addresses in this header to completely bypass the rate limiting mechanism. Rate-limiting keys should rely on trusted network properties like remote_addr or validated proxy headers.",
+    "hints": [
+      "Examine how the client's identifier is retrieved from the incoming request.",
+      "Consider the trustworthiness of HTTP headers in web traffic.",
+      "Using a header that can be easily manipulated by the client creates a security boundary violation."
+    ]
+  },
+  {
+    "id": "ex-g0411",
+    "language": "python",
+    "title": "Unused job priority parameter in worker wrapper",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "def process_background_job(job_id, priority=0):\n    print(f\"Processing job {job_id}\")\n    return True\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The 'priority' parameter is currently unused because the underlying queue processes FIFO, but it is kept in the signature to maintain backwards compatibility with the upcoming task scheduler API. This is a false positive and the code is completely safe.",
+    "hints": [
+      "Check if the function successfully executes and returns the expected result regardless of the parameters passed.",
+      "Consider whether optional parameters with default values cause any runtime errors if left unused inside a simple function."
+    ]
+  },
+  {
+    "id": "ex-g0412",
+    "language": "python",
+    "title": "Missing Tenant Authorization in Background Job Queue",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "def process_job(job):\n    tenant_id = job.get(\"tenant_id\")\n    payload = job.get(\"payload\")\n    user = authenticate_system_user()\n    db_session.set_tenant(tenant_id)\n    execute_task(payload)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    user = authenticate_system_user()\n+    user = authenticate_job_owner(job)",
+    "reference": "Background jobs often execute with elevated system privileges, bypassing standard request-context checks. If a job payload contains a tenant_id supplied by an untrusted source without verifying that the authenticating user actually owns or has access to that tenant, an attacker could manipulate job data to perform cross-tenant actions. The fix ensures the job's execution context is properly validated against the originating user or tenant permissions.",
+    "hints": [
+      "Examine how the user identity is established inside the worker.",
+      "Look closely at the function used to authenticate the current execution context.",
+      "Consider whether system-level authentication is appropriate when processing user-submitted multi-tenant jobs."
+    ]
+  },
+  {
+    "id": "ex-g0413",
+    "language": "python",
+    "title": "Secure Password Hashing with Argon2",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\nfrom argon2 import PasswordHasher\n\n_ph = PasswordHasher()\n\ndef verify_password(stored_hash: str, provided_password: str) -> bool:\n    try:\n        return _ph.verify(stored_hash, provided_password)\n    except Exception:\n        return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This implementation uses the Argon2 password hashing algorithm, which is currently recommended by OWASP for password hashing. The catch-all 'except Exception' might look suspicious at first glance as a bad practice (swallowing all exceptions), but here it is correct and necessary because the argon2 library raises a wide variety of specific and internal exceptions upon verification failure (e.g., VerificationError, InvalidHash, TypeMismatch), and returning False on any failure to verify prevents information leakage and crashes.",
+    "hints": [
+      "Check which library is being used for password verification and whether it is considered cryptographically secure.",
+      "Consider why a broad exception handler might be intentionally used when dealing with cryptographic verification functions."
+    ]
+  },
+  {
+    "id": "ex-g0414",
+    "language": "python",
+    "title": "Unauthenticated File Upload Vulnerability",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "upload_service.py",
+    "code": "def handle_user_upload(request):\n    user = authenticate_request(request)\n    if not user:\n        return {\"status\": 401, \"error\": \"Unauthorized\"}\n    \n    file_data = request.files.get(\"document\")\n    if file_data:\n        save_to_disk(file_data, f\"uploads/{user.id}/{file_data.filename}\")\n        return {\"status\": 200, \"message\": \"Success\"}\n    \n    return {\"status\": 400, \"error\": \"No file provided\"}\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    user = authenticate_request(request)\n+    user = authenticate_request(request)\n+    if not user.is_admin:\n+        return {\"status\": 403, \"error\": \"Forbidden\"}",
+    "reference": "The function correctly authenticates that a user is logged in, but fails to verify if the user possesses the necessary authorization or administrative privileges to upload files. This missing authorization check allows any standard authenticated user to perform sensitive upload actions. The fix introduces a role-based access control check to ensure only authorized users can proceed.",
+    "hints": [
+      "Check the distinction between authentication and authorization in this workflow.",
+      "Look closely at the user object after authentication succeeds.",
+      "Verify if the authenticated user has the correct permissions or roles to execute the upload operation."
+    ]
+  },
+  {
+    "id": "ex-g0415",
+    "language": "python",
+    "title": "Webhook Secret Timing Attack False Positive",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\n\ndef verify_signature(request_signature: str, payload: bytes, secret: str) -> bool:\n    expected_signature = hmac.new(secret.encode('utf-8'), payload, 'sha256').hexdigest()\n    return hmac.compare_digest(request_signature, expected_signature)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of hmac.compare_digest is the correct and secure way to compare signatures in Python to prevent timing attacks. While using hmac.new and manual hex digests can look complex or suspicious to beginners, this implementation is entirely safe and correct.",
+    "hints": [
+      "Check how the string comparison is being performed between the two signatures.",
+      "Look up the documentation for the hmac module to see what compare_digest is designed to do."
+    ]
+  },
+  {
+    "id": "ex-g0416",
+    "language": "python",
+    "title": "Missing Exception Type in Thumbnail Handler",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(image_path):\n    try:\n        img = Image.open(image_path)\n        img.thumbnail((128, 128))\n        img.save(image_path + \".thumb.jpg\")\n    except:\n        print(\"Failed to process image\")\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "-    except:\n+    except IOError:\n         print(\"Failed to process image\")",
+    "reference": "Using a bare 'except:' clause catches all exceptions, including system-exiting ones like KeyboardInterrupt and SystemExit, making it impossible to gracefully stop the program. It also masks unexpected bugs like NameError or TypeError instead of handling only the expected I/O or image errors. Specifying the exception type ensures that only relevant errors are caught and handled.",
+    "hints": [
+      "Look closely at the except block in the function.",
+      "Consider what happens if a user interrupts the running program with Ctrl+C.",
+      "Specify the exact exception class you expect from file or image operations instead of catching everything."
+    ]
+  },
+  {
+    "id": "ex-g0417",
+    "language": "python",
+    "title": "Safe Temporary File Upload Processing",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\nimport tempfile\n\ndef process_upload(file_storage):\n    suffix = os.path.splitext(file_storage.filename)[1]\n    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:\n        file_storage.save(tmp.name)\n        return tmp.name\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and secure. While using delete=False might look suspicious at first glance because it leaves the file on disk, the function returns the absolute path of the temporary file so that the calling scope can process it and safely clean it up afterward.",
+    "hints": [
+      "Check how the temporary file is created and what is returned to the caller.",
+      "Consider the lifecycle management of the temporary file in the broader application architecture."
+    ]
+  },
+  {
+    "id": "ex-g0418",
+    "language": "python",
+    "title": "SQL Injection in Payment Processing Query",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import sqlite3\n\ndef get_payment_details(db_connection, transaction_id):\n    cursor = db_connection.cursor()\n    query = \"SELECT * FROM payments WHERE transaction_id = '\" + transaction_id + \"'\"\n    cursor.execute(query)\n    return cursor.fetchone()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM payments WHERE transaction_id = '\" + transaction_id + \"'\"\n+    query = \"SELECT * FROM payments WHERE transaction_id = ?\"\n+    cursor.execute(query, (transaction_id,))",
+    "reference": "This function is vulnerable to SQL injection because user-supplied input (transaction_id) is directly concatenated into the SQL query string. An attacker could supply malicious input to manipulate the query logic and access unauthorized payment records. The fix uses parameterized queries, allowing the database driver to safely escape and handle the input.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the usage of string concatenation for variable insertion.",
+      "Replace the concatenated variable with a parameterized placeholder (?)"
+    ]
+  },
+  {
+    "id": "ex-g0419",
+    "language": "python",
+    "title": "SQL Injection in Report Filter",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "import sqlite3\n\ndef generate_user_report(db_path, department):\n    conn = sqlite3.connect(db_path)\n    cursor = conn.cursor()\n    query = \"SELECT * FROM users WHERE department = '\" + department + \"'\"\n    cursor.execute(query)\n    results = cursor.fetchall()\n    conn.close()\n    return results\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    query = \"SELECT * FROM users WHERE department = '\" + department + \"'\"\n+    query = \"SELECT * FROM users WHERE department = ?\"\n+    cursor.execute(query, (department,))",
+    "reference": "This function suffers from a SQL injection vulnerability because user-supplied input is directly concatenated into the SQL query string. An attacker could supply malicious input to manipulate the query structure and access unauthorized data. The fix uses parameterized queries, which safely separate the SQL logic from the input parameters.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the way the 'department' variable is incorporated into the query.",
+      "Consider using parameterized queries provided by the database cursor instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0420",
+    "language": "python",
+    "title": "Background Job Status Poller",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_poller.py",
+    "code": "import time\n\nclass JobPoller:\n    def __init__(self, default_timeout=30):\n        self.default_timeout = default_timeout\n\n    def poll(self, job, timeout=None):\n        actual_timeout = timeout or self.default_timeout\n        start_time = time.time()\n        while time.time() - start_time < actual_timeout:\n            if job.is_complete():\n                return True\n            time.sleep(1)\n        return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The use of 'timeout or self.default_timeout' might look suspicious at a glance because falsy values like 0 would fall back to the default. However, timeout values represent durations in seconds, where 0 or negative values are not valid configuration inputs for this poller anyway. Furthermore, callers passing None correctly trigger the default fallback. This code is clean and bug-free.",
+    "hints": [
+      "Check what happens if timeout is explicitly set to zero or a negative number in this context.",
+      "Verify whether the default fallback mechanism correctly handles None values passed by callers."
+    ]
+  },
+  {
+    "id": "ex-g0421",
+    "language": "python",
+    "title": "Report Header Generation",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_header(title):\n    separator = \"-\" * 20\n    header = f\"{separator}\\n{title.upper()}\\n{separator}\"\n    return header\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code is completely safe and correct. The string multiplication \"-\" * 20 creates a fixed-length visual divider without allocating large memory or risking integer overflow in Python for typical UI constraints.",
+    "hints": [
+      "Check if the multiplication factor 20 can lead to an excessively large memory allocation.",
+      "Verify if title.upper() handles None values or if the function expects a string."
+    ]
+  },
+  {
+    "id": "ex-g0422",
+    "language": "python",
+    "title": "Uncaught Exception in Search",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_items(query):\n    if not query:\n        return []\n    results = database.query(query)\n    if results.empty():\n        raise NotFoundError(\"No items found\")\n    return results\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    if results.empty():\n+    if results.empty:\n",
+    "reference": "The error occurs because the code attempts to call the 'empty' attribute as a method using parentheses, whereas it is actually a property or boolean attribute. In Python, calling a non-callable object raises a TypeError at runtime. Removing the parentheses correctly evaluates the property and avoids crashing the request handler.",
+    "hints": [
+      "Look closely at how the condition on the results object is evaluated.",
+      "Check if the attribute being accessed is meant to be a method or a property.",
+      "Remove the parentheses after the 'empty' attribute."
+    ]
+  },
+  {
+    "id": "ex-g0423",
+    "language": "python",
+    "title": "Uncaught Connection Error in Rate Limiter",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\nimport redis\n\ndef check_rate_limit(client_id: str, redis_client: redis.Redis) -> bool:\n    key = f\"rate_limit:{client_id}\"\n    try:\n        current = redis_client.incr(key)\n        if current == 1:\n            redis_client.expire(key, 60)\n        return current <= 5\n    except redis.ConnectionError:\n        return True\n",
+    "real_lines": [
+      10,
+      11
+    ],
+    "fix_diff": "@@ -10,2 +10,2 @@\n-    except redis.ConnectionError:\n-        return True\n+    except redis.RedisError:\n+        return False",
+    "reference": "When dealing with rate limiters backed by an external data store like Redis, you must decide how the application should behave when the store becomes unavailable. Catching only redis.ConnectionError leaves the application vulnerable to other Redis-related exceptions such as TimeoutError or ResponseError. Furthermore, failing open by returning True during an outage allows unlimited traffic, which can overwhelm downstream services; failing closed by returning False is often safer for system stability.",
+    "hints": [
+      "Look closely at the exception being caught in the try-except block.",
+      "Consider what happens if Redis throws a timeout or another non-connection Redis error.",
+      "Catching a broader Redis exception base class and returning False ensures failing closed rather than letting all traffic through."
+    ]
+  },
+  {
+    "id": "ex-g0424",
+    "language": "python",
+    "title": "Unbounded Request History in Rate Limiter",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "import time\n\nREQUEST_HISTORY = []\n\ndef is_allowed(request_time, limit_window=60):\n    global REQUEST_HISTORY\n    REQUEST_HISTORY.append(request_time)\n    valid_requests = [t for t in REQUEST_HISTORY if t > request_time - limit_window]\n    return len(valid_requests) <= 5\n",
+    "real_lines": [
+      3,
+      7
+    ],
+    "fix_diff": "@@ -3,1 +3,1 @@\n-REQUEST_HISTORY = []\n+request_history = []\n@@ -7,1 +7,1 @@\n-    valid_requests = [t for t in REQUEST_HISTORY if t > request_time - limit_window]\n+    valid_requests = [t for t in REQUEST_HISTORY if t > request_time - limit_window]\n+    REQUEST_HISTORY = valid_requests",
+    "reference": "This rate limiter tracks requests by appending every timestamp to a global list without ever cleaning up old entries. Over time, this causes a memory leak as the list grows indefinitely with every incoming request. Fixing the issue requires reassigning the filtered list of valid requests back to the global history variable so expired timestamps are properly discarded.",
+    "hints": [
+      "Look closely at how data accumulates over time across multiple function calls.",
+      "Examine the global list variable and check if its size ever decreases.",
+      "Make sure to update the global list with only the valid requests after filtering."
+    ]
+  },
+  {
+    "id": "ex-g0425",
+    "language": "python",
+    "title": "Unthread-Safe Global Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "request_count = 0\n\ndef log_request(endpoint):\n    global request_count\n    request_count += 1\n    print(f\"Request {request_count}: {endpoint}\")\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -5,1 +5,1 @@\n-    request_count += 1\n+    with threading.Lock(): request_count += 1",
+    "reference": "The code uses a global variable for counting requests without synchronization, leading to a race condition in multi-threaded web servers. When multiple threads increment request_count simultaneously, some increments may be lost. Using a threading lock ensures that read-modify-write operations on the shared counter are atomic.",
+    "hints": [
+      "Consider how this function behaves when called simultaneously by multiple threads.",
+      "Look closely at the line where request_count is modified.",
+      "An increment operation (+=) is not atomic in Python and requires a Lock."
+    ]
+  },
+  {
+    "id": "ex-g0426",
+    "language": "python",
+    "title": "Unclosed File Resource in Password Verification",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def verify_password(username, provided_password):\n    f = open(\"passwords.txt\", \"r\")\n    content = f.read()\n    if username in content and provided_password in content:\n        return True\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    f = open(\"passwords.txt\", \"r\")\n+    with open(\"passwords.txt\", \"r\") as f:\n",
+    "reference": "Opening files without using a context manager or explicitly closing them can lead to file descriptor leaks, which exhaust system resources over time. By using the 'with' statement, Python guarantees that the file resource is properly cleaned up and closed as soon as the block is exited, even if an exception occurs.",
+    "hints": [
+      "Check how external system resources like files are handled after being opened.",
+      "Consider what happens to the file descriptor if the function executes repeatedly over time.",
+      "Use a context manager like the 'with' statement to ensure the file is automatically closed."
+    ]
   }
 ]
