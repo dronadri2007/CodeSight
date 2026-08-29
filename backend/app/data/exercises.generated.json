@@ -17741,5 +17741,406 @@
       "Check if any actual secrets like passwords or API keys are hardcoded in the function.",
       "Verify if the hardcoded values are just standard public endpoints and configuration flags."
     ]
+  },
+  {
+    "id": "ex-g0900",
+    "language": "python",
+    "title": "Unhandled File Not Found",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def process_upload(filepath):\n    try:\n        f = open(filepath, 'r')\n        data = f.read()\n        return data\n    finally:\n        f.close()\n",
+    "real_lines": [
+      3,
+      7
+    ],
+    "fix_diff": "@@ -3,5 +3,5 @@\n     try:\n-        f = open(filepath, 'r')\n+        with open(filepath, 'r') as f:\n             data = f.read()\n             return data\n-    finally:\n-        f.close()\n+    except FileNotFoundError:\n+        return None",
+    "reference": "The original code attempts to close the file in a finally block even if the open() function fails with a FileNotFoundError. If open() raises an exception, the variable f is never bound, causing an UnboundLocalError when f.close() is called. Using a context manager (the 'with' statement) and catching the appropriate exception prevents this crash and handles missing files gracefully.",
+    "hints": [
+      "Look closely at what happens if the file path provided does not exist on disk.",
+      "Trace the execution flow when open() raises an exception before f is assigned.",
+      "Consider using a context manager with statement or adding an except block for FileNotFoundError."
+    ]
+  },
+  {
+    "id": "ex-g0901",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in File Upload Handler",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "uploads.py",
+    "code": "import os\nfrom flask import request, abort, session\n\ndef save_user_avatar():\n    user_id = request.form.get(\"user_id\")\n    file = request.files.get(\"avatar\")\n    if not file:\n        abort(400)\n    path = os.path.join(\"/var/www/uploads\", user_id, file.filename)\n    file.save(path)\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-    path = os.path.join(\"/var/www/uploads\", user_id, file.filename)\n+    path = os.path.join(\"/var/www/uploads\", session.get(\"user_id\"), file.filename)",
+    "reference": "This function suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it relies entirely on user-supplied input to determine the target directory path. An attacker can manipulate the user_id parameter in the form data to overwrite files belonging to other users. To remediate this defect, the application should derive the user's identity from a trusted, server-side session rather than trusting client-provided parameters.",
+    "hints": [
+      "Examine where the storage directory path is constructed.",
+      "Look closely at the source of the identifier used to namespace the uploaded file.",
+      "Replace the client-controlled form parameter with a trusted value from the server-side session."
+    ]
+  },
+  {
+    "id": "ex-g0902",
+    "language": "python",
+    "title": "False Positive Session Key Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "def clear_user_session(session):\n    keys_to_remove = ['user_id', 'role', 'permissions']\n    for key in keys_to_remove:\n        if key in session:\n            session.pop(key)\n    return session\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely safe. A novice reviewer might worry about runtime errors when mutating a dictionary while iterating over a separate list of keys, but here we are iterating over 'keys_to_remove' (a list) rather than the dictionary 'session' itself. Dictionary membership checks and popping keys during list iteration is fully valid and correct in Python.",
+    "hints": [
+      "Look closely at what collection is being iterated over in the for-loop.",
+      "Check whether the keys being removed are part of the dictionary being modified or a separate list."
+    ]
+  },
+  {
+    "id": "ex-g0903",
+    "language": "python",
+    "title": "Uncaught File Exception in CSV Import",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_data(filepath):\n    file = open(filepath, 'r')\n    reader = csv.reader(file)\n    for row in reader:\n        print(row)\n    file.close()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    file = open(filepath, 'r')\n+    with open(filepath, 'r') as file:",
+    "reference": "When working with external files, operations can fail due to missing files or permission issues, leaving resources unmanaged. Using a context manager via the 'with' statement ensures that the file is safely closed even if an exception occurs during reading. This prevents resource leaks and handles file I/O safety natively.",
+    "hints": [
+      "Check how the file is being opened and whether its lifecycle is properly managed.",
+      "Consider what happens if an error occurs while iterating over the file reader.",
+      "Use a context manager ('with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0904",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in Thumbnail Retriever",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\n\ndef get_thumbnail(user_id, filename):\n    base_dir = \"/var/app/thumbnails\"\n    path = os.path.join(base_dir, filename)\n    with open(path, \"rb\") as f:\n        return f.read()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    path = os.path.join(base_dir, filename)\n+    path = os.path.join(base_dir, str(user_id), filename)",
+    "reference": "This code suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it uses the user-supplied filename directly without verifying that the requested thumbnail belongs to the authenticated user. An attacker can manipulate the filename parameter or use path traversal characters to access files belonging to other users. The fix incorporates the user_id into the file path to enforce proper authorization boundaries.",
+    "hints": [
+      "Look closely at how the file path is constructed from the parameters.",
+      "Consider what happens if a user requests a file that belongs to someone else.",
+      "Ensure that the user_id parameter is used to scope the file access."
+    ]
+  },
+  {
+    "id": "ex-g0905",
+    "language": "python",
+    "title": "Webhook Event File Descriptor Leak",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef process_webhook(request_body, signature, secret):\n    expected = hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()\n    if not hmac.compare_digest(expected, signature):\n        return False\n    log_file = open(\"webhook_audit.log\", \"a\")\n    log_file.write(request_body.decode() + \"\\n\")\n    return True\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -7,3 +7,4 @@\n-    log_file = open(\"webhook_audit.log\", \"a\")\n-    log_file.write(request_body.decode() + \"\\n\")\n+    with open(\"webhook_audit.log\", \"a\") as log_file:\n+        log_file.write(request_body.decode() + \"\\n\")\n     return True",
+    "reference": "The function opens a file to log incoming webhooks using standard open() without a context manager or explicit close call. Under continuous load, this will eventually exhaust the available file descriptors on the host operating system, leading to application crashes. Using a context manager (the 'with' statement) ensures the file handle is automatically and safely closed after writing, even if exceptions occur.",
+    "hints": [
+      "Check how external resources are managed within the function.",
+      "Look closely at the file operations used for auditing.",
+      "Ensure that file handles are properly closed or managed using a context manager to prevent leaks."
+    ]
+  },
+  {
+    "id": "ex-g0906",
+    "language": "python",
+    "title": "Uncaught File I/O Exception",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "def save_uploaded_file(file_obj, destination_path):\n    try:\n        content = file_obj.read()\n        with open(destination_path, 'wb') as f:\n            f.write(content)\n    except IOError:\n        print(\"Failed to write file\")\n    return True\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -6,2 +6,3 @@\n     except IOError:\n         print(\"Failed to write file\")\n+        return False",
+    "reference": "The function attempts to handle errors during the file writing process by catching an IOError. However, when the exception occurs, it prints an error message but still proceeds to return True at the end of the block. To fix this, the except block should return False or propagate the error so the caller knows the operation failed.",
+    "hints": [
+      "Look closely at the return value of the function when an error happens.",
+      "Check what happens to the control flow after the except block executes.",
+      "The function returns True even when the file writing fails, which misleads the caller."
+    ]
+  },
+  {
+    "id": "ex-g0907",
+    "language": "python",
+    "title": "SMTP Exception Handling Defect",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_alert(recipient: str, message: str) -> bool:\n    try:\n        with smtplib.SMTP('smtp.example.com', 587) as server:\n            server.starttls()\n            server.sendmail('admin@example.com', recipient, message)\n            return True\n    except smtplib.SMTPException as e:\n        logger.error(f'Failed to send email: {e}')\n        return False\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-        logger.error(f'Failed to send email: {e}')\n+        logging.error(f'Failed to send email: {e}')",
+    "reference": "The function attempts to log the SMTP exception using an undefined variable 'logger', which will trigger a NameError at runtime instead of properly recording the failure. To fix this, you should either import and use the standard 'logging' module or define the logger instance properly before the try block. In production code, referencing uninitialized logging objects defeats the error handling mechanism entirely.",
+    "hints": [
+      "Check the names being used inside the except block.",
+      "Look closely at the object responsible for recording the error.",
+      "The variable used to log the message has not been defined or imported anywhere in this scope."
+    ]
+  },
+  {
+    "id": "ex-g0908",
+    "language": "python",
+    "title": "Ignoring Specific Exceptions in Authentication",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import requests\n\ndef authenticate_user(username, password):\n    try:\n        response = requests.post(\"https://api.example.com/login\", json={\"user\": username, \"pass\": password})\n        return response.json()[\"token\"]\n    except:\n        return None\n",
+    "real_lines": [
+      6,
+      7
+    ],
+    "fix_diff": "@@ -6,2 +6,2 @@\n-    except:\n+    except requests.RequestException:\n         return None",
+    "reference": "Using a bare 'except:' clause catches all exceptions, including system exits, keyboard interrupts, and programming errors like NameError. This makes debugging difficult because it silently swallows unexpected issues. You should always catch specific expected exceptions, such as requests.RequestException, to handle only the errors you anticipate.",
+    "hints": [
+      "Look closely at the exception handling block in the function.",
+      "Consider what types of errors might actually occur during an HTTP request.",
+      "Avoid using a bare except clause and instead catch the specific exception class provided by the requests library."
+    ]
+  },
+  {
+    "id": "ex-g0909",
+    "language": "python",
+    "title": "Missing Admin Role Check",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "jobs.py",
+    "code": "def process_admin_job(user, job_data):\n    if not user:\n        raise ValueError(\"Unauthorized\")\n    \n    queue.push(\"admin_queue\", job_data)\n    return True\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,1 +4,3 @@\n-    queue.push(\"admin_queue\", job_data)\n+    if user.get(\"role\") != \"admin\":\n+        raise PermissionError(\"Admin access required\")\n+    queue.push(\"admin_queue\", job_data)",
+    "reference": "This code attempts to process an administrative job queue without validating whether the authenticated user actually possesses the 'admin' role. While it checks if the user object exists, any logged-in standard user can bypass the check and queue privileged jobs. To fix this, you must explicitly verify the user's role against the required permissions before pushing to the secure queue.",
+    "hints": [
+      "Look closely at the authorization checks being performed.",
+      "Consider what happens if a regular, non-admin user passes the initial user check.",
+      "You need to check a specific property on the user dictionary before allowing access to the admin queue."
+    ]
+  },
+  {
+    "id": "ex-g0910",
+    "language": "python",
+    "title": "Uncaught FileNotFoundError in CSV Import",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_user_data(filepath):\n    data = []\n    with open(filepath, mode='r', encoding='utf-8') as file:\n        reader = csv.DictReader(file)\n        for row in reader:\n            data.append(row)\n    return data\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -5,1 +5,5 @@\n-    with open(filepath, mode='r', encoding='utf-8') as file:\n+    try:\n+        with open(filepath, mode='r', encoding='utf-8') as file:\n+            reader = csv.DictReader(file)\n+            for row in reader:\n+                data.append(row)\n+    except FileNotFoundError:\n+        print(f\"Error: The file {filepath} was not found.\")\n+    return data",
+    "reference": "The function opens a file to read CSV data without handling the possibility that the file might not exist on the filesystem. When a non-existent path is passed, open() raises an uncaught FileNotFoundError which abruptly terminates execution. Wrapping the file operation in a try-except block prevents crashes and allows the application to handle missing files gracefully.",
+    "hints": [
+      "Consider what happens if the provided file path does not exist on disk.",
+      "The open() function can raise an exception when dealing with invalid paths.",
+      "Wrap the file-reading logic in a try-except block catching FileNotFoundError."
+    ]
+  },
+  {
+    "id": "ex-g0911",
+    "language": "python",
+    "title": "SQL Injection in Search Query",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "import sqlite3\n\ndef search_users(query):\n    conn = sqlite3.connect('database.db')\n    cursor = conn.cursor()\n    sql = \"SELECT id, username FROM users WHERE username LIKE '%\" + query + \"%'\";\n    cursor.execute(sql)\n    results = cursor.fetchall()\n    conn.close()\n    return results\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    sql = \"SELECT id, username FROM users WHERE username LIKE '%\" + query + \"%'\";\n+    sql = \"SELECT id, username FROM users WHERE username LIKE ?\"\n+    cursor.execute(sql, ('%' + query + '%',))\n",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker could input malicious SQL commands to bypass authentication or extract sensitive data. The fix uses parameterized queries, which safely separate user input from the SQL command structure.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the usage of string concatenation with the query variable.",
+      "Replace the concatenated query string with a parameterized query using placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0912",
+    "language": "python",
+    "title": "Mutable Default Argument in Cache",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_data(key, cache={}):\n    if key not in cache:\n        cache[key] = fetch_from_database(key)\n    return cache[key]\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def get_cached_data(key, cache={}):\n+ def get_cached_data(key, cache=None):\n+     if cache is None:\n+     \t cache = {}",
+    "reference": "This function uses a mutable default argument (`cache={}`), which is evaluated only once when the function is defined, rather than every time the function is called. As a result, the same cache dictionary persists and accumulates data across multiple function calls, leading to potential memory leaks and stale data. The correct approach is to use `None` as the default value and instantiate a new dictionary inside the function body.",
+    "hints": [
+      "Look closely at the function signature and how default arguments are handled in Python.",
+      "Consider what happens to the default `cache` dictionary across multiple independent calls to the function.",
+      "Replace the mutable default argument with `None` and initialize the dictionary inside the function scope."
+    ]
+  },
+  {
+    "id": "ex-g0913",
+    "language": "python",
+    "title": "Token Bucket Rate Limiter Refill Bug",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nclass TokenBucket:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.tokens = float(capacity)\n        self.refill_rate = refill_rate\n        self.last_refill = time.time()\n\n    def consume(self, tokens: int = 1) -> bool:\n        now = time.time()\n        elapsed = now - self.last_refill\n        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n        self.last_refill = now\n        if self.tokens >= tokens:\n            self.tokens -= tokens\n            return True\n        return False\n",
+    "real_lines": [
+      13
+    ],
+    "fix_diff": "--- ratelimiter.py\n+++ ratelimiter.py\n@@ -10,3 +10,3 @@\n         now = time.time()\n         elapsed = now - self.last_refill\n-        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n+        self.last_refill = now\n+        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)",
+    "reference": "The bug in the token bucket implementation lies in updating self.last_refill after calculating the token addition instead of anchoring it to the exact moment of the refill calculation. If multiple rapid requests occur without updating the timestamp first, or due to floating-point drift, time tracking loses synchronization. Updating self.last_refill to 'now' immediately before calculating the added tokens ensures accurate time delta measurements for subsequent calls.",
+    "hints": [
+      "Examine how state variables are updated relative to time progression.",
+      "Look closely at the order of operations involving self.last_refill and the current time 'now'.",
+      "Updating the last refill timestamp after calculating tokens can cause drifting if not set synchronously with the time check."
+    ]
+  },
+  {
+    "id": "ex-g0914",
+    "language": "python",
+    "title": "Closing Webhook Connection",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import urllib.request\n\ndef send_webhook(url, data):\n    response = urllib.request.urlopen(url, data=data)\n    result = response.read()\n    return result\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- webhook.py\n+++ webhook.py\n@@ -4,1 +4,2 ----\n-    result = response.read()\n+    with response:\n+        result = response.read()",
+    "reference": "When making HTTP requests using urllib.request.urlopen, the returned response object is a file-like stream that holds open network connections and file descriptors. Failing to properly close or release this response can lead to resource leaks, especially under high request volumes. Using a context manager ensures the underlying connection is reliably closed after reading the data.",
+    "hints": [
+      "Look at how external resources are handled after being opened in Python.",
+      "The function opens a network response stream using urlopen, but never explicitly closes it.",
+      "Wrap the response handling in a context manager using the 'with' statement to ensure proper cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0915",
+    "language": "python",
+    "title": "Unclosed File Upload Handler",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload_handler.py",
+    "code": "def save_upload(file_storage, destination_path):\n    uploaded_file = open(destination_path, 'wb')\n    content = file_storage.read()\n    uploaded_file.write(content)\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    uploaded_file = open(destination_path, 'wb')\n+    with open(destination_path, 'wb') as uploaded_file:",
+    "reference": "Opening a file without a context manager or explicit close operation can lead to file descriptor leaks if exceptions occur during the write process. By using a 'with' statement, Python guarantees that the file resource is properly closed and released back to the operating system once the block exits.",
+    "hints": [
+      "Consider the lifecycle of system resources opened during execution.",
+      "Look at how the file handle is acquired and whether it is ever released.",
+      "Use a context manager such as a 'with' statement to ensure the file is closed automatically."
+    ]
+  },
+  {
+    "id": "ex-g0916",
+    "language": "python",
+    "title": "Uncaught Stripe Card Error",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import stripe\n\ndef charge_customer(amount: int, token: str) -> bool:\n    try:\n        charge = stripe.Charge.create(\n            amount=amount,\n            currency=\"usd\",\n            source=token,\n        )\n        return charge.get(\"status\") == \"succeeded\"\n    except stripe.error.StripeError as e:\n        logger.error(f\"Payment failed: {e}\")\n        return False\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "@@ -9,2 +9,2 @@\n-    except stripe.error.StripeError as e:\n+    except stripe.StripeError as e:\n",
+    "reference": "The Stripe Python library exposes its exception classes directly under the main stripe module rather than an explicit error submodule. Referencing stripe.error.StripeError will raise an AttributeError at runtime when a payment fails, completely bypassing the intended exception handling. Changing the exception to stripe.StripeError correctly catches the expected payment gateway errors and allows the function to fail gracefully.",
+    "hints": [
+      "Look closely at the exception class being caught in the except block.",
+      "Verify the module path hierarchy for exceptions in the third-party payment library being used.",
+      "Change stripe.error.StripeError to stripe.StripeError to correctly reference the exception."
+    ]
+  },
+  {
+    "id": "ex-g0917",
+    "language": "python",
+    "title": "Precision Loss in Payment Split Calculation",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_fee_split(total_amount_cents: int, platform_fee_percent: float) -> tuple[int, int]:\n    if not (0.0 <= platform_fee_percent <= 100.0):\n        raise ValueError(\"Invalid percentage\")\n    platform_fee = int(total_amount_cents * (platform_fee_percent / 100))\n    merchant_amount = total_amount_cents - platform_fee\n    return platform_fee, merchant_amount\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    platform_fee = int(total_amount_cents * (platform_fee_percent / 100))\n+    platform_fee = round(total_amount_cents * (platform_fee_percent / 100))",
+    "reference": "Multiplying integer cents by a floating-point percentage and truncating with int() can lead to precision loss and off-by-one errors due to floating-point representation quirks. Using round() ensures that fractions of a cent are properly accounted for before converting to an integer. This prevents rounding discrepancies where the sum of the split parts might not equal the original total amount.",
+    "hints": [
+      "Look closely at how the monetary values and percentages are manipulated.",
+      "Consider the data types involved when converting floating-point calculations back to integers.",
+      "Using truncation via int() discards fractional cent values instead of rounding them to the nearest whole cent."
+    ]
+  },
+  {
+    "id": "ex-g0918",
+    "language": "python",
+    "title": "Uncaught Stripe Error",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import stripe\n\ndef charge_customer(amount, token):\n    try:\n        charge = stripe.Charge.create(\n            amount=amount,\n            currency=\"usd\",\n            source=token\n        )\n        return charge.id\n    except stripe.error.CardError:\n        return False\n",
+    "real_lines": [
+      10,
+      11
+    ],
+    "fix_diff": "@@ -10,2 +10,2 @@\n-    except stripe.error.CardError:\n+    except stripe.error.StripeError:\n+        return False",
+    "reference": "When integrating third-party APIs like Stripe, many different exceptions can be thrown beyond just declined cards, such as rate limits or connection timeouts. Catching only CardError leaves other potential payment errors unhandled, which will crash your application. Broadening the exception handler to catch StripeError ensures all payment-related issues are gracefully caught and handled.",
+    "hints": [
+      "Look at the specific exception being caught in the except block.",
+      "Consider what happens if Stripe throws a rate limit error or a connection error instead of a card error.",
+      "Change the caught exception from CardError to the base StripeError to capture all API exceptions."
+    ]
+  },
+  {
+    "id": "ex-g0919",
+    "language": "python",
+    "title": "Token Expiration Check Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import time\n\ndef is_token_valid(token_data, current_time):\n    if \"expires_at\" not in token_data:\n        return False\n    \n    if token_data[\"expires_at\"] > current_time:\n        return True\n    \n    return False\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    if token_data[\"expires_at\"] > current_time:\n+    if token_data[\"expires_at\"] >= current_time:",
+    "reference": "The authorization check incorrectly validates token expiration by using a strict greater-than operator rather than greater-than-or-equal. If a request arrives at the exact second the token is marked to expire, the current logic treats the token as invalid prematurely. Updating the comparison to include equality ensures tokens remain valid through their final designated second.",
+    "hints": [
+      "Look closely at the comparison operator used for checking expiration time.",
+      "Consider what happens when the current time is exactly equal to the expiration timestamp.",
+      "Tokens should typically remain valid up to and including the exact expiration second, so the operator needs to allow for equality."
+    ]
   }
 ]
