@@ -15,9 +15,9 @@ export function Card({ hover, accent, dark = true, padding = 'md', as: Tag = 'di
     <Tag
       className={clsx(
         'rounded-2xl transition-all duration-200',
-        'bg-[#151C24] border border-[#29333A] text-[#F4F1E8] shadow-[0_2px_8px_rgba(0,0,0,0.35)]',
-        hover && 'hover:border-[#35C6B0]/50 hover:shadow-[0_12px_32px_rgba(0,0,0,0.5)] hover:-translate-y-0.5 cursor-pointer',
-        accent && 'border-[#35C6B0]/50 bg-[rgba(53,198,176,0.06)] shadow-[0_0_24px_rgba(53,198,176,0.2)]',
+        'bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9] shadow-[0_2px_8px_rgba(0,0,0,0.5)]',
+        hover && 'hover:border-[#E5DFC9]/35 hover:bg-[#3A2F1D]/40 hover:shadow-[0_12px_32px_rgba(0,0,0,0.7)] hover:-translate-y-0.5 cursor-pointer',
+        accent && 'border-[#E5DFC9]/35 bg-[#3A2F1D]/50 shadow-[0_0_20px_rgba(229,223,201,0.08)]',
         paddings[padding],
         className
       )}
@@ -40,20 +40,20 @@ interface MetricCardProps {
 export function MetricCard({ label, value, subtext, trend, dark = true, className }: MetricCardProps) {
   return (
     <Card dark={dark} padding="sm" className={clsx('flex flex-col gap-1.5', className)}>
-      <span className="text-xs uppercase tracking-wider font-semibold text-[#AEB7B2]">
+      <span className="text-xs uppercase tracking-wider font-semibold text-[#E5DFC9]/60">
         {label}
       </span>
       <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-extrabold tracking-tight font-mono text-[#F4F1E8]">
+        <span className="text-3xl font-extrabold tracking-tight font-mono text-[#E5DFC9]">
           {value}
         </span>
         {trend !== undefined && (
-          <span className={clsx('text-xs font-bold font-mono', trend >= 0 ? 'text-[#35B889]' : 'text-[#E0646D]')}>
+          <span className="text-xs font-bold font-mono text-[#E5DFC9]/85">
             {trend >= 0 ? '+' : ''}{trend}%
           </span>
         )}
       </div>
-      {subtext && <span className="text-2xs text-[#AEB7B2]">{subtext}</span>}
+      {subtext && <span className="text-2xs text-[#E5DFC9]/50">{subtext}</span>}
     </Card>
   )
 }

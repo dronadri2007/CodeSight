@@ -30,7 +30,7 @@ export function BrandLogo({
       <div
         className={clsx(
           'rounded-full flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-md',
-          'bg-[#151C24] border-2 border-[#35C6B0]/60 shadow-[0_0_20px_rgba(53,198,176,0.25)]',
+          'bg-[#1A130D] border-2 border-[#3A2F1D] shadow-[0_2px_12px_rgba(0,0,0,0.6)]',
           currentSize.circle
         )}
       >
@@ -47,18 +47,18 @@ export function BrandLogo({
           <div className="flex items-center gap-1">
             <span
               className={clsx(
-                'font-extrabold tracking-tight font-sans text-[#F4F1E8]',
+                'font-extrabold tracking-tight font-sans text-[#E5DFC9]',
                 currentSize.text
               )}
             >
-              Code<span className="text-[#35C6B0]">Sight</span>
+              Code<span className="text-[#E5DFC9] font-black">Sight</span>
             </span>
           </div>
 
           {showTagline && (
             <span
               className={clsx(
-                'font-mono uppercase font-bold tracking-widest mt-1 text-[#AEB7B2]',
+                'font-mono uppercase font-bold tracking-widest mt-1 text-[#E5DFC9]/60',
                 currentSize.tagline
               )}
             >

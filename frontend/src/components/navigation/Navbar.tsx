@@ -1,254 +1,253 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
-  Code2, Shield, User, Menu, X, ArrowRight, CheckCircle2,
-  Sparkles, Layers, BookOpen, TrendingUp, Trophy, Settings as SettingsIcon,
-  HelpCircle, Swords, LogOut
+  Search, Bell, Moon, Sun, User, LogOut, Trophy,
+  Swords, Shield, ChevronDown, Check, Sparkles, Code2,
+  GraduationCap, Bot
 } from 'lucide-react'
-import { clsx } from 'clsx'
-import { Button } from '../ui/Button'
-import { Badge } from '../ui/Badge'
 import { BrandLogo } from '../ui/BrandLogo'
+import { Badge } from '../ui/Badge'
 import { useAuthStore } from '../../store/authStore'
+import { useProblemStore } from '../../store/problemStore'
 
 interface NavbarProps {
-  variant?: 'marketing' | 'student' | 'pro'
+  variant?: 'marketing' | 'app' | 'student' | 'pro'
 }
 
-export function Navbar({ variant = 'marketing' }: NavbarProps) {
+export function Navbar({ variant = 'app' }: NavbarProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { isAuthenticated, user, logout } = useAuthStore()
+  const { filters, setFilters } = useProblemStore()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(true)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const isProblemsActive = location.pathname.startsWith('/problems') || location.pathname.startsWith('/practice') || location.pathname === '/home'
+  const isContestActive = location.pathname.startsWith('/contest') || location.pathname.startsWith('/battle')
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false)
+        setNotifOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleLogout = () => {
     logout()
     navigate('/')
   }
 
-  // Marketing Navigation Links
-  const marketingLinks = [
-    { label: 'Platform', href: '#platform' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'For Students', href: '#students' },
-    { label: 'For Professionals', href: '#professionals' },
-    { label: 'Defect Classes', href: '#defects' },
-  ]
+  // Marketing variant (for landing page when unauthenticated)
+  if (variant === 'marketing' && !isAuthenticated) {
+    return (
+      <header className="sticky top-0 z-50 w-full border-b border-[#3A2F1D] bg-[#000000]/95 backdrop-blur-md text-[#E5DFC9]">
+        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <BrandLogo size="sm" variant="dark" />
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              to="/role-select?mode=login"
+              className="text-xs font-semibold text-[#E5DFC9]/80 hover:text-[#E5DFC9] transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              to="/role-select?mode=signup"
+              className="px-4 py-1.5 rounded-xl bg-[#E5DFC9] text-[#000000] font-bold text-xs hover:bg-[#F2EDDE] transition-all shadow-sm"
+            >
+              Get Started
+            </Link>
+          </div>
+        </div>
+      </header>
+    )
+  }
 
-  // Student App Links
-  const studentLinks = [
-    { label: 'Dashboard', to: '/student/dashboard' },
-    { label: 'Practice Library', to: '/student/practice' },
-    { label: 'Learn Concepts', to: '/student/learn/injection' },
-    { label: 'Progress Roadmap', to: '/student/progress' },
-    { label: 'Leaderboard', to: '/leaderboard' },
-  ]
-
-  // Pro App Links
-  const proLinks = [
-    { label: 'Dashboard', to: '/pro/dashboard' },
-    { label: 'Review Workspace', to: '/pro/review/pro-01' },
-    { label: 'Code X-Ray', to: '/pro/xray' },
-    { label: 'AI vs You', to: '/pro/versus' },
-    { label: 'Battle Arena', to: '/battle' },
-    { label: 'Leaderboard', to: '/leaderboard' },
-  ]
-
+  // LeetCode-style App Navbar
   return (
-    <header className="sticky top-0 z-50 w-full transition-all border-b border-[#29333A] bg-[#0D1117]/95 backdrop-blur-md text-[#F4F1E8]">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        {/* Brand Logo in Circle Form */}
+    <header className="sticky top-0 z-50 w-full border-b border-[#3A2F1D] bg-[#000000] text-[#E5DFC9] select-none">
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+        {/* Left: Brand Logo & Navigation Tabs */}
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2 group">
-            <BrandLogo
-              size="md"
-              variant="dark"
-              showText={true}
-              showTagline={true}
-            />
+          <Link to="/problems" className="flex items-center gap-2">
+            <BrandLogo size="sm" variant="dark" />
           </Link>
 
-          {/* Mode Pill for App variants */}
-          {variant === 'student' && (
-            <Badge variant="accent" size="sm" className="hidden sm:inline-flex bg-[rgba(53,198,176,0.12)] text-[#35C6B0] font-semibold border-[#35C6B0]/30">
-              Student Track
-            </Badge>
-          )}
-          {variant === 'pro' && (
-            <Badge variant="accent" size="sm" className="hidden sm:inline-flex bg-[rgba(53,198,176,0.12)] text-[#58D8C5] font-semibold border-[#35C6B0]/30">
-              Pro Reviewer Track
-            </Badge>
-          )}
-        </div>
-
-        {/* Desktop Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-7">
-          {variant === 'marketing' && marketingLinks.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="text-sm font-medium text-[#AEB7B2] hover:text-[#35C6B0] transition-colors"
+          <nav className="flex items-center gap-1">
+            {/* Problems Tab - DEFAULT ACTIVE */}
+            <Link
+              to="/problems"
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isProblemsActive
+                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] shadow-inner font-bold'
+                  : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
+              }`}
             >
-              {item.label}
-            </a>
-          ))}
+              <Code2 size={14} className={isProblemsActive ? 'text-[#E5DFC9]' : 'text-[#E5DFC9]/50'} />
+              <span>Problems</span>
+            </Link>
 
-          {variant === 'student' && studentLinks.map((item) => {
-            const isActive = location.pathname.startsWith(item.to)
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={clsx(
-                  'text-sm font-medium transition-colors',
-                  isActive ? 'text-[#35C6B0] font-semibold' : 'text-[#AEB7B2] hover:text-[#F4F1E8]'
-                )}
-              >
-                {item.label}
-              </Link>
-            )
-          })}
-
-          {variant === 'pro' && proLinks.map((item) => {
-            const isActive = location.pathname.startsWith(item.to)
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                className={clsx(
-                  'text-sm font-medium transition-colors',
-                  isActive ? 'text-[#35C6B0] font-semibold' : 'text-[#AEB7B2] hover:text-[#F4F1E8]'
-                )}
-              >
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Right Controls */}
-        <div className="hidden sm:flex items-center gap-3">
-          {!isAuthenticated ? (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/auth')}
-                className="text-[#AEB7B2] hover:text-[#F4F1E8]"
-              >
-                Sign In
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => navigate('/auth?mode=signup')}
-                iconRight={<ArrowRight size={14} />}
-              >
-                Create Account
-              </Button>
-            </>
-          ) : (
-            <div className="flex items-center gap-3">
-              {/* Switch Role */}
-              <button
-                onClick={() => navigate('/role-select')}
-                className="text-xs px-3 py-1.5 rounded-xl border border-[#29333A] bg-[#151C24] text-[#AEB7B2] hover:text-[#F4F1E8] hover:border-[#35C6B0]/40 transition-colors flex items-center gap-1.5"
-                title="Switch learning track"
-              >
-                <Layers size={13} className="text-[#35C6B0]" />
-                <span>Switch Track</span>
-              </button>
-
-              {/* User Avatar */}
-              <Link to="/profile" className="flex items-center gap-2 pl-1">
-                <div className="w-9 h-9 rounded-xl bg-[#151C24] border border-[#35C6B0]/50 flex items-center justify-center text-xs font-bold text-[#35C6B0] shadow-sm">
-                  {user?.avatar || 'AF'}
-                </div>
-              </Link>
-
-              {/* Logout Button */}
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-xl text-[#AEB7B2] hover:text-[#E0646D] transition-colors"
-                title="Sign Out"
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
-          )}
+            {/* Contest Tab */}
+            <Link
+              to="/contest"
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                isContestActive
+                  ? 'bg-[#1A130D] text-[#E5DFC9] border border-[#3A2F1D] shadow-inner font-bold'
+                  : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#1A130D]/50'
+              }`}
+            >
+              <Swords size={14} className={isContestActive ? 'text-[#E5DFC9]' : 'text-[#E5DFC9]/50'} />
+              <span>Contest</span>
+            </Link>
+          </nav>
         </div>
 
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 rounded-lg text-[#F4F1E8]"
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
+        {/* Center: Track Switcher (Student vs AI-Assisted Professional) */}
+        <div className="hidden lg:flex items-center p-0.5 rounded-xl bg-[#1A130D] border border-[#3A2F1D]">
+          <button
+            onClick={() => {
+              setFilters({ mode: 'student' })
+              if (!location.pathname.startsWith('/problems')) navigate('/problems')
+            }}
+            className={`px-3 py-1 rounded-lg text-2xs font-bold transition-all flex items-center gap-1.5 ${
+              filters.mode === 'student'
+                ? 'bg-[#E5DFC9] text-[#000000] shadow-sm'
+                : 'text-[#E5DFC9]/60 hover:text-[#E5DFC9]'
+            }`}
+          >
+            <GraduationCap size={12} />
+            <span>Student Track</span>
+          </button>
 
-      {/* Mobile Menu Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-[#29333A] bg-[#151C24] text-[#F4F1E8] px-6 py-5 space-y-4 shadow-xl">
-          <div className="flex flex-col space-y-3">
-            {variant === 'marketing' && marketingLinks.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium py-1.5 text-[#AEB7B2] hover:text-[#35C6B0]"
-              >
-                {item.label}
-              </a>
-            ))}
+          <button
+            onClick={() => {
+              setFilters({ mode: 'ai_engineer' })
+              if (!location.pathname.startsWith('/problems')) navigate('/problems')
+            }}
+            className={`px-3 py-1 rounded-lg text-2xs font-bold transition-all flex items-center gap-1.5 ${
+              filters.mode === 'ai_engineer'
+                ? 'bg-[#E5DFC9] text-[#000000] shadow-sm'
+                : 'text-[#E5DFC9]/60 hover:text-[#E5DFC9]'
+            }`}
+          >
+            <Bot size={12} />
+            <span>AI-Assisted Pro</span>
+          </button>
+        </div>
 
-            {variant === 'student' && studentLinks.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium py-1.5 text-[#AEB7B2] hover:text-[#35C6B0]"
-              >
-                {item.label}
-              </Link>
-            ))}
-
-            {variant === 'pro' && proLinks.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium py-1.5 text-[#AEB7B2] hover:text-[#35C6B0]"
-              >
-                {item.label}
-              </Link>
-            ))}
+        {/* Right: Search, Notifications & Avatar Dropdown */}
+        <div className="flex items-center gap-3" ref={dropdownRef}>
+          {/* Search Input */}
+          <div className="hidden md:flex items-center relative max-w-[180px]">
+            <Search size={13} className="absolute left-3 text-[#E5DFC9]/40 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={filters.searchQuery}
+              onChange={(e) => setFilters({ searchQuery: e.target.value })}
+              className="w-full bg-[#1A130D] border border-[#3A2F1D] rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#E5DFC9] placeholder-[#E5DFC9]/40 focus:outline-none focus:border-[#E5DFC9]/60 transition-colors"
+            />
           </div>
 
-          <div className="pt-3 border-t border-[#29333A] flex flex-col gap-2">
-            {!isAuthenticated ? (
-              <>
-                <Button fullWidth variant="secondary" onClick={() => { navigate('/auth'); setMobileMenuOpen(false) }}>
-                  Sign In
-                </Button>
-                <Button fullWidth variant="primary" onClick={() => { navigate('/auth?mode=signup'); setMobileMenuOpen(false) }}>
-                  Create Account
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button fullWidth variant="secondary" size="sm" onClick={() => { navigate('/role-select'); setMobileMenuOpen(false) }}>
-                  Switch Track (Student / Pro)
-                </Button>
-                <Button fullWidth variant="danger" size="sm" onClick={() => { handleLogout(); setMobileMenuOpen(false) }}>
-                  Sign Out
-                </Button>
-              </>
+          {/* Notifications */}
+          <div className="relative">
+            <button
+              onClick={() => setNotifOpen(!notifOpen)}
+              className="w-8 h-8 rounded-xl bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9]/70 hover:text-[#E5DFC9] flex items-center justify-center transition-colors relative"
+            >
+              <Bell size={14} />
+              <span className="w-2 h-2 rounded-full bg-[#E5DFC9] absolute top-1.5 right-1.5" />
+            </button>
+
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl p-4 text-xs space-y-3 z-50">
+                <div className="flex items-center justify-between border-b border-[#3A2F1D] pb-2">
+                  <span className="font-bold text-[#E5DFC9]">Notifications</span>
+                  <span className="text-2xs text-[#E5DFC9]/50 font-mono">1 New</span>
+                </div>
+                <div className="p-2.5 rounded-xl bg-[#000000] border border-[#3A2F1D] space-y-1">
+                  <p className="font-semibold text-[#E5DFC9]">Promotion Exam Ready!</p>
+                  <p className="text-2xs text-[#E5DFC9]/70">You qualify for the 30-min timed promotion exam to unlock the AI Engineer tier.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* User Avatar Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl bg-[#1A130D] border border-[#3A2F1D] hover:border-[#E5DFC9]/40 transition-colors"
+            >
+              <div className="w-6 h-6 rounded-lg bg-[#000000] border border-[#3A2F1D] text-[#E5DFC9] text-2xs font-bold flex items-center justify-center">
+                {user?.avatar || 'AF'}
+              </div>
+              <span className="text-xs font-semibold text-[#E5DFC9] hidden sm:inline max-w-[90px] truncate">
+                {user?.name || 'Afrid'}
+              </span>
+              <ChevronDown size={12} className="text-[#E5DFC9]/50" />
+            </button>
+
+            {/* Dropdown Menu */}
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-[#1A130D] border border-[#3A2F1D] rounded-2xl shadow-2xl py-2 text-xs space-y-1 z-50">
+                <div className="px-4 py-2 border-b border-[#3A2F1D]">
+                  <p className="font-bold text-[#E5DFC9] truncate">{user?.name || 'Afrid Shaik'}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge variant="gold" size="sm">{user?.level || 'Student Pro'}</Badge>
+                  </div>
+                </div>
+
+                <Link
+                  to="/profile"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2 text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]/40 transition-colors"
+                >
+                  <User size={14} className="text-[#E5DFC9]/60" />
+                  <span>Profile & Weakness Mastery</span>
+                </Link>
+
+                <Link
+                  to="/role-select"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-4 py-2 text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]/40 transition-colors"
+                >
+                  <Sparkles size={14} className="text-[#E5DFC9]/60" />
+                  <span>Switch Track</span>
+                </Link>
+
+                <div
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className="flex items-center justify-between px-4 py-2 text-[#E5DFC9]/80 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]/40 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    {isDarkMode ? <Moon size={14} className="text-[#E5DFC9]/60" /> : <Sun size={14} className="text-[#E5DFC9]/60" />}
+                    <span>Theme: {isDarkMode ? 'Dark' : 'Light'}</span>
+                  </div>
+                  <span className="text-2xs font-mono text-[#E5DFC9]/50">Toggle</span>
+                </div>
+
+                <div className="border-t border-[#3A2F1D] my-1" />
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-[#E5DFC9]/70 hover:text-red-400 hover:bg-[#3A2F1D]/40 transition-colors text-left"
+                >
+                  <LogOut size={14} className="text-red-400" />
+                  <span>Logout</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
-      )}
+      </div>
     </header>
   )
 }

@@ -5,93 +5,111 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Main Midnight & Deep Surface Workspaces
-        midnight: {
-          DEFAULT: '#0D1117',
-          surface: '#151C24',
-          elevated: '#1A232D',
-          subtle: '#202A31',
+        // 1. BLACK — Deepest background & main dark sections
+        black: {
+          DEFAULT: '#000000',
+          deep: '#000000',
         },
-        surface: {
-          DEFAULT: '#151C24',
-          elevated: '#1A232D',
-          subtle: '#202A31',
+        // 2. DARK WARM BROWN — Cards, panels, navigation, secondary backgrounds
+        darkBrown: {
+          DEFAULT: '#1A130D',
+          surface: '#1A130D',
+          panel: '#1A130D',
         },
-        // Text Palette
+        // 3. WARM DARK BROWN / COFFEE — Elevated elements, borders, secondary buttons, depth
+        coffee: {
+          DEFAULT: '#3A2F1D',
+          elevated: '#3A2F1D',
+          border: '#3A2F1D',
+          hover: '#4A3D27',
+          subtle: 'rgba(58, 47, 29, 0.50)',
+        },
+        // 4. WARM IVORY / CREAM — Primary text, headings, primary buttons, highlights
         ivory: {
-          DEFAULT: '#F4F1E8',
-          soft: '#DDD9CF',
-          muted: '#AEB7B2',
+          DEFAULT: '#E5DFC9',
+          soft: 'rgba(229, 223, 201, 0.75)',
+          muted: 'rgba(229, 223, 201, 0.50)',
+          bright: '#F2EDDE',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.25)',
         },
-        // Primary Teal Brand Accent
-        teal: {
-          DEFAULT: '#35C6B0',
-          bright: '#58D8C5',
-          hover: '#58D8C5',
-          soft: '#BFEDE5',
-          subtle: 'rgba(53, 198, 176, 0.12)',
-          border: 'rgba(53, 198, 176, 0.30)',
+        // Surface & Border Mappings
+        surface: {
+          DEFAULT: '#1A130D',
+          elevated: '#3A2F1D',
+          subtle: '#140E0A',
         },
-        // Warm Gold (Achievements, milestones, special highlights)
-        gold: {
-          DEFAULT: '#D9A441',
-          highlight: '#E8BC5A',
-          subtle: 'rgba(217, 164, 65, 0.12)',
-          border: 'rgba(217, 164, 65, 0.30)',
-        },
-        // Border Palette
         borderDark: {
-          DEFAULT: '#29333A',
-          subtle: '#202A31',
-          strong: '#37454E',
+          DEFAULT: '#3A2F1D',
+          subtle: 'rgba(58, 47, 29, 0.50)',
+          strong: '#4A3D27',
         },
-        // Feedback Accents
-        success: {
-          DEFAULT: '#35B889',
-          subtle: 'rgba(53, 184, 137, 0.12)',
-          border: 'rgba(53, 184, 137, 0.25)',
+        // Compatibility Aliases for entire UI
+        midnight: {
+          DEFAULT: '#000000',
+          surface: '#1A130D',
+          elevated: '#3A2F1D',
+          subtle: '#140E0A',
         },
-        warning: {
-          DEFAULT: '#D9A441',
-          subtle: 'rgba(217, 164, 65, 0.12)',
-          border: 'rgba(217, 164, 65, 0.25)',
-        },
-        danger: {
-          DEFAULT: '#E0646D',
-          subtle: 'rgba(224, 100, 109, 0.12)',
-          border: 'rgba(224, 100, 109, 0.25)',
-        },
-        // Compatibility Aliases mapped to new Palette
         navy: {
-          DEFAULT: '#0D1117',
-          midnight: '#0D1117',
-          surface: '#151C24',
-          elevated: '#1A232D',
-          subtle: '#202A31',
-          border: '#29333A',
-          borderStrong: '#37454E',
+          DEFAULT: '#000000',
+          midnight: '#000000',
+          surface: '#1A130D',
+          elevated: '#3A2F1D',
+          subtle: '#140E0A',
+          border: '#3A2F1D',
+          borderStrong: '#4A3D27',
+        },
+        teal: {
+          DEFAULT: '#E5DFC9',
+          bright: '#F2EDDE',
+          hover: '#F2EDDE',
+          soft: '#E5DFC9',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.30)',
         },
         aqua: {
-          DEFAULT: '#35C6B0',
-          bright: '#58D8C5',
-          hover: '#58D8C5',
-          soft: '#BFEDE5',
-          subtle: 'rgba(53, 198, 176, 0.12)',
-          border: 'rgba(53, 198, 176, 0.30)',
+          DEFAULT: '#E5DFC9',
+          bright: '#F2EDDE',
+          hover: '#F2EDDE',
+          soft: '#E5DFC9',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.30)',
+        },
+        gold: {
+          DEFAULT: '#E5DFC9',
+          highlight: '#F2EDDE',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.30)',
         },
         slate: {
-          DEFAULT: '#AEB7B2',
-          muted: '#AEB7B2',
+          DEFAULT: 'rgba(229, 223, 201, 0.50)',
+          muted: 'rgba(229, 223, 201, 0.50)',
+        },
+        success: {
+          DEFAULT: '#E5DFC9',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.25)',
+        },
+        warning: {
+          DEFAULT: '#E5DFC9',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.25)',
+        },
+        danger: {
+          DEFAULT: '#E5DFC9',
+          subtle: 'rgba(229, 223, 201, 0.12)',
+          border: 'rgba(229, 223, 201, 0.25)',
         },
         light: {
-          bg: '#0D1117',
-          card: '#151C24',
-          elevated: '#1A232D',
-          border: '#29333A',
-          borderStrong: '#37454E',
-          text: '#F4F1E8',
-          textSecondary: '#DDD9CF',
-          textMuted: '#AEB7B2',
+          bg: '#000000',
+          card: '#1A130D',
+          elevated: '#3A2F1D',
+          border: '#3A2F1D',
+          borderStrong: '#4A3D27',
+          text: '#E5DFC9',
+          textSecondary: 'rgba(229, 223, 201, 0.75)',
+          textMuted: 'rgba(229, 223, 201, 0.50)',
         },
       },
       fontFamily: {
@@ -109,17 +127,17 @@ export default {
         '3xl': '24px',
       },
       boxShadow: {
-        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.3)',
-        DEFAULT: '0 2px 8px 0 rgba(0, 0, 0, 0.35)',
-        'md': '0 4px 16px 0 rgba(0, 0, 0, 0.4)',
-        'lg': '0 12px 32px 0 rgba(0, 0, 0, 0.45)',
-        'xl': '0 20px 48px 0 rgba(0, 0, 0, 0.5)',
-        'aqua-glow': '0 0 24px 0 rgba(53, 198, 176, 0.25)',
-        'teal-glow': '0 0 24px 0 rgba(53, 198, 176, 0.25)',
-        'gold-glow': '0 0 24px 0 rgba(217, 164, 65, 0.25)',
-        'card': '0 2px 8px 0 rgba(0, 0, 0, 0.35)',
-        'card-hover': '0 12px 32px -4px rgba(0, 0, 0, 0.5)',
-        'dark-card': '0 4px 20px 0 rgba(0, 0, 0, 0.5)',
+        'sm': '0 1px 2px 0 rgba(0, 0, 0, 0.4)',
+        DEFAULT: '0 2px 8px 0 rgba(0, 0, 0, 0.5)',
+        'md': '0 4px 16px 0 rgba(0, 0, 0, 0.6)',
+        'lg': '0 12px 32px 0 rgba(0, 0, 0, 0.7)',
+        'xl': '0 20px 48px 0 rgba(0, 0, 0, 0.8)',
+        'aqua-glow': '0 0 20px 0 rgba(229, 223, 201, 0.15)',
+        'teal-glow': '0 0 20px 0 rgba(229, 223, 201, 0.15)',
+        'gold-glow': '0 0 20px 0 rgba(229, 223, 201, 0.15)',
+        'card': '0 2px 8px 0 rgba(0, 0, 0, 0.5)',
+        'card-hover': '0 12px 32px -4px rgba(0, 0, 0, 0.7)',
+        'dark-card': '0 4px 20px 0 rgba(0, 0, 0, 0.7)',
       },
     },
   },

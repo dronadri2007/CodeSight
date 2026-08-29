@@ -45,7 +45,7 @@ export function FullscreenPixelHero() {
     for (let i = 1; i <= totalFrames; i++) {
       const img = new Image()
       const padded = i.toString().padStart(3, '0')
-      img.src = `/animation/ezgif-frame-${padded}.png`
+      img.src = `/animation/ezgif-frame-${padded}.png?v=clean3`
       images.push(img)
     }
 
@@ -62,6 +62,20 @@ export function FullscreenPixelHero() {
     let lastTime = performance.now()
     const fps = 20
     const frameInterval = 1000 / fps
+
+    const cleanCanvasWatermark = (ctx: CanvasRenderingContext2D) => {
+      // Guaranteed canvas-level cover for any watermark artifacts
+      const grad = ctx.createRadialGradient(1182, 600, 4, 1182, 600, 32)
+      grad.addColorStop(0, 'rgba(20, 18, 22, 0.98)')
+      grad.addColorStop(0.7, 'rgba(20, 18, 22, 0.85)')
+      grad.addColorStop(1, 'rgba(20, 18, 22, 0)')
+      ctx.save()
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.ellipse(1182, 600, 36, 32, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
 
     const render = (time: number) => {
       if (isPlaying && imagesRef.current.length > 0) {
@@ -82,6 +96,7 @@ export function FullscreenPixelHero() {
                 canvas.height = img.naturalHeight
               }
               ctx.drawImage(img, 0, 0)
+              cleanCanvasWatermark(ctx)
             }
           }
         }
@@ -94,12 +109,13 @@ export function FullscreenPixelHero() {
     if (canvas) {
       const ctx = canvas.getContext('2d')
       const firstImg = new Image()
-      firstImg.src = '/animation/ezgif-frame-001.png'
+      firstImg.src = `/animation/ezgif-frame-001.png?v=${Date.now()}`
       firstImg.onload = () => {
         if (canvas && ctx) {
           canvas.width = firstImg.naturalWidth
           canvas.height = firstImg.naturalHeight
           ctx.drawImage(firstImg, 0, 0)
+          cleanCanvasWatermark(ctx)
         }
       }
     }
@@ -128,7 +144,7 @@ export function FullscreenPixelHero() {
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full min-h-screen h-screen overflow-hidden bg-[#0D1117] select-none flex flex-col justify-between"
+      className="relative w-full min-h-screen h-screen overflow-hidden bg-[#000000] select-none flex flex-col justify-between"
     >
       {/* Background Canvas Layer with Parallax */}
       <motion.div
@@ -147,100 +163,20 @@ export function FullscreenPixelHero() {
       </motion.div>
 
       {/* Cinematic Gradient Overlays for High Contrast & Readability */}
-      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#0D1117]/90 via-[#0D1117]/50 to-transparent pointer-events-none" />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#0D1117] via-transparent to-[#0D1117]/60 pointer-events-none" />
-      <div className="absolute inset-0 z-[1] bg-[radial-gradient(circle_at_25%_45%,rgba(13,17,23,0.7)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#000000]/90 via-[#000000]/50 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#000000] via-transparent to-[#000000]/60 pointer-events-none" />
+      <div className="absolute inset-0 z-[1] bg-[radial-gradient(circle_at_25%_45%,rgba(0,0,0,0.7)_0%,transparent_70%)] pointer-events-none" />
 
-      {/* Top Navigation Bar fixed at the very top */}
-      <header className="fixed top-0 left-0 right-0 z-50 w-full bg-[#0D1117]/85 backdrop-blur-lg border-b border-[#29333A] transition-all">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 py-4 flex items-center justify-between">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <BrandLogo size="md" variant="dark" />
-          </motion.div>
-
-          {/* Center Desktop Navigation Links */}
-          <motion.nav
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="hidden lg:flex items-center gap-7 px-6 py-2 rounded-full bg-[#151C24]/80 backdrop-blur-md border border-[#29333A] shadow-lg"
-          >
-            {navLinks.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="text-xs font-medium text-[#AEB7B2] hover:text-[#35C6B0] transition-colors"
-              >
-                {item.label}
-              </a>
-            ))}
-          </motion.nav>
-
-          {/* Right CTA Controls */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="hidden sm:flex items-center gap-3"
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/auth')}
-              className="text-[#AEB7B2] hover:text-[#F4F1E8] text-xs backdrop-blur-md bg-[#151C24]/60 border border-[#29333A]"
-            >
-              Sign In
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => navigate('/auth?mode=signup')}
-              iconRight={<ArrowRight size={13} />}
-              className="text-xs shadow-[0_0_20px_rgba(53,198,176,0.25)] font-bold"
-            >
-              Create Account
-            </Button>
-          </motion.div>
-
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-[#F4F1E8] bg-[#151C24] border border-[#29333A] rounded-xl"
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
+      {/* Clean Front Page Header: Logo Only (No bottom line, no background bar) */}
+      <header className="absolute top-0 left-0 right-0 z-20 w-full px-6 sm:px-8 py-6 flex items-center justify-between pointer-events-auto">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <BrandLogo size="md" variant="dark" />
+        </motion.div>
       </header>
-
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden fixed top-20 left-6 right-6 z-50 p-5 rounded-2xl bg-[#151C24]/95 backdrop-blur-xl border border-[#29333A] shadow-2xl space-y-4">
-          <div className="flex flex-col space-y-3">
-            {navLinks.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-sm font-medium text-[#AEB7B2] hover:text-[#35C6B0] py-1"
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
-          <div className="pt-3 border-t border-[#29333A] flex flex-col gap-2">
-            <Button fullWidth variant="dark" size="sm" onClick={() => { navigate('/auth'); setMobileMenuOpen(false) }}>
-              Sign In
-            </Button>
-            <Button fullWidth variant="primary" size="sm" onClick={() => { navigate('/auth?mode=signup'); setMobileMenuOpen(false) }}>
-              Create Account
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Center-Left Brand Content Overlay */}
       <motion.div
@@ -255,8 +191,8 @@ export function FullscreenPixelHero() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex items-center gap-2"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#151C24]/90 backdrop-blur-md border border-[#35C6B0]/40 text-[#35C6B0] text-xs font-mono font-semibold tracking-wider uppercase shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#35C6B0] animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1A130D]/90 backdrop-blur-md border border-[#3A2F1D] text-[#E5DFC9] text-xs font-mono font-semibold tracking-wider uppercase shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#E5DFC9] animate-pulse" />
               CODE REVIEW + LEARNING PLATFORM
             </div>
           </motion.div>
@@ -266,10 +202,10 @@ export function FullscreenPixelHero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 1.0 }}
-            className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter text-[#F4F1E8] leading-[1.05]"
+            className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter text-[#E5DFC9] leading-[1.05]"
           >
             Train your eye <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#35C6B0] to-[#58D8C5]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#E5DFC9] to-[#F2EDDE]">
               for code.
             </span>
           </motion.h1>
@@ -279,7 +215,7 @@ export function FullscreenPixelHero() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 1.4 }}
-            className="text-base sm:text-lg text-[#DDD9CF] max-w-xl leading-relaxed font-normal"
+            className="text-base sm:text-lg text-[#E5DFC9]/80 max-w-xl leading-relaxed font-normal"
           >
             Build stronger coding instincts and learn to review AI-assisted code with confidence.
           </motion.p>
@@ -294,9 +230,9 @@ export function FullscreenPixelHero() {
             <Button
               size="lg"
               variant="primary"
-              onClick={() => navigate('/auth?mode=signup')}
+              onClick={() => navigate('/role-select?mode=signup')}
               iconRight={<ArrowRight size={16} />}
-              className="text-sm font-bold shadow-[0_0_24px_rgba(53,198,176,0.3)] hover:scale-[1.02] active:translate-y-[1px] transition-all"
+              className="text-sm font-bold shadow-[0_2px_16px_rgba(0,0,0,0.6)] hover:scale-[1.02] active:translate-y-[1px] transition-all"
             >
               Create Account
             </Button>
@@ -304,8 +240,8 @@ export function FullscreenPixelHero() {
             <Button
               size="lg"
               variant="dark"
-              onClick={() => navigate('/auth')}
-              className="text-sm font-semibold border-[#29333A] bg-[#151C24]/90 backdrop-blur-md text-[#F4F1E8] hover:bg-[#1A232D] hover:border-[#35C6B0]/50 active:translate-y-[1px] transition-all"
+              onClick={() => navigate('/role-select?mode=login')}
+              className="text-sm font-semibold border-[#3A2F1D] bg-[#1A130D]/90 backdrop-blur-md text-[#E5DFC9] hover:bg-[#3A2F1D] hover:border-[#E5DFC9]/30 active:translate-y-[1px] transition-all"
             >
               Login
             </Button>
@@ -316,7 +252,7 @@ export function FullscreenPixelHero() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.9, delay: 2.2 }}
-            className="text-2xs text-[#AEB7B2] font-mono tracking-wide"
+            className="text-2xs text-[#E5DFC9]/50 font-mono tracking-wide"
           >
             For students and AI-assisted engineering practitioners.
           </motion.p>
@@ -330,19 +266,19 @@ export function FullscreenPixelHero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 2.4 }}
           onClick={scrollToContent}
-          className="group flex items-center gap-2 text-xs font-mono text-[#AEB7B2] hover:text-[#35C6B0] transition-colors cursor-pointer"
+          className="group flex items-center gap-2 text-xs font-mono text-[#E5DFC9]/60 hover:text-[#E5DFC9] transition-colors cursor-pointer"
         >
           <span>Explore CodeSight</span>
-          <ChevronDown size={14} className="group-hover:translate-y-1 transition-transform animate-bounce text-[#35C6B0]" />
+          <ChevronDown size={14} className="group-hover:translate-y-1 transition-transform animate-bounce text-[#E5DFC9]" />
         </motion.button>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 2.6 }}
-          className="flex items-center gap-3 text-2xs text-[#AEB7B2] font-mono"
+          className="flex items-center gap-3 text-2xs text-[#E5DFC9]/50 font-mono"
         >
-          <span className="w-2 h-2 rounded-full bg-[#35B889]" />
+          <span className="w-2 h-2 rounded-full bg-[#E5DFC9]" />
           <span>Midnight Coding Atmosphere</span>
         </motion.div>
       </footer>

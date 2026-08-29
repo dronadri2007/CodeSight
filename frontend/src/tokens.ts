@@ -1,70 +1,96 @@
-// CodeSight Design Tokens — Midnight + Ivory + Teal + Warm Gold Identity
+// CodeSight Design Tokens — Black + Dark Warm Brown + Coffee + Warm Ivory Identity
 
 export const colors = {
-  // Midnight & Deep Surface Backgrounds
-  midnight: {
-    DEFAULT: '#0D1117',
-    surface: '#151C24',
-    elevated: '#1A232D',
-    subtle: '#202A31',
+  // 1. BLACK — Deepest background & main dark sections
+  black: {
+    DEFAULT: '#000000',
+    deep: '#000000',
   },
-  // Text Shades (Ivory & Greys)
-  text: {
-    ivory: '#F4F1E8',
-    softIvory: '#DDD9CF',
-    mutedGrey: '#AEB7B2',
+  // 2. DARK WARM BROWN — Cards, panels, navigation, secondary backgrounds
+  darkWarmBrown: {
+    DEFAULT: '#1A130D',
+    surface: '#1A130D',
+    panel: '#1A130D',
   },
-  // Main Brand Accent (Teal)
-  teal: {
-    DEFAULT: '#35C6B0',
-    bright: '#58D8C5',
-    soft: '#BFEDE5',
-    subtle: 'rgba(53, 198, 176, 0.12)',
-    border: 'rgba(53, 198, 176, 0.30)',
+  // 3. WARM DARK BROWN / COFFEE — Elevated elements, borders, secondary buttons, depth
+  coffee: {
+    DEFAULT: '#3A2F1D',
+    elevated: '#3A2F1D',
+    border: '#3A2F1D',
+    hover: '#4A3D27',
+    subtle: 'rgba(58, 47, 29, 0.50)',
   },
-  // Warm Gold (Achievements, milestones, special highlights)
-  gold: {
-    DEFAULT: '#D9A441',
-    highlight: '#E8BC5A',
-    subtle: 'rgba(217, 164, 65, 0.12)',
-    border: 'rgba(217, 164, 65, 0.30)',
+  // 4. WARM IVORY / CREAM — Primary text, headings, primary buttons, highlights
+  ivory: {
+    DEFAULT: '#E5DFC9',
+    soft: 'rgba(229, 223, 201, 0.75)',
+    muted: 'rgba(229, 223, 201, 0.50)',
+    bright: '#F2EDDE',
+    subtle: 'rgba(229, 223, 201, 0.12)',
+    border: 'rgba(229, 223, 201, 0.25)',
   },
-  // Borders
+  // Surface Mappings
+  surface: {
+    DEFAULT: '#1A130D',
+    elevated: '#3A2F1D',
+    subtle: '#140E0A',
+  },
+  // Border Mappings
   border: {
-    DEFAULT: '#29333A',
-    subtle: '#202A31',
-    strong: '#37454E',
+    DEFAULT: '#3A2F1D',
+    subtle: 'rgba(58, 47, 29, 0.50)',
+    strong: '#4A3D27',
   },
-  // Feedback Accents
-  feedback: {
-    success: '#35B889',
-    successSubtle: 'rgba(53, 184, 137, 0.12)',
-    warning: '#D9A441',
-    warningSubtle: 'rgba(217, 164, 65, 0.12)',
-    danger: '#E0646D',
-    dangerSubtle: 'rgba(224, 100, 109, 0.12)',
+  // Text Mappings
+  text: {
+    primary: '#E5DFC9',
+    secondary: 'rgba(229, 223, 201, 0.75)',
+    muted: 'rgba(229, 223, 201, 0.50)',
   },
   // Backward compatibility alias mappings
+  midnight: {
+    DEFAULT: '#000000',
+    surface: '#1A130D',
+    elevated: '#3A2F1D',
+    subtle: '#140E0A',
+  },
   navy: {
-    DEFAULT: '#0D1117',
-    midnight: '#0D1117',
-    surface: '#151C24',
-    elevated: '#1A232D',
-    subtle: '#202A31',
-    border: '#29333A',
-    borderStrong: '#37454E',
+    DEFAULT: '#000000',
+    midnight: '#000000',
+    surface: '#1A130D',
+    elevated: '#3A2F1D',
+    subtle: '#140E0A',
+    border: '#3A2F1D',
+    borderStrong: '#4A3D27',
+  },
+  teal: {
+    DEFAULT: '#E5DFC9',
+    bright: '#F2EDDE',
+    soft: '#E5DFC9',
+    subtle: 'rgba(229, 223, 201, 0.12)',
+    border: 'rgba(229, 223, 201, 0.30)',
   },
   aqua: {
-    DEFAULT: '#35C6B0',
-    bright: '#58D8C5',
-    hover: '#58D8C5',
-    soft: '#BFEDE5',
-    subtle: 'rgba(53, 198, 176, 0.12)',
-    border: 'rgba(53, 198, 176, 0.30)',
+    DEFAULT: '#E5DFC9',
+    bright: '#F2EDDE',
+    hover: '#F2EDDE',
+    soft: '#E5DFC9',
+    subtle: 'rgba(229, 223, 201, 0.12)',
+    border: 'rgba(229, 223, 201, 0.30)',
   },
-  slate: {
-    DEFAULT: '#AEB7B2',
-    muted: '#AEB7B2',
+  gold: {
+    DEFAULT: '#E5DFC9',
+    highlight: '#F2EDDE',
+    subtle: 'rgba(229, 223, 201, 0.12)',
+    border: 'rgba(229, 223, 201, 0.30)',
+  },
+  feedback: {
+    success: '#E5DFC9',
+    successSubtle: 'rgba(229, 223, 201, 0.12)',
+    warning: '#E5DFC9',
+    warningSubtle: 'rgba(229, 223, 201, 0.12)',
+    danger: '#E5DFC9',
+    dangerSubtle: 'rgba(229, 223, 201, 0.12)',
   },
 } as const
 
@@ -75,9 +101,9 @@ export const defectClasses = [
     shortLabel: 'Injection',
     description: 'Unsanitized input reaching sensitive operations and query builders',
     icon: 'Shield',
-    color: '#E0646D',
-    bgColor: 'rgba(224, 100, 109, 0.10)',
-    borderColor: 'rgba(224, 100, 109, 0.25)',
+    color: '#E5DFC9',
+    bgColor: 'rgba(58, 47, 29, 0.50)',
+    borderColor: '#3A2F1D',
   },
   {
     id: 'auth',
@@ -85,9 +111,9 @@ export const defectClasses = [
     shortLabel: 'Auth',
     description: 'Timing attacks, token validation flaws, and permission checks',
     icon: 'Lock',
-    color: '#D9A441',
-    bgColor: 'rgba(217, 164, 65, 0.10)',
-    borderColor: 'rgba(217, 164, 65, 0.25)',
+    color: '#E5DFC9',
+    bgColor: 'rgba(58, 47, 29, 0.50)',
+    borderColor: '#3A2F1D',
   },
   {
     id: 'error-handling',
@@ -95,9 +121,9 @@ export const defectClasses = [
     shortLabel: 'Error Handling',
     description: 'Unchecked return values, swallowed async errors, and nil leaks',
     icon: 'AlertTriangle',
-    color: '#35C6B0',
-    bgColor: 'rgba(53, 198, 176, 0.10)',
-    borderColor: 'rgba(53, 198, 176, 0.25)',
+    color: '#E5DFC9',
+    bgColor: 'rgba(58, 47, 29, 0.50)',
+    borderColor: '#3A2F1D',
   },
   {
     id: 'concurrency',
@@ -105,9 +131,9 @@ export const defectClasses = [
     shortLabel: 'Concurrency',
     description: 'Race conditions, unsynchronized mutations, and shared mutable state',
     icon: 'Zap',
-    color: '#58D8C5',
-    bgColor: 'rgba(88, 216, 197, 0.10)',
-    borderColor: 'rgba(88, 216, 197, 0.25)',
+    color: '#E5DFC9',
+    bgColor: 'rgba(58, 47, 29, 0.50)',
+    borderColor: '#3A2F1D',
   },
   {
     id: 'logic',
@@ -115,9 +141,9 @@ export const defectClasses = [
     shortLabel: 'Logic',
     description: 'Off-by-one loops, inverted conditions, and edge-case mishandling',
     icon: 'GitBranch',
-    color: '#35B889',
-    bgColor: 'rgba(53, 184, 137, 0.10)',
-    borderColor: 'rgba(53, 184, 137, 0.25)',
+    color: '#E5DFC9',
+    bgColor: 'rgba(58, 47, 29, 0.50)',
+    borderColor: '#3A2F1D',
   },
   {
     id: 'resource',
@@ -125,9 +151,9 @@ export const defectClasses = [
     shortLabel: 'Resource',
     description: 'Connection pool leaks, unbounded cache growth, and N+1 queries',
     icon: 'Gauge',
-    color: '#AEB7B2',
-    bgColor: 'rgba(174, 183, 178, 0.12)',
-    borderColor: 'rgba(174, 183, 178, 0.25)',
+    color: '#E5DFC9',
+    bgColor: 'rgba(58, 47, 29, 0.50)',
+    borderColor: '#3A2F1D',
   },
 ] as const
 

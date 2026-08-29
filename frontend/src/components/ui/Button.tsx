@@ -15,14 +15,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-[#35C6B0] text-[#0D1117] font-bold hover:bg-[#58D8C5] shadow-[0_0_20px_rgba(53,198,176,0.25)] active:scale-[0.98] border border-[#35C6B0]/40',
-  secondary: 'bg-[#151C24] border border-[#29333A] text-[#DDD9CF] hover:bg-[#1A232D] hover:text-[#F4F1E8] hover:border-[#35C6B0]/40 active:scale-[0.98]',
-  dark: 'bg-[#151C24] border border-[#29333A] text-[#F4F1E8] hover:bg-[#1A232D] hover:border-[#35C6B0]/50 active:scale-[0.98]',
-  outline: 'bg-transparent border border-[#29333A] text-[#F4F1E8] hover:bg-[#151C24] hover:border-[#35C6B0]/40 active:scale-[0.98]',
-  ghost: 'text-[#AEB7B2] hover:text-[#F4F1E8] hover:bg-[#151C24] active:scale-[0.98]',
-  gold: 'bg-[#D9A441] text-[#0D1117] font-bold hover:bg-[#E8BC5A] shadow-[0_0_20px_rgba(217,164,65,0.25)] active:scale-[0.98] border border-[#D9A441]/40',
-  danger: 'bg-[#E0646D]/10 border border-[#E0646D]/30 text-[#E0646D] hover:bg-[#E0646D]/20 active:scale-[0.98]',
-  success: 'bg-[#35B889]/10 border border-[#35B889]/30 text-[#35B889] hover:bg-[#35B889]/20 active:scale-[0.98]',
+  primary: 'bg-[#E5DFC9] text-[#000000] font-bold hover:bg-[#F2EDDE] shadow-[0_2px_12px_rgba(0,0,0,0.5)] active:scale-[0.98] border border-[#E5DFC9]',
+  secondary: 'bg-[#3A2F1D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#4A3D27] hover:border-[#E5DFC9]/30 active:scale-[0.98]',
+  dark: 'bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#3A2F1D] active:scale-[0.98]',
+  outline: 'bg-transparent border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#1A130D] hover:border-[#E5DFC9]/30 active:scale-[0.98]',
+  ghost: 'text-[#E5DFC9]/75 hover:text-[#E5DFC9] hover:bg-[#1A130D] active:scale-[0.98]',
+  gold: 'bg-[#E5DFC9] text-[#000000] font-bold hover:bg-[#F2EDDE] shadow-[0_2px_12px_rgba(0,0,0,0.5)] active:scale-[0.98]',
+  danger: 'bg-[#3A2F1D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#4A3D27] active:scale-[0.98]',
+  success: 'bg-[#3A2F1D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#4A3D27] active:scale-[0.98]',
 }
 
 const sizeStyles: Record<ButtonSize, string> = {

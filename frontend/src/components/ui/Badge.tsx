@@ -9,14 +9,14 @@ interface BadgeProps {
 }
 
 const variants = {
-  default: 'bg-[#151C24] border-[#29333A] text-[#AEB7B2]',
-  accent: 'bg-[rgba(53,198,176,0.12)] border-[#35C6B0]/40 text-[#35C6B0] font-semibold',
-  navy: 'bg-[#151C24] border-[#29333A] text-[#58D8C5] font-mono',
-  gold: 'bg-[rgba(217,164,65,0.12)] border-[#D9A441]/40 text-[#D9A441] font-semibold',
-  success: 'bg-[rgba(53,184,137,0.12)] border-[#35B889]/40 text-[#35B889]',
-  warning: 'bg-[rgba(217,164,65,0.12)] border-[#D9A441]/40 text-[#D9A441]',
-  danger: 'bg-[rgba(224,100,109,0.12)] border-[#E0646D]/40 text-[#E0646D]',
-  muted: 'bg-[#0D1117] border-[#202A31] text-[#AEB7B2]',
+  default: 'bg-[#1A130D] border-[#3A2F1D] text-[#E5DFC9]/70',
+  accent: 'bg-[#3A2F1D] border-[#E5DFC9]/30 text-[#E5DFC9] font-semibold',
+  navy: 'bg-[#1A130D] border-[#3A2F1D] text-[#E5DFC9] font-mono',
+  gold: 'bg-[#3A2F1D] border-[#E5DFC9]/30 text-[#E5DFC9] font-semibold',
+  success: 'bg-[#3A2F1D] border-[#3A2F1D] text-[#E5DFC9]',
+  warning: 'bg-[#3A2F1D] border-[#3A2F1D] text-[#E5DFC9]',
+  danger: 'bg-[#3A2F1D] border-[#3A2F1D] text-[#E5DFC9]',
+  muted: 'bg-[#000000] border-[#3A2F1D] text-[#E5DFC9]/60',
 }
 
 export function Badge({ children, variant = 'default', size = 'sm', dot, className }: BadgeProps) {
@@ -31,12 +31,8 @@ export function Badge({ children, variant = 'default', size = 'sm', dot, classNa
     >
       {dot && (
         <span className={clsx('w-1.5 h-1.5 rounded-full', {
-          'bg-[#AEB7B2]': variant === 'default' || variant === 'muted',
-          'bg-[#35C6B0]': variant === 'accent',
-          'bg-[#58D8C5]': variant === 'navy',
-          'bg-[#D9A441]': variant === 'warning' || variant === 'gold',
-          'bg-[#35B889]': variant === 'success',
-          'bg-[#E0646D]': variant === 'danger',
+          'bg-[#E5DFC9]/50': variant === 'default' || variant === 'muted',
+          'bg-[#E5DFC9]': variant === 'accent' || variant === 'navy' || variant === 'warning' || variant === 'gold' || variant === 'success' || variant === 'danger',
         })} />
       )}
       {children}

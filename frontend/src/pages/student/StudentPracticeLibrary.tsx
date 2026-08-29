@@ -26,21 +26,21 @@ export default function StudentPracticeLibrary() {
     : mockStudentExercises.filter((e) => e.defectClassId === selectedClass)
 
   return (
-    <div className="min-h-screen bg-[#0D1117] text-[#F4F1E8] flex flex-col selection:bg-[#35C6B0]/30 selection:text-[#F4F1E8]">
+    <div className="min-h-screen bg-[#000000] text-[#E5DFC9] flex flex-col selection:bg-[#E5DFC9]/25 selection:text-[#E5DFC9]">
       {/* Top Navbar */}
       <Navbar variant="student" />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#29333A]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#3A2F1D]">
           <div>
-            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#35C6B0]">
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#E5DFC9]">
               Student Track · Interactive Coding Drills
             </span>
-            <h1 className="text-3xl font-extrabold text-[#F4F1E8] tracking-tight mt-1">
+            <h1 className="text-3xl font-extrabold text-[#E5DFC9] tracking-tight mt-1">
               Coding Challenges
             </h1>
-            <p className="text-sm text-[#AEB7B2] mt-0.5">
+            <p className="text-sm text-[#E5DFC9]/70 mt-0.5">
               Write functional code. CodeSight tests your implementation and highlights blind spots.
             </p>
           </div>
@@ -54,8 +54,8 @@ export default function StudentPracticeLibrary() {
               onClick={() => setSelectedClass(tab.id)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap ${
                 selectedClass === tab.id
-                  ? 'bg-[#35C6B0] text-[#0D1117] font-bold shadow-sm'
-                  : 'bg-[#151C24] border border-[#29333A] text-[#AEB7B2] hover:text-[#F4F1E8] hover:border-[#35C6B0]/40'
+                  ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm'
+                  : 'bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9]/70 hover:text-[#E5DFC9] hover:bg-[#3A2F1D]'
               }`}
             >
               {tab.label}
@@ -75,18 +75,18 @@ export default function StudentPracticeLibrary() {
               <Card
                 hover
                 onClick={() => navigate(`/student/practice/${ex.id}`)}
-                className="p-6 border-[#29333A] bg-[#151C24] text-[#F4F1E8] flex flex-col justify-between h-full group hover:border-[#35C6B0]/50 shadow-xl"
+                className="p-6 border-[#3A2F1D] bg-[#1A130D] text-[#E5DFC9] flex flex-col justify-between h-full group hover:border-[#E5DFC9]/35 hover:bg-[#3A2F1D]/40 shadow-xl"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-mono text-[#AEB7B2]">Challenge 0{ex.number}</span>
+                    <span className="text-xs font-mono text-[#E5DFC9]/60">Challenge 0{ex.number}</span>
                     <DifficultyBadge difficulty={ex.difficulty} />
                   </div>
 
-                  <h3 className="text-base font-bold text-[#F4F1E8] group-hover:text-[#35C6B0] transition-colors mb-2">
+                  <h3 className="text-base font-bold text-[#E5DFC9] group-hover:text-[#E5DFC9] transition-colors mb-2">
                     {ex.title}
                   </h3>
-                  <p className="text-xs text-[#AEB7B2] line-clamp-2 leading-relaxed mb-4">
+                  <p className="text-xs text-[#E5DFC9]/60 line-clamp-2 leading-relaxed mb-4">
                     {ex.description}
                   </p>
 
@@ -98,8 +98,8 @@ export default function StudentPracticeLibrary() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-[#29333A] text-xs">
-                  <div className="flex items-center gap-1 text-[#AEB7B2]">
+                <div className="flex items-center justify-between pt-4 border-t border-[#3A2F1D] text-xs">
+                  <div className="flex items-center gap-1 text-[#E5DFC9]/60">
                     <Clock size={12} />
                     <span>~{ex.estimatedMinutes} mins</span>
                   </div>

@@ -1,171 +1,153 @@
-export type UserRole = 'student' | 'professional'
+export type UserLevel =
+  | 'Student Beginner'
+  | 'Student Intermediate'
+  | 'Student Pro'
+  | 'AI Engineer Beginner'
+  | 'AI Engineer Intermediate'
+  | 'AI Engineer Pro'
 
-export interface StudentExercise {
+export type ProblemMode = 'student' | 'ai_engineer'
+export type Difficulty = 'Easy' | 'Medium' | 'Hard'
+
+export interface DefectClass {
+  id: string
+  label: string
+  shortTitle: string
+  description: string
+  icon: string
+  color: string
+}
+
+export interface Problem {
   id: string
   number: number
   title: string
-  difficulty: 'Easy' | 'Medium' | 'Hard'
-  defectClass: string
+  mode: ProblemMode
+  difficulty: Difficulty
   defectClassId: string
-  language: string
+  defectClassName: string
+  acceptanceRate: number
   estimatedMinutes: number
   description: string
   starterCode: string
+  brokenAiCode?: string
   solutionCode: string
+  optimalTC: string // e.g. 'O(n)'
+  optimalSC: string // e.g. 'O(1)'
+  brokenTC?: string // e.g. 'O(n^2)'
+  brokenSC?: string // e.g. 'O(n)'
   testCases: { input: string; expected: string; description: string }[]
   weaknessPattern: string
   conceptId: string
-  [key: string]: any
+  youtubeVideoId?: string
+  examEligible?: boolean
 }
 
-export interface StudentAnalysis {
+export interface ComplexitySubmissionResult {
+  problemId: string
+  problemTitle: string
+  mode: ProblemMode
+  userCode: string
+  userTC: string
+  userSC: string
+  optimalTC: string
+  optimalSC: string
+  tcScore: number // 0 to 50
+  scScore: number // 0 to 50
+  totalScore: number // 0 to 100
+  efficiencyDelta?: number // For AI Eng mode
+  isFalsePositive?: boolean
+  pass: boolean
+  aiFeedback: {
+    summary: string
+    timeAnalysis: string
+    spaceAnalysis: string
+    optimizationGuidance: string[]
+    recommendedPattern: string
+  }
+  timestamp: string
+}
+
+export interface UserProfile {
+  id: string
+  name: string
+  email: string
+  avatar: string
+  level: UserLevel
+  levelIndex: number // 1 to 6
+  totalXP: number
+  globalRank: number
+  currentStreak: number
+  problemsSolved: number
+  eloRating: number
+  weaknessCatchRates: Record<string, number> // defectClassId -> catch rate %
+  recentSubmissions: ComplexitySubmissionResult[]
+}
+
+export interface PromotionExamState {
+  examId: string
+  targetLevel: UserLevel
+  timeRemainingSeconds: number
+  problems: Problem[]
+  currentProblemIndex: number
+  submissions: Record<string, string> // problemId -> code
+  passed?: boolean
+  completed?: boolean
+}
+
+export interface BattlePlayer {
+  id: string
+  name: string
+  avatar: string
+  isHost?: boolean
   score: number
-  strengths: { category: string; description: string }[]
-  weaknesses: { category: string; description: string; severity: 'high' | 'medium' | 'low' }[]
-  patternsNoticed: string[]
-  whyItMatters: string
-  recommendedConceptId: string
-  recommendedConceptTitle: string
-  [key: string]: any
+  submitted: boolean
+  submitTimeSeconds?: number
+  rank?: number
+  isCurrentUser?: boolean
 }
 
-export interface ProExercise {
-  id: string
-  number: number
-  title: string
-  repo: string
-  language: string
-  linesOfCode: number
-  difficulty: 'Easy' | 'Medium' | 'Hard'
-  primaryRisk: string
-  defectClassId: string
-  code: string
-  groundTruthFindings: ProFinding[]
-  fixDiff: string
-  architecturalOverview: string
-  [key: string]: any
+export interface BattleRoomState {
+  roomId: string
+  roomCode: string
+  type: 'friend' | 'ranked'
+  hostId: string
+  status: 'waiting' | 'in_progress' | 'completed'
+  problemCount: number
+  problems: Problem[]
+  currentProblemIndex: number
+  timeLimitSeconds: number
+  timeRemainingSeconds: number
+  players: BattlePlayer[]
+  speedBonusRemaining: number
 }
 
-export interface ProFinding {
-  id: string
-  lines: number[]
-  riskCategory: string
-  severity: 'Critical' | 'High' | 'Medium' | 'Low'
-  explanation: string
-  rule: string
-  [key: string]: any
-}
-
-export interface ProReviewSubmission {
-  exerciseId: string
-  findings: {
-    lines: number[]
-    riskCategory: string
-    severity: string
-    explanation: string
-  }[]
-  selectedRiskAreas: string[]
-  timeTakenSeconds: number
-  [key: string]: any
-}
-
-export interface ProReviewResult {
-  overallScore: number
-  correctFindingsCount: number
-  missedFindingsCount: number
-  falsePositivesCount: number
-  categoryScores: Record<string, number>
-  whatYouCaught: string[]
-  whatYouMissed: string[]
-  whyItMattered: string
-  patternToWatch: string
-  fixDiff: string
-  [key: string]: any
-}
-
-export interface Concept {
+export interface ConceptDetail {
   id: string
   defectClassId: string
   title: string
   shortTitle: string
   description: string
-  what: string
+  deepDive: string
   vulnerableCode: string
   saferCode: string
   language: string
   whyItMatters: string
-  commonPattern: string
-  resourceTitle: string
-  resourceUrl: string
-  [key: string]: any
-}
-
-// Backward compatibility types for legacy stores and mock modules
-export interface Exercise {
-  id: string
-  number?: number
-  title?: string
-  repo?: string
-  language?: string
-  linesOfCode?: number
-  difficulty?: any
-  defectClass?: string
-  defectClassId?: string
-  conceptId?: string
-  estimatedMinutes?: number
-  code?: string
-  groundTruthLines?: number[]
-  groundTruthBugClass?: string
-  groundTruthExplanation?: string
-  fixDiff?: string
-  hasDefect?: boolean
-  explanationPrompt?: string
-  status?: any
-  referenceExplanation?: string
-  buggyLines?: number[]
-  teachingPoints?: string[]
-  pattern?: string
-  [key: string]: any
-}
-
-export interface GradingResult {
-  score?: number
-  localizationScore?: number
-  explanationScore?: number
-  falsePositives?: number
-  verdict?: string
-  status?: string
-  realDefectLines?: number[]
-  trueDefectLines?: number[]
-  studentFoundLines?: number[]
-  studentExplanation?: string
-  realDefectExplanation?: string
-  whyMissed?: string
-  patternToWatch?: string
-  realFix?: string
-  defectClass?: string
-  [key: string]: any
-}
-
-export interface BattleRoom {
-  id: string
-  code?: string
-  name?: string
-  exerciseId?: string
-  status?: any
-  timeLimit?: number
-  phase?: string
-  timeRemaining?: number
-  players?: {
+  commonPatternsToWatch: string[]
+  youtubeVideo: {
     id: string
-    name: string
-    avatar: string
-    status?: any
-    isHost?: boolean
-    submitted?: boolean
-    [key: string]: any
+    title: string
+    channel: string
+    duration: string
+    embedUrl: string
+  }
+  miniCheckQuestions: {
+    id: string
+    question: string
+    options: string[]
+    correctIndex: number
+    explanation: string
   }[]
-  [key: string]: any
 }
 
 export interface LeaderboardEntry {
@@ -218,3 +200,129 @@ export interface SkillProfile {
   } | any
   [key: string]: any
 }
+
+// Backward Compatibility Interfaces
+export interface Exercise {
+  id: string
+  number?: number
+  title?: string
+  repo?: string
+  language?: string
+  linesOfCode?: number
+  difficulty?: any
+  defectClass?: string
+  defectClassId?: string
+  conceptId?: string
+  estimatedMinutes?: number
+  code?: string
+  groundTruthFindings?: any[]
+  groundTruthLines?: number[]
+  groundTruthBugClass?: string
+  groundTruthExplanation?: string
+  fixDiff?: string
+  architecturalOverview?: string
+  hasDefect?: boolean
+  explanationPrompt?: string
+  status?: any
+  referenceExplanation?: string
+  buggyLines?: number[]
+  teachingPoints?: string[]
+  pattern?: string
+  [key: string]: any
+}
+
+export interface StudentExercise {
+  id: string
+  number?: number
+  title?: string
+  difficulty?: any
+  defectClass?: string
+  defectClassId?: string
+  language?: string
+  estimatedMinutes?: number
+  description?: string
+  starterCode?: string
+  solutionCode?: string
+  testCases?: any[]
+  weaknessPattern?: string
+  conceptId?: string
+  [key: string]: any
+}
+
+export interface ProExercise {
+  id: string
+  number?: number
+  title?: string
+  repo?: string
+  language?: string
+  linesOfCode?: number
+  difficulty?: any
+  primaryRisk?: string
+  defectClassId?: string
+  code?: string
+  groundTruthFindings?: any[]
+  fixDiff?: string
+  architecturalOverview?: string
+  [key: string]: any
+}
+
+export interface ProFinding {
+  id?: string
+  lines?: number[]
+  riskCategory?: string
+  severity?: any
+  explanation?: string
+  rule?: string
+  [key: string]: any
+}
+
+export interface BattleRoom {
+  id: string
+  code?: string
+  name?: string
+  exerciseId?: string
+  status?: any
+  timeLimit?: number
+  phase?: string
+  timeRemaining?: number
+  players?: any[]
+  [key: string]: any
+}
+
+export interface GradingResult {
+  score?: number
+  localizationScore?: number
+  explanationScore?: number
+  falsePositives?: number
+  verdict?: string
+  status?: string
+  realDefectLines?: number[]
+  trueDefectLines?: number[]
+  studentFoundLines?: number[]
+  studentExplanation?: string
+  realDefectExplanation?: string
+  whyMissed?: string
+  patternToWatch?: string
+  realFix?: string
+  defectClass?: string
+  confirmed?: boolean
+  [key: string]: any
+}
+
+export interface Concept {
+  id: string
+  defectClassId?: string
+  title?: string
+  shortTitle?: string
+  description?: string
+  what?: string
+  vulnerableCode?: string
+  saferCode?: string
+  language?: string
+  whyItMatters?: string
+  commonPattern?: string
+  resourceTitle?: string
+  resourceUrl?: string
+  [key: string]: any
+}
+
