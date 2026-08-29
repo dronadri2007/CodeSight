@@ -556,6 +556,44 @@ def test_skill_card_leaderboard_rank(client):
     assert client.get("/profile/rookie/card").json()["leaderboard_rank"] is None
 
 
+# --- admin (read-only) ------------------------------------------
+def test_admin_stats_shape(client):
+    d = client.get("/admin/stats").json()
+    assert d["total"] >= 1000
+    assert set(d) == {
+        "total", "by_status", "by_source", "by_difficulty", "by_defect_class",
+        "reported", "hidden", "sessions", "attempts", "distinct_reporters",
+    }
+    assert d["by_status"].get("Approved", 0) >= 19  # curated are approved
+    assert d["by_source"].get("curated", 0) >= 35
+
+
+def test_admin_exercises_filters(client):
+    everything = client.get("/admin/exercises").json()
+    assert everything["total"] == everything["matched"] >= 1000
+    row = everything["exercises"][0]
+    assert set(row) >= {"id", "title", "review_status", "status_label", "difficulty_label", "reports", "source"}
+    assert "code" not in row and "real_lines" not in row
+
+    curated = client.get("/admin/exercises?source=curated").json()
+    assert curated["matched"] < everything["total"]
+    assert all(r["source"] == "curated" for r in curated["exercises"])
+
+    pending = client.get("/admin/exercises?status=Pending").json()
+    assert all(r["status_label"] == "Pending" for r in pending["exercises"])
+
+    hit = client.get("/admin/exercises?search=injection&limit=5").json()
+    assert hit["matched"] >= 1 and len(hit["exercises"]) <= 5
+
+
+def test_admin_exercises_reports_reflected(client):
+    client.post("/exercises/ex-g0001/report", json={"session_id": "a", "reason": "bad"})
+    client.post("/exercises/ex-g0001/report", json={"session_id": "b", "reason": "bad"})
+    row = next(r for r in client.get("/admin/exercises?search=ex-g0001").json()["exercises"] if r["id"] == "ex-g0001")
+    assert row["reports"] == 2
+    assert client.get("/admin/stats").json()["reported"] == 1
+
+
 # --- concepts (recommendation engine) --------------------------------
 def test_concepts_list(client):
     ids = {c["id"] for c in client.get("/concepts").json()}

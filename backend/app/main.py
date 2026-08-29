@@ -6,6 +6,7 @@ Endpoints (see CONTRACT.md):
   POST /grade · POST /ai-review · POST /exercises/{id}/report
   GET  /profile/{session_id} [+/card] · GET /progress/{session_id} · GET /leaderboard
   GET  /session/{session_id} · GET /session/{session_id}/integrity
+  GET  /admin/stats · GET /admin/exercises
   GET  /concepts · GET /concept/{id}
   GET  /concept/{id}/micro-check · POST /concept/{id}/micro-check
   GET  /topics · GET /topic/{id} · POST /topic/{id}/predict
@@ -18,6 +19,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
+from app import admin as adm
 from app import ai_review, concepts, leaderboard as lb, reports, tiers, topics
 from app import exercises as ex
 from app.config import (
@@ -49,6 +51,8 @@ from app.schemas import (
     MicroCheck,
     MicroCheckRequest,
     MicroCheckResult,
+    AdminExercises,
+    AdminStats,
     ProgressReport,
     SessionIntegrity,
     SkillCard,
@@ -261,6 +265,28 @@ def leaderboard(
         raise HTTPException(status_code=422, detail="unknown tier")
     return lb.build_leaderboard(
         db, limit=limit, min_attempts=min_attempts, tier=tier, session_id=session_id
+    )
+
+
+# --- admin (read-only corpus views; no auth) -------------------------
+@app.get("/admin/stats", response_model=AdminStats)
+def admin_stats(db: Session = Depends(get_db)):
+    return adm.stats(db)
+
+
+@app.get("/admin/exercises", response_model=AdminExercises)
+def admin_exercises(
+    search: str | None = Query(None),
+    difficulty: str | None = Query(None),
+    status: str | None = Query(None),
+    source: str | None = Query(None),
+    limit: int = Query(500, ge=1, le=2000),
+    db: Session = Depends(get_db),
+):
+    """Every exercise with its review status and report count. `status` accepts
+    Approved | Pending | Draft | Archived (or the raw review_status)."""
+    return adm.list_exercises(
+        db, search=search, difficulty=difficulty, status=status, source=source, limit=limit
     )
 
 

@@ -411,6 +411,52 @@ Response 200:
 
 ---
 
+## GET /admin/stats · GET /admin/exercises
+
+Read-only corpus / review-progress views for an admin dashboard. **No auth**
+(the backend has none) and **no mutation** — exercises are committed JSON and
+the review workflow is `scripts/review_exercises.py`.
+
+### GET /admin/stats
+
+    {
+      "total": 1018,
+      "by_status": { "Approved": 35, "Pending": 983, "Draft": 0, "Archived": 0 },
+      "by_source": { "curated": 35, "generated": 983 },
+      "by_difficulty": { "beginner": 351, "intermediate": 329, "pro": 322 },
+      "by_defect_class": { "injection": 130, "auth": 135, ... },
+      "reported": 4, "hidden": 1,
+      "sessions": 12, "attempts": 340, "distinct_reporters": 7
+    }
+
+`Approved` = review status `approved` (curated are approved by default) ·
+`Pending` = `unreviewed` · `Draft` = `edited` · `Archived` = `rejected`.
+
+### GET /admin/exercises
+
+Query (all optional): `search` (id / title / defect class), `difficulty`
+(`Easy`|`Medium`|`Hard` or `beginner`|`intermediate`|`pro`), `status`
+(`Approved`|`Pending`|`Draft`|`Archived` or the raw `review_status`),
+`source` (`curated`|`generated`), `limit` (1–2000, default 500).
+
+    {
+      "total": 1018,        // whole corpus
+      "matched": 345,       // after filters (may exceed the returned page)
+      "exercises": [
+        {
+          "id": "ex-g0001", "title": "Safe File Extension Check",
+          "defect_class": "clean", "difficulty": "beginner",
+          "difficulty_label": "Easy", "source": "generated",
+          "review_status": "unreviewed", "status_label": "Pending",
+          "reports": 0, "line_count": 3, "hint_count": 2
+        }
+      ]
+    }
+
+No answer fields (`code`, `real_lines`, `fix_diff`, `reference`) are included.
+
+---
+
 ## GET /concepts
 
 Recommendation engine — the six defect-class concepts.

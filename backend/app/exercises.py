@@ -116,6 +116,12 @@ def review_counts() -> dict[str, int]:
     return out
 
 
+def all_rows() -> list[dict]:
+    """Shallow copies of every exercise record (admin view). Includes answer
+    fields — callers must strip what the client shouldn't see."""
+    return [dict(r) for r in _EXERCISES.values()]
+
+
 def curated_ids_for_tier(tier: str) -> list[str]:
     """Curated exercise ids at exactly this difficulty, stable order."""
     return [

@@ -27,3 +27,12 @@ def hidden_exercise_ids(db: Session) -> set[str]:
         .having(func.count(distinct(ExerciseReport.session_id)) >= REPORT_THRESHOLD)
     ).all()
     return {r[0] for r in rows}
+
+
+def report_counts(db: Session) -> dict[str, int]:
+    """{exercise_id: distinct-session report count} for every reported exercise."""
+    rows = db.execute(
+        select(ExerciseReport.exercise_id, func.count(distinct(ExerciseReport.session_id)))
+        .group_by(ExerciseReport.exercise_id)
+    ).all()
+    return {eid: int(n) for eid, n in rows}

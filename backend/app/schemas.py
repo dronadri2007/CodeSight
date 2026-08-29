@@ -91,6 +91,40 @@ class SessionIntegrity(BaseModel):
     attempts: list[IntegrityAttempt] # tracked, newest first, after verdict/limit
 
 
+# --- admin (read-only corpus views) ------------------------------
+class AdminExerciseRow(BaseModel):
+    id: str
+    title: str
+    defect_class: str
+    difficulty: str          # backend tier
+    difficulty_label: str    # Easy | Medium | Hard
+    source: str              # curated | generated
+    review_status: str       # approved | unreviewed | edited | rejected
+    status_label: str        # Approved | Pending | Draft | Archived
+    reports: int
+    line_count: int
+    hint_count: int
+
+
+class AdminExercises(BaseModel):
+    total: int
+    matched: int
+    exercises: list[AdminExerciseRow]
+
+
+class AdminStats(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    by_source: dict[str, int]
+    by_difficulty: dict[str, int]
+    by_defect_class: dict[str, int]
+    reported: int
+    hidden: int
+    sessions: int
+    attempts: int
+    distinct_reporters: int
+
+
 # --- GET /profile/{id}/card (shareable review-skill card) ---------
 class SkillCard(BaseModel):
     session_id: str
