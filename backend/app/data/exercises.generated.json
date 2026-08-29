@@ -17344,5 +17344,402 @@
       "Check if the loop properly accumulates the values into the 'total' variable.",
       "Verify the final return statement handles types correctly by converting 'total' to a string."
     ]
+  },
+  {
+    "id": "ex-g0880",
+    "language": "python",
+    "title": "Unsynchronized Account Balance Update",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payment_processor.py",
+    "code": "from threading import Lock\n\nclass PaymentProcessor:\n    def __init__(self, balance: float):\n        self.balance = balance\n        self.lock = Lock()\n\n    def process_payment(self, amount: float) -> None:\n        current = self.balance\n        self.balance = current - amount\n",
+    "real_lines": [
+      9,
+      10
+    ],
+    "fix_diff": "@@ -9,2 +9,2 @@\n-        current = self.balance\n-        self.balance = current - amount\n+        with self.lock:\n+            self.balance -= amount",
+    "reference": "This code suffers from a classic race condition where read-modify-write operations on a shared resource are not atomic. Because multiple threads can read the initial balance simultaneously before any thread writes back the updated value, updates can be lost. Wrapping the critical section in a context manager using the provided mutex lock ensures thread-safe execution.",
+    "hints": [
+      "Look closely at shared state access inside the method.",
+      "Consider what happens if two threads execute this method concurrently.",
+      "The Lock attribute is initialized in the constructor but never actually used in the process_payment method."
+    ]
+  },
+  {
+    "id": "ex-g0881",
+    "language": "python",
+    "title": "Incorrect Aspect Ratio Scaling",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size):\n    if original_width <= max_size and original_height <= max_size:\n        return (original_width, original_height)\n    \n    if original_width > original_height:\n        ratio = max_size / original_height\n        new_width = int(original_width * ratio)\n        new_height = max_size\n    else:\n        ratio = max_size / original_width\n        new_width = max_size\n        new_height = int(original_height * ratio)\n        \n    return (new_width, new_height)\n",
+    "real_lines": [
+      6,
+      10
+    ],
+    "fix_diff": "@@ -6,2 +6,2 @@\n-        ratio = max_size / original_height\n-        new_width = int(original_width * ratio)\n+        ratio = max_size / original_width\n+        new_height = int(original_height * ratio)\n@@ -10,2 +10,2 @@\n-        ratio = max_size / original_width\n-        new_height = int(original_height * ratio)\n+        ratio = max_size / original_height\n+        new_width = int(original_width * ratio)",
+    "reference": "When scaling an image to fit within a maximum boundary, the dimension that exceeds the limit the most must dictate the scaling ratio. In this function, the branches are inverted: when the width is greater than the height, the ratio should be calculated using the width rather than the height. Swapping the calculations in both branches ensures the aspect ratio is maintained correctly and the image fits within the bounding box.",
+    "hints": [
+      "Examine how the scaling ratio is computed relative to the image dimensions.",
+      "Look closely at the condition checking whether width is greater than height.",
+      "Check which dimension is used as the numerator and denominator when calculating the ratio in each conditional branch."
+    ]
+  },
+  {
+    "id": "ex-g0882",
+    "language": "python",
+    "title": "Swallowed Exception in Rate Limiter",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\ndef acquire_token(redis_client, key, limit, period):\n    try:\n        current = redis_client.incr(key)\n        if current == 1:\n            redis_client.expire(key, period)\n        return current <= limit\n    except redis.exceptions.ConnectionError:\n        pass\n",
+    "real_lines": [
+      7,
+      8
+    ],
+    "fix_diff": "@@ -7,2 +7,2 @@\n     except redis.exceptions.ConnectionError:\n-        pass\n+        raise",
+    "reference": "Swallowing a connection error by simply passing causes the rate limiter to silently fail open, allowing unlimited requests when Redis is down. In high-availability systems, error handlers should either re-raise the exception, fall back to a safe default policy, or log the incident appropriately rather than silently ignoring infrastructure failures.",
+    "hints": [
+      "Examine how exceptions are handled when interacting with external services.",
+      "Look closely at the `except` block in the function.",
+      "Using `pass` inside an exception handler for an infrastructure failure causes the function to proceed as if no error occurred."
+    ]
+  },
+  {
+    "id": "ex-g0883",
+    "language": "python",
+    "title": "Insecure Direct Object Reference in Report Export",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_user_report(request, report_id):\n    report = Report.objects.get(id=report_id)\n    if not request.user.is_authenticated:\n        raise PermissionDenied\n    return render_to_pdf('report_template.pdf', {'report': report})\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    report = Report.objects.get(id=report_id)\n+    report = Report.objects.get(id=report_id, user=request.user)",
+    "reference": "This code suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it fetches a report by its ID without checking if the requesting user actually owns it. Although it verifies authentication, it fails authorization, allowing any authenticated user to access any other user's report by simply guessing or iterating the report ID. To fix this, the query must include the user constraint to ensure the resource belongs to the current session.",
+    "hints": [
+      "Examine the order of operations in the function.",
+      "Look closely at how the `Report` object is retrieved from the database.",
+      "Ensure that the database query restricts the fetched report to the currently authenticated user."
+    ]
+  },
+  {
+    "id": "ex-g0884",
+    "language": "python",
+    "title": "Unrestricted Report Generation Access",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "reports.py",
+    "code": "def generate_annual_report(user, report_id):\n    report = fetch_report_from_db(report_id)\n    if not report:\n        return \"Report not found\"\n    return render_pdf(report)\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "@@ -5,1 +5,3 @@\n-    return render_pdf(report)\n+    if user.role != \"admin\" and report.owner_id != user.id:\n+        return \"Access denied\"\n+    return render_pdf(report)",
+    "reference": "This function suffers from an authorization defect because it renders and returns sensitive reports without verifying if the requesting user has permission to view them. An attacker could pass arbitrary report IDs to access confidential data belonging to other users. To fix this, implement access control checks to ensure the user is either an administrator or the owner of the report before rendering.",
+    "hints": [
+      "Look closely at what parameters are passed into the function.",
+      "Consider whether the 'user' parameter is used anywhere in the function body.",
+      "You need to check the user's permissions or ownership before returning the PDF."
+    ]
+  },
+  {
+    "id": "ex-g0885",
+    "language": "python",
+    "title": "Uncaught File Deletion Error",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report_cleaner.py",
+    "code": "def remove_temp_report(filepath):\n    try:\n        file = open(filepath, 'r')\n    except FileNotFoundError:\n        print(\"File not found.\")\n    file.close()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- report_cleaner.py\n+++ report_cleaner.py\n@@ -5,2 +5,2 @@\n-    file.close()\n+        file.close()",
+    "reference": "The bug occurs because `file.close()` is placed outside the try-except block, meaning it executes regardless of whether the file was successfully opened. If a `FileNotFoundError` is raised, `file` is never defined, causing an `UnboundLocalError` or `NameError` on line 6. Indenting `file.close()` inside the try block (or using a context manager) ensures it only runs when an open file object actually exists.",
+    "hints": [
+      "Look closely at the indentation of the final line.",
+      "Consider what happens to the 'file' variable if the file does not exist.",
+      "Move the cleanup logic inside the try block so it only runs when the file is successfully opened."
+    ]
+  },
+  {
+    "id": "ex-g0886",
+    "language": "python",
+    "title": "Insecure Session Token Generation",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "import secrets\n\ndef create_user_session(user_id: int) -> str:\n    token_base = f\"{user_id}-{secrets.token_hex(16)}\"\n    session_token = secrets.token_urlsafe(32)\n    return session_token\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    token_base = f\"{user_id}-{secrets.token_hex(16)}\"\n+    # Removed unused predictable base variable",
+    "reference": "The function generates a cryptographically secure random token using secrets.token_urlsafe(32), but it also creates an unused variable token_base that concatenates the user ID with a hex token. While this specific line does not directly compromise the returned token, defining unused variables with predictable user identifiers can lead to developer confusion, accidental logging of sensitive associations, or dead-code vulnerabilities. To fix this, remove the unnecessary token_base calculation entirely and rely solely on the secure token generation.",
+    "hints": [
+      "Examine all variables created within the function scope.",
+      "Check if every variable declared in the function is actually used in the return statement.",
+      "Remove the unused token_base variable to clean up the code and prevent potential side effects."
+    ]
+  },
+  {
+    "id": "ex-g0887",
+    "language": "python",
+    "title": "Verifying Password Hashes",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import hmac\n\ndef verify_password(stored_password_hash: str, provided_password_hash: str) -> bool:\n    return hmac.compare_digest(stored_password_hash, provided_password_hash)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although using string comparison or custom equality checks on hashes can be dangerous due to timing attacks, this code correctly uses hmac.compare_digest. This is a secure, constant-time comparison function, so flagging it as a vulnerability is a false positive.",
+    "hints": [
+      "Check how the two hashes are being compared.",
+      "Look up the documentation for the hmac module in the Python standard library."
+    ]
+  },
+  {
+    "id": "ex-g0888",
+    "language": "python",
+    "title": "Swallowing Exceptions in Search API",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "def search_users(query):\n    try:\n        results = database.query(query)\n        return results\n    except:\n        return None\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "@@ -5,2 +5,2 @@\n-    except:\n-        return None\n+    except DatabaseError as e:\n+        logger.error(f\"Search failed: {e}\")\n+        raise HTTPException(status_code=500, detail=\"Internal Server Error\")",
+    "reference": "Using a bare 'except:' clause catches all exceptions, including system-exiting ones, and silently returns None. This masks underlying bugs and makes debugging very difficult because the API caller receives an empty response instead of a proper error code. The fix is to catch specific expected exceptions, log the error details, and raise an appropriate HTTP exception.",
+    "hints": [
+      "Look closely at the exception handling block.",
+      "Catching all exceptions indiscriminately can hide critical bugs and operational issues.",
+      "Specify the exact exception type you want to catch rather than using a bare except."
+    ]
+  },
+  {
+    "id": "ex-g0889",
+    "language": "python",
+    "title": "Unclosed File Resource in CSV Import",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef import_csv_data(filepath):\n    f = open(filepath, mode='r', encoding='utf-8')\n    reader = csv.reader(f)\n    header = next(reader)\n    return [dict(zip(header, row)) for row in reader]\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    f = open(filepath, mode='r', encoding='utf-8')\n+    with open(filepath, mode='r', encoding='utf-8') as f:",
+    "reference": "Opening a file without a context manager relies on garbage collection to eventually release the file descriptor, which can lead to resource leaks and locked files. Using a 'with' statement ensures that the file is safely and promptly closed as soon as the block is exited, even if exceptions occur during parsing.",
+    "hints": [
+      "Examine how external resources like files are acquired and released.",
+      "Consider what happens to the file descriptor if an exception occurs during iteration.",
+      "Use a context manager to guarantee deterministic cleanup of the file handle."
+    ]
+  },
+  {
+    "id": "ex-g0890",
+    "language": "python",
+    "title": "Unclosed Database Connection in Search Endpoint",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search.py",
+    "code": "import sqlite3\n\ndef search_users(query):\n    conn = sqlite3.connect('app.db')\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT * FROM users WHERE username LIKE ?\", (f\"%{query}%\",))\n    results = cursor.fetchall()\n    return results\n",
+    "real_lines": [
+      4,
+      8
+    ],
+    "fix_diff": "@@ -3,6 +3,6 @@\n def search_users(query):\n-    conn = sqlite3.connect('app.db')\n-    cursor = conn.cursor()\n-    cursor.execute(\"SELECT * FROM users WHERE username LIKE ?\", (f\"%{query}%\",))\n-    results = cursor.fetchall()\n-    return results\n+    with sqlite3.connect('app.db') as conn:\n+        cursor = conn.cursor()\n+        cursor.execute(\"SELECT * FROM users WHERE username LIKE ?\", (f\"%{query}%\",))\n+        return cursor.fetchall()",
+    "reference": "The function opens a database connection using sqlite3.connect() but never closes it or the associated cursor, leading to potential connection leaks under load. Wrapping the connection in a context manager ensures that resources are automatically cleaned up when the block exits, even if an exception occurs during execution.",
+    "hints": [
+      "Examine how external system resources are acquired and released.",
+      "Look closely at the lifecycle of the database connection object.",
+      "Use a context manager (the 'with' statement) to manage the connection scope automatically."
+    ]
+  },
+  {
+    "id": "ex-g0891",
+    "language": "python",
+    "title": "Fix Report Total Calculation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report.py",
+    "code": "def generate_summary(items):\n    total = 0\n    for item in items:\n        total = item[\"price\"]\n    return total\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        total = item[\"price\"]\n+        total += item[\"price\"]",
+    "reference": "The bug occurs because the loop assigns the price of the current item directly to the total variable rather than adding to it, causing the function to only return the price of the final item. To fix this, use the addition assignment operator (+=) to accumulate the sum of all item prices across the iterations.",
+    "hints": [
+      "Look closely at how the total variable is updated inside the loop.",
+      "Check whether the loop accumulates values or overwrites them on each iteration.",
+      "Replace the assignment operator (=) with an addition assignment operator (+=) to accumulate the sum."
+    ]
+  },
+  {
+    "id": "ex-g0892",
+    "language": "python",
+    "title": "Unclosed File Resource in Email Attachment",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "def send_email_with_attachment(filepath, recipient):\n    f = open(filepath, \"r\")\n    content = f.read()\n    print(\"Sending email to\", recipient)\n    print(\"Attachment size:\", len(content))\n    return True\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,2 +2,2 @@\n-    f = open(filepath, \"r\")\n-    content = f.read()\n+    with open(filepath, \"r\") as f:\n+        content = f.read()",
+    "reference": "The code opens a file handle to read the attachment but never closes it, leading to a resource leak. In Python, unclosed file handles rely on garbage collection to be freed, which can cause file locks and exhaust system file descriptors. Using a context manager ('with' statement) ensures that the file is safely closed as soon as the block is exited, even if an exception occurs.",
+    "hints": [
+      "Look closely at how external resources like files are acquired in the function.",
+      "Check if the file opened for reading is ever explicitly closed.",
+      "Consider using a context manager ('with' statement) to automatically handle resource cleanup."
+    ]
+  },
+  {
+    "id": "ex-g0893",
+    "language": "python",
+    "title": "Unsanitized Log Injection",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request_path):\n    import logging\n    logging.basicConfig(level=logging.INFO)\n    print(\"Incoming request for: \" + request_path)\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -4,1 +4,1 @@\n-    print(\"Incoming request for: \" + request_path)\n+    print(\"Incoming request for: %s\", request_path)\n",
+    "reference": "Directly concatenating untrusted user input like request_path into log messages allows log injection attacks. An attacker can supply newline characters to forge fake log entries, making auditing and log analysis unreliable. Using parameterized logging avoids this vulnerability by safely treating the input as data rather than executable format.",
+    "hints": [
+      "Look at how the user input is combined with the log message string.",
+      "Think about what happens if the input contains newline characters.",
+      "Use logging formatting arguments instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0894",
+    "language": "python",
+    "title": "Uncached Inventory Lookup",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def get_item_price(item_id: str, store_id: str) -> float:\n    # Direct database query without a caching layer\n    query = \"SELECT price FROM inventory WHERE item_id = %s AND store_id = %s\"\n    result = db_connection.execute(query, (item_id, store_id)).fetchone()\n    if not result:\n        raise ItemNotFoundError(f\"Item {item_id} not found in store {store_id}\")\n    return float(result[\"price\"])\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although it looks suspicious to query the database directly on every call without caching, this function is completely correct. Caching is intentionally handled at the repository or API gateway layer in this architecture, and introducing local caching here would risk stale data issues.",
+    "hints": [
+      "Check if the architecture handles caching at a higher level of the application stack.",
+      "Verify if direct database reads violate any strict requirements for this specific internal service."
+    ]
+  },
+  {
+    "id": "ex-g0895",
+    "language": "python",
+    "title": "Unthreadsafe Job Counter Increment",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import time\nimport threading\n\nactive_jobs = 0\n\ndef process_job():\n    global active_jobs\n    active_jobs += 1\n    time.sleep(0.1)\n    active_jobs -= 1\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "-    active_jobs += 1\n+    with threading.Lock():\n+        active_jobs += 1",
+    "reference": "The code suffers from a race condition because multiple threads can read and write to the shared global variable 'active_jobs' concurrently without synchronization. The += operation is not atomic in Python, meaning an interrupt can occur between the read and write steps, corrupting the count. Wrapping the critical section in a threading.Lock ensures that only one thread modifies the counter at a time.",
+    "hints": [
+      "Look closely at how multiple threads interact with shared mutable state.",
+      "Consider whether standard arithmetic operations on global variables are atomic in Python.",
+      "Use a threading.Lock to protect the critical section where active_jobs is modified."
+    ]
+  },
+  {
+    "id": "ex-g0896",
+    "language": "python",
+    "title": "Session Expiry Time Comparison",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "session.py",
+    "code": "import time\n\nclass SessionManager:\n    def __init__(self, timeout_seconds: int = 1800):\n        self.timeout = timeout_seconds\n        self.sessions = {}\n\n    def is_valid(self, session_id: str) -> bool:\n        if session_id not in self.sessions:\n            return False\n        created_at = self.sessions[session_id]\n        return time.time() - created_at < self.timeout\n\n    def refresh(self, session_id: str):\n        if session_id in self.sessions:\n            self.sessions[session_id] = time.time()\n",
+    "real_lines": [
+      12
+    ],
+    "fix_diff": "@@ -12,1 +12,1 @@\n-        return time.time() - created_at < self.timeout\n+        return time.time() - created_at <= self.timeout",
+    "reference": "When comparing elapsed time against a timeout threshold, using a strict less-than operator can cause edge-case failures where a session expires exactly at the boundary of the timeout period. Changing the comparison to less-than-or-equal ensures that the final second of the session remains valid. This prevents premature session invalidation for users making requests right at the expiration limit.",
+    "hints": [
+      "Look closely at the time validation logic in the `is_valid` method.",
+      "Consider what happens when the exact duration equals the timeout threshold.",
+      "Change the strict inequality operator to an inclusive one to fix boundary condition issues."
+    ]
+  },
+  {
+    "id": "ex-g0897",
+    "language": "python",
+    "title": "Config Debug Mode Evaluator",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "def is_debug_enabled(config):\n    debug_val = config.get(\"debug\", \"false\")\n    if debug_val == True:\n        return True\n    return False\n",
+    "real_lines": [
+      2,
+      3
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -2,3 +2,3px\n     debug_val = config.get(\"debug\", \"false\")\n-    if debug_val == True:\n+    if str(debug_val).lower() == \"true\":\n         return True",
+    "reference": "Configuration values loaded from files or environment variables are typically strings, whereas the code was comparing the value directly to a boolean True. This causes the check to fail even when the config file specifies debug as the string \"true\". Fixing this requires converting the configuration value to a string and performing a case-insensitive comparison.",
+    "hints": [
+      "Look at what data type is usually returned when reading configuration values.",
+      "Compare the type of 'debug_val' with the type of the literal being checked against it.",
+      "You need to handle cases where the config file specifies the boolean as a lowercase string."
+    ]
+  },
+  {
+    "id": "ex-g0898",
+    "language": "python",
+    "title": "Swallowing Non-Cache Exceptions",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\ndef get_cached_user(client: redis.Redis, user_id: int) -> dict | None:\n    try:\n        data = client.get(f\"user:{user_id}\")\n        return json.loads(data) if data else None\n    except redis.RedisError:\n        return None\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,2 +6,2 @@\n-    except redis.RedisError:\n+    except (redis.RedisError, json.JSONDecodeError):",
+    "reference": "Catching only redis.RedisError assumes that any other exception raised inside the try block is intentional or safe to propagate, but json.loads can raise JSONDecodeError if corrupted data is stored in the cache. By restricting the exception clause too narrowly, cache retrieval failures due to malformed payloads will crash the application instead of gracefully falling back. Expanding the except clause to include json.JSONDecodeError ensures robust handling of both infrastructure and serialization issues.",
+    "hints": [
+      "Examine what operations occur inside the try block besides the Redis call.",
+      "Consider what happens if the data retrieved from Redis is corrupted or not valid JSON.",
+      "Catch both the Redis error and the specific parsing exception to prevent unexpected crashes."
+    ]
+  },
+  {
+    "id": "ex-g0899",
+    "language": "python",
+    "title": "Email Sender Configuration",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "def send_email(recipient, subject, body):\n    server_address = \"smtp.example.com\"\n    port = 587\n    use_tls = True\n    return f\"Sending email to {recipient} via {server_address}:{port}\"\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The function correctly takes parameters and builds a descriptive string without exposing any sensitive credentials. The hardcoded server address and port are standard public configuration values for an SMTP client, not secrets.",
+    "hints": [
+      "Check if any actual secrets like passwords or API keys are hardcoded in the function.",
+      "Verify if the hardcoded values are just standard public endpoints and configuration flags."
+    ]
   }
 ]
