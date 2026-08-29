@@ -1,0 +1,48 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+  pull_request:
+    paths: ["backend/**", ".github/workflows/backend-ci.yml"]
+  schedule:
+    - cron: "0 6 * * 1"        # Mondays 06:00 UTC - concept-link rot check
+  workflow_dispatch:            # manual "Run workflow" button
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  # Offline suite: localisation scorer + API tests, no network, no API key.
+  tests:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt pytest httpx
+      - run: python -m pytest -q
+
+  # Weekly (and on-demand): every concepts.json YouTube link still resolves.
+  # Uses YouTube's keyless oEmbed endpoint - no API key, no quota.
+  concept-links:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt pytest httpx
+      - name: Check concept video links
+        env:
+          RUN_NETWORK_TESTS: "1"
+        run: python -m pytest tests/test_concept_links.py -q
