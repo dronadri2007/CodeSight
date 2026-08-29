@@ -11570,5 +11570,394 @@
       "Consider what happens if an otherwise valid extension uses uppercase letters.",
       "Applying a standard string normalization method like lower() to the extracted extension will prevent casing bypasses."
     ]
+  },
+  {
+    "id": "ex-g0587",
+    "language": "python",
+    "title": "Unthreadsafe Request Counter",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimiter.py",
+    "code": "import time\n\nrequest_count = 0\n\ndef is_allowed():\n    global request_count\n    if request_count < 10:\n        request_count += 1\n        return True\n    return False\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -6,3 +6,3 @@\n     if request_count < 10:\n-        request_count += 1\n+        with threading.Lock(): request_count += 1\n         return True",
+    "reference": "This code suffers from a race condition because the check-then-act sequence on a shared global variable is not atomic. In a multi-threaded environment, multiple threads can evaluate the if statement as true before any thread increments the counter, leading to a violation of the rate limit. Using a threading lock ensures that the read, check, and increment operations execute as a single atomic unit.",
+    "hints": [
+      "Consider what happens when multiple threads execute this function concurrently.",
+      "Look closely at the global variable being modified and how it is updated.",
+      "The increment operation is not atomic; a synchronization primitive like a Lock is needed."
+    ]
+  },
+  {
+    "id": "ex-g0588",
+    "language": "python",
+    "title": "Command Injection via Unsanitized Image Path",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "import os\n\ndef generate_thumbnail(image_path, size=\"128x128\"):\n    output_path = f\"thumb_{os.path.basename(image_path)}\"\n    cmd = f\"convert {image_path} -resize {size} {output_path}\"\n    os.system(cmd)\n    return output_path\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    os.system(cmd)\n+    import subprocess\n+    subprocess.run([\"convert\", image_path, \"-resize\", size, output_path], check=True)",
+    "reference": "This code is vulnerable to command injection because the user-controlled 'image_path' variable is directly concatenated into a shell command string executed by 'os.system'. An attacker could supply a specially crafted filename containing shell metacharacters like semicolons or pipes to execute arbitrary system commands. The vulnerability is fixed by replacing 'os.system' with 'subprocess.run' and passing arguments as a list, which prevents shell interpretation of the input parameters.",
+    "hints": [
+      "Look closely at how the system command is constructed and executed.",
+      "Consider what happens if the input string contains shell control characters.",
+      "Avoid using os.system with formatted strings and use the subprocess module with a list of arguments instead."
+    ]
+  },
+  {
+    "id": "ex-g0589",
+    "language": "python",
+    "title": "False Positive Rate Limiter Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "def check_rate_limit(request_count, max_limit):\n    if request_count >= max_limit:\n        return False\n    return True\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This function is completely correct. The use of '>= instead of '>' might look suspicious to someone scanning for off-by-one errors, but in this context, it correctly blocks requests once the limit is fully reached.",
+    "hints": [
+      "Trace the logic carefully when request_count equals max_limit.",
+      "Consider what the function should return if the user has exhausted their allowed requests."
+    ]
+  },
+  {
+    "id": "ex-g0590",
+    "language": "python",
+    "title": "CSV Command Injection via Subprocess",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import subprocess\n\ndef process_csv(filepath):\n    command = \"head -n 5 \" + filepath\n    result = subprocess.run(command, shell=True, capture_output=True, text=True)\n    return result.stdout\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-    command = \"head -n 5 \" + filepath\n-    result = subprocess.run(command, shell=True, capture_output=True, text=True)\n+    command = [\"head\", \"-n\", \"5\", filepath]\n+    result = subprocess.run(command, shell=False, capture_output=True, text=True)",
+    "reference": "This code is vulnerable to command injection because untrusted file path input is concatenated directly into a shell command string with shell=True. If an attacker supplies a filename containing shell metacharacters like semicolons or pipes, arbitrary system commands can be executed. To fix this, avoid shell=True and pass the command and arguments as a list of strings to subprocess.run.",
+    "hints": [
+      "Examine how external system commands are constructed and executed in this function.",
+      "Look closely at the use of string concatenation combined with a specific subprocess parameter.",
+      "Remove shell=True and refactor the command string into a list of arguments to prevent shell interpretation of metacharacters."
+    ]
+  },
+  {
+    "id": "ex-g0591",
+    "language": "python",
+    "title": "Mutable Default Arguments in Cache Fallback",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "def get_cached_data(key, default_fallback={}):\n    cache = {\"user_1\": \"Alice\", \"user_2\": \"Bob\"}\n    if key in cache:\n        return cache[key]\n    \n    default_fallback[key] = \"Guest\"\n    return default_fallback[key]\n",
+    "real_lines": [
+      1
+    ],
+    "fix_diff": "- def get_cached_data(key, default_fallback={}):\n+ def get_cached_data(key, default_fallback=None):\n+     if default_fallback is None:\n+         default_fallback = {}",
+    "reference": "Python evaluates default argument values only once, at the time the function is defined, rather than every time it is called. When a mutable object like a dictionary is used as a default value, any modifications made to it persist across subsequent function calls. To prevent this unintended state sharing, use None as the sentinel default and instantiate a new dictionary inside the function body.",
+    "hints": [
+      "Look closely at the function signature and how default arguments are handled in Python.",
+      "Consider what happens to the default_fallback dictionary if the function is called multiple times without providing that argument.",
+      "Replace the mutable default argument with None and initialize the dictionary inside the function scope."
+    ]
+  },
+  {
+    "id": "ex-g0592",
+    "language": "python",
+    "title": "Unclosed File Resource in Request Logger",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(url):\n    f = open(\"requests.log\", \"a\")\n    f.write(f\"GET {url}\\n\")\n    print(\"Request logged successfully\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- logger.py\n+++ logger.py\n@@ -1,4 +1,4 @@\n def log_request(url):\n-    f = open(\"requests.log\", \"a\")\n-    f.write(f\"GET {url}\\n\")\n-    print(\"Request logged successfully\")\n+    with open(\"requests.log\", \"a\") as f:\n+        f.write(f\"GET {url}\\n\")\n+        print(\"Request logged successfully\")",
+    "reference": "When opening files in Python, the operating system allocates a file descriptor resource. If the file is not explicitly closed or managed using a context manager, these descriptors can leak and eventually exhaust available system resources. Using a 'with' statement ensures the file is automatically and safely closed once the block of code exits, regardless of whether exceptions occur.",
+    "hints": [
+      "Check how external resources like files are acquired and released in the function.",
+      "Look at the file object 'f' opened on the second line; is it ever closed?",
+      "Use a context manager ('with' statement) to automatically handle the closing of the file."
+    ]
+  },
+  {
+    "id": "ex-g0593",
+    "language": "python",
+    "title": "Unclosed File Resource in Password Reset",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def log_password_reset(username):\n    f = open(\"password_resets.log\", \"a\")\n    f.write(f\"Reset requested for {username}\\n\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,2 +2,2 @@\n-    f = open(\"password_resets.log\", \"a\")\n+    with open(\"password_resets.log\", \"a\") as f:\n",
+    "reference": "Opening files without using a context manager or explicitly closing them can lead to file descriptor leaks and locked resources. In long-running applications, unclosed files exhaust available system file descriptors and can prevent other processes from accessing the log file. Using a 'with' statement ensures the file is properly closed automatically as soon as the block is exited, even if errors occur.",
+    "hints": [
+      "Look at how external resources like files are being managed in the function.",
+      "Consider what happens to the file handle after it is opened and written to.",
+      "Use a context manager (the 'with' statement) to handle opening the file safely."
+    ]
+  },
+  {
+    "id": "ex-g0594",
+    "language": "python",
+    "title": "SQL Injection in Job Queue Status Updater",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "import sqlite3\n\ndef update_job_status(cursor: sqlite3.Cursor, job_id: str, status: str) -> None:\n    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = '\" + job_id + \"'\"\n    cursor.execute(query)\n    cursor.connection.commit()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    query = \"UPDATE jobs SET status = '\" + status + \"' WHERE id = '\" + job_id + \"'\"\n+    query = \"UPDATE jobs SET status = ? WHERE id = ?\"\n+    cursor.execute(query, (status, job_id))",
+    "reference": "This function is vulnerable to SQL injection because user-supplied inputs for status and job_id are directly concatenated into the SQL command string. An attacker could exploit this by providing specially crafted strings that manipulate the query logic. The fix uses parameterized queries, which safely separates the SQL instructions from the data values.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look closely at the use of string concatenation with variables like status and job_id.",
+      "Use parameterized queries with question mark placeholders instead of concatenating variables directly into the query string."
+    ]
+  },
+  {
+    "id": "ex-g0595",
+    "language": "python",
+    "title": "CSV Formula Injection Vulnerability",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef process_csv(file_path):\n    with open(file_path, mode='r') as f:\n        reader = csv.reader(f)\n        for row in reader:\n            username = row[0]\n            email = row[1]\n            print(f\"INSERT INTO users (username, email) VALUES ('{username}', '{email}');\")\n",
+    "real_lines": [
+      8
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -8,1 +8,1 @@\n-            print(f\"INSERT INTO users (username, email) VALUES ('{username}', '{email}');\")\n+            print(\"INSERT INTO users (username, email) VALUES (%s, %s);\", (username, email))",
+    "reference": "This code constructs SQL statements using direct string formatting with values sourced from an untrusted CSV file. If a CSV cell contains malicious SQL syntax, it can lead to SQL injection vulnerabilities. The fix is to use parameterized queries instead of string interpolation to ensure user input is treated strictly as data.",
+    "hints": [
+      "Examine how external input is incorporated into the SQL string.",
+      "Look at line 8 where f-strings are used to build the database query.",
+      "Replace string formatting with parameterized query placeholders supported by your database driver."
+    ]
+  },
+  {
+    "id": "ex-g0596",
+    "language": "python",
+    "title": "SQL Injection in Inventory Search",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "import sqlite3\n\ndef find_item_by_name(connection, item_name):\n    cursor = connection.cursor()\n    query = \"SELECT id, name, quantity FROM items WHERE name = '\" + item_name + \"'\"\n    cursor.execute(query)\n    return cursor.fetchall()\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "-    query = \"SELECT id, name, quantity FROM items WHERE name = '\" + item_name + \"'\"\n+    query = \"SELECT id, name, quantity FROM items WHERE name = ?\"\n+    cursor.execute(query, (item_name,))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly concatenated into the SQL query string. An attacker can manipulate the item_name parameter to alter the logic of the query and extract unauthorized data. The fix is to use parameterized queries by passing the parameters as a tuple to cursor.execute, which allows the database driver to safely escape the input.",
+    "hints": [
+      "Examine how the SQL query string is constructed.",
+      "Look at how user input is incorporated into the query statement.",
+      "Consider using parameterized queries instead of string concatenation."
+    ]
+  },
+  {
+    "id": "ex-g0597",
+    "language": "python",
+    "title": "Insecure Webhook Signature Comparison",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(request_body: bytes, signature: str, secret: str) -> bool:\n    expected = hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()\n    return signature == expected\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    return signature == expected\n+    return hmac.compare_digest(signature, expected)",
+    "reference": "The function performs a standard string equality comparison to validate the webhook signature. Standard comparison operators are vulnerable to timing attacks because they return early upon encountering the first differing character. Using hmac.compare_digest ensures constant-time evaluation, preventing attackers from incrementally guessing the signature.",
+    "hints": [
+      "Examine how the signature and the expected hash are compared at the end of the function.",
+      "Consider the security implications of using standard operators to compare sensitive strings like cryptographic hashes.",
+      "Replace the equality check with a dedicated constant-time comparison function from the hmac module."
+    ]
+  },
+  {
+    "id": "ex-g0598",
+    "language": "python",
+    "title": "Log Request Status Safely",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request):\n    try:\n        status = request.get(\"status\")\n        print(\"Processing request with status:\", status)\n    except KeyError:\n        print(\"Failed to read request status\")\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-        status = request.get(\"status\")\n+        status = request[\"status\"]",
+    "reference": "The code uses the dictionary `.get()` method inside a `try...except KeyError` block. Because `.get()` returns `None` instead of raising a `KeyError` when a key is missing, the exception handler is never triggered. To catch a missing key error, dictionary bracket notation should be used instead.",
+    "hints": [
+      "Look at how dictionaries retrieve values in Python.",
+      "Check the behavior of the dictionary `.get()` method when a key is absent.",
+      "Change the retrieval method to bracket notation so that a KeyError is actually raised."
+    ]
+  },
+  {
+    "id": "ex-g0599",
+    "language": "python",
+    "title": "False Positive in LRU Cache Mutability",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "from functools import lru_cache\nfrom typing import Dict, Any\n\nclass DataService:\n    @lru_cache(maxsize=128)\n    def fetch_record(self, record_id: int) -> Dict[str, Any]:\n        # Simulating an expensive DB fetch returning a new dict\n        return {\"id\": record_id, \"status\": \"active\"}\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code uses functools.lru_cache on a method that returns a dictionary. A novice reviewer might flag this as a bug due to potential mutability issues if callers modify the returned dictionary. However, because the dictionary is newly created on every method invocation inside the method body (rather than returning a reference to a shared internal mutable state), returning it from a cached function is completely safe and standard practice. The cache stores the reference to the newly allocated dict per arguments, preventing redundant allocations for identical inputs.",
+    "hints": [
+      "Look closely at where the dictionary being returned is instantiated relative to the cache decorator.",
+      "Consider whether the cached return value exposes internal mutable instance state or simply returns a newly minted object."
+    ]
+  },
+  {
+    "id": "ex-g0600",
+    "language": "python",
+    "title": "SMTP Exception Handling Defect",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_alert(message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.starttls()\n    try:\n        server.sendmail('alert@example.com', 'admin@example.com', message)\n    except smtplib.SMTPException as e:\n        print(f\"Failed to send email: {e}\")\n    finally:\n        server.quit()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- mailer.py\n+++ mailer.py\n@@ -4,1 +4,1 @@\n-    server = smtplib.SMTP('smtp.example.com', 587)\n+    server = smtplib.SMTP('smtp.example.com', 587)\n",
+    "reference": "The error-handling defect occurs because establishing the SMTP connection on line 4 happens outside of the try-except block. If connection initialization fails due to network issues or an invalid server, an unhandled exception crashes the program instead of triggering the cleanup logic. Wrapping the connection step inside the try block ensures that any startup or transmission failures are caught appropriately.",
+    "hints": [
+      "Look closely at where the network resources are initially acquired relative to the try block.",
+      "Consider what happens if the SMTP server is completely unreachable when attempting to connect.",
+      "The connection initialization should be protected by the try-except block to safely handle connection-time errors."
+    ]
+  },
+  {
+    "id": "ex-g0601",
+    "language": "python",
+    "title": "Suspicious Global Variable in Rate Limiter",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "rate_limiter.py",
+    "code": "REQUEST_HISTORY = {}\n\ndef is_allowed(user_id, current_time, limit=5, window=60):\n    global REQUEST_HISTORY\n    if user_id not in REQUEST_HISTORY:\n        REQUEST_HISTORY[user_id] = []\n    \n    timestamps = REQUEST_HISTORY[user_id]\n    while timestamps and current_time - timestamps[0] > window:\n        timestamps.pop(0)\n        \n    if len(timestamps) < limit:\n        timestamps.append(current_time)\n        return True\n    return False\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "Although the use of a global dictionary REQUEST_HISTORY might look like a bad practice that causes thread-safety issues or memory leaks, it is completely acceptable for a simple, single-threaded beginner script or local prototype. The cleanup loop properly removes expired timestamps, preventing memory bloat.",
+    "hints": [
+      "Check if the global dictionary grows indefinitely or if old timestamps are cleaned up.",
+      "Consider the execution environment of this simple script before assuming thread-safety is required."
+    ]
+  },
+  {
+    "id": "ex-g0602",
+    "language": "python",
+    "title": "Incorrect Thumbnail Aspect Ratio Calculation",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size):\n    if original_width > original_height:\n        ratio = max_size / original_width\n        new_width = max_size\n        new_height = original_height * ratio\n    else:\n        ratio = original_height / max_size\n        new_height = max_size\n        new_width = original_width * ratio\n    return (int(new_width), int(new_height))\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -7,1 +7,1\u09c0\n-        ratio = original_height / max_size\n+        ratio = max_size / original_height",
+    "reference": "When calculating the scaling ratio for an image where the height is greater than or equal to the width, the ratio must be determined by dividing the maximum allowed size by the original height. The buggy code inverted this division, calculating original height divided by max size instead, which distorts the dimensions. Fixing this ensures the aspect ratio remains correct for portrait and square images.",
+    "hints": [
+      "Examine how the scaling ratio is computed in both branches of the conditional statement.",
+      "Compare the formula used when the width is greater than the height versus when it is not.",
+      "Look closely at line 7 where the ratio is calculated for non-landscape images."
+    ]
+  },
+  {
+    "id": "ex-g0603",
+    "language": "python",
+    "title": "Missing Tenant Authorization Check in Inventory Lookup",
+    "defect_class": "auth",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def get_inventory_item(db_session, user_token, item_id):\n    user_claims = verify_jwt(user_token)\n    if not user_claims:\n        raise AuthenticationError(\"Invalid token\")\n    item = db_session.query(InventoryItem).filter_by(id=item_id).first()\n    if not item:\n        raise NotFoundError(\"Item not found\")\n    return item\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- inventory_service.py\n+++ inventory_service.py\n@@ -5,1 +5,1px\n-    item = db_session.query(InventoryItem).filter_by(id=item_id).first()\n+    item = db_session.query(InventoryItem).filter_by(id=item_id, tenant_id=user_claims.get(\"tenant_id\")).first()",
+    "reference": "This code suffers from an Insecure Direct Object Reference (IDOR) vulnerability because it retrieves an inventory item solely by its primary key without validating tenant ownership. While the user is authenticated via a JWT, any authenticated user can query items belonging to different tenants by guessing or incrementing the item ID. To fix this, the database query must include the tenant identifier extracted from the verified user claims to enforce proper multi-tenant data isolation.",
+    "hints": [
+      "Examine how the database query fetches the item relative to the user's context.",
+      "Check if the authenticated user's permissions or tenant context are used during the database lookup.",
+      "Add a tenant identifier filter derived from the verified user claims to the database query."
+    ]
+  },
+  {
+    "id": "ex-g0604",
+    "language": "python",
+    "title": "Job Queue Exception Swallowing",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import logging\nimport time\n\ndef process_jobs(queue):\n    while not queue.empty():\n        job = queue.get()\n        try:\n            job.execute()\n        except Exception as e:\n            logging.error(f\"Job failed: {e}\")\n            raise\n        finally:\n            queue.task_done()\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "@@ -9,1 +9,1 @@\n-            raise\n+            queue.task_done()",
+    "reference": "In this background worker loop, re-raising the exception inside the except block disrupts the finally block's intended execution flow for task completion tracking. While the exception does propagate to halt the worker, queue.task_done() will be called twice if not handled carefully, or missed if the finally block behaves unexpectedly. To ensure robust queue state management, cleanup actions like task_done should be placed in the finally block while letting exceptions bubble up naturally without explicit re-raises that interfere with control flow.",
+    "hints": [
+      "Look closely at the interaction between the exception handler and the cleanup logic.",
+      "Consider what happens to the queue state when an exception is explicitly re-raised inside a try-except-finally block.",
+      "The 'raise' statement causes the exception to propagate immediately, which makes the subsequent 'finally' block execute, but mixing explicit re-raises with standard flow control can lead to redundant state changes."
+    ]
+  },
+  {
+    "id": "ex-g0605",
+    "language": "python",
+    "title": "Missing File Exception Handling",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def load_report_template(filepath):\n    try:\n        with open(filepath, 'r') as f:\n            return f.read()\n    except IOError:\n        print(\"Error reading file.\")\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "@@ -6,1 +6,2 @@\n-        print(\"Error reading file.\")\n+        print(\"Error reading file.\")\n+        raise\n",
+    "reference": "Swallowing exceptions by only printing an error message causes the function to implicitly return None instead of the expected string or raising an error. This can lead to downstream TypeErrors when other parts of the code attempt to process the missing template content. Re-raising the exception or returning an appropriate default ensures the calling function knows the operation failed.",
+    "hints": [
+      "Look closely at what happens after the error message is printed in the except block.",
+      "Does the function explicitly return a value when an IOError occurs?",
+      "Add a 'raise' statement inside the except block to propagate the exception to the caller."
+    ]
+  },
+  {
+    "id": "ex-g0606",
+    "language": "python",
+    "title": "Safe File Extension Validation",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\nALLOWED_EXTENSIONS = {\"png\", \"jpg\", \"jpeg\", \"gif\"}\n\ndef is_allowed_file(filename):\n    return '.' in filename and \\\n           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses rsplit('.', 1) to correctly extract the file extension from the rightmost side, preventing null-byte injection or extension spoofing like exploit.jpg.php. This implementation is safe and any suspicion regarding double extensions is a false positive.",
+    "hints": [
+      "Check how the file extension is extracted from the filename string.",
+      "Consider whether rsplit with a maxsplit of 1 correctly isolates the final extension."
+    ]
   }
 ]
