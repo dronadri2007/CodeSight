@@ -1,9 +1,7 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
 import {
-  User, Trophy, Flame, Shield, Award, ExternalLink,
-  Sparkles, Check, Copy, ArrowUpRight, Clock, Code2
+  Trophy, Flame, Award, Check, Copy, ArrowUpRight, Clock, Sparkles
 } from 'lucide-react'
 import { Navbar } from '../components/navigation/Navbar'
 import { Button } from '../components/ui/Button'
@@ -12,16 +10,31 @@ import { Card } from '../components/ui/Card'
 import { LevelStepper } from '../components/profile/LevelStepper'
 import { WeaknessChart } from '../components/profile/WeaknessChart'
 import { useAuthStore } from '../store/authStore'
+import { getProfile, getSkillCard, type WeaknessProfile, type SkillCard } from '../api'
 
 export default function Profile() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [copied, setCopied] = useState(false)
+  const [card, setCard] = useState<SkillCard | null>(null)
+  const [profile, setProfile] = useState<WeaknessProfile | null>(null)
+
+  useEffect(() => {
+    let dead = false
+    getSkillCard().then((c) => { if (!dead) setCard(c) }).catch(() => {})
+    getProfile().then((p) => { if (!dead) setProfile(p) }).catch(() => {})
+    return () => { dead = true }
+  }, [])
 
   if (!user) {
     navigate('/auth')
     return null
   }
+
+  const liveCatchRates: Record<string, number> =
+    profile && profile.by_class.length
+      ? Object.fromEntries(profile.by_class.map((c) => [c.defect_class, Math.round(c.catch_rate * 100)]))
+      : user.weaknessCatchRates
 
   const handleCopyShare = () => {
     navigator.clipboard.writeText(window.location.origin + `/#/profile/${user.id}`)
@@ -92,6 +105,28 @@ export default function Profile() {
           </div>
         </Card>
 
+        {/* Review-skill card (live from GET /profile/{id}/card) */}
+        {card && (
+          <Card className="p-6 border-[#3A2F1D] bg-[#1A130D] shadow-xl space-y-3 text-xs">
+            <div className="flex items-center justify-between border-b border-[#3A2F1D] pb-3">
+              <span className="text-xs font-mono font-bold text-[#E5DFC9] uppercase flex items-center gap-1.5">
+                <Sparkles size={14} /> Review-skill card
+              </span>
+              <Badge variant="gold" size="sm">{card.headline}</Badge>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-2xs">
+              <div><span className="text-[#E5DFC9]/50 block">Skill score</span><strong className="text-[#E5DFC9] text-sm">{Math.round(card.skill_score * 100)}</strong>/100</div>
+              <div><span className="text-[#E5DFC9]/50 block">Tier</span><strong className="text-[#E5DFC9] capitalize">{card.tier}</strong></div>
+              <div><span className="text-[#E5DFC9]/50 block">Catch rate</span><strong className="text-[#E5DFC9]">{Math.round(card.catch_rate * 100)}%</strong></div>
+              <div><span className="text-[#E5DFC9]/50 block">Attempts</span><strong className="text-[#E5DFC9]">{card.total_attempts}</strong></div>
+              <div><span className="text-[#E5DFC9]/50 block">Strongest</span><strong className="text-emerald-400">{card.strongest_class ?? '—'}</strong></div>
+              <div><span className="text-[#E5DFC9]/50 block">Weakest</span><strong className="text-amber-400">{card.weakest_class ?? '—'}</strong></div>
+              <div><span className="text-[#E5DFC9]/50 block">FP discipline</span><strong className="text-[#E5DFC9]">{card.false_positive_discipline === null ? '—' : `${Math.round(card.false_positive_discipline * 100)}%`}</strong></div>
+              <div><span className="text-[#E5DFC9]/50 block">Leaderboard</span><strong className="text-[#E5DFC9]">{card.leaderboard_rank ? `#${card.leaderboard_rank} / ${card.ranked_out_of}` : 'unranked'}</strong></div>
+            </div>
+          </Card>
+        )}
+
         {/* 2. Level Progression (6 Strict Levels Stepper) */}
         <Card className="p-6 border-[#3A2F1D] bg-[#1A130D] shadow-xl">
           <LevelStepper currentLevel={user.level} currentLevelIndex={user.levelIndex} />
@@ -99,7 +134,10 @@ export default function Profile() {
 
         {/* 3. Concept Mastery & 6-Defect Classes Weakness Chart */}
         <Card className="p-6 border-[#3A2F1D] bg-[#1A130D] shadow-xl">
-          <WeaknessChart catchRates={user.weaknessCatchRates} />
+          <WeaknessChart catchRates={liveCatchRates} />
+          {profile && (
+            <p className="text-2xs text-[#E5DFC9]/60 font-mono mt-3 pt-3 border-t border-[#3A2F1D]">{profile.recommendation}</p>
+          )}
         </Card>
 
         {/* 4. Recent Activity Timeline */}
