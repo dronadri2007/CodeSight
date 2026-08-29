@@ -7228,5 +7228,410 @@
       "Look closely at the logging mechanism being used inside the except block.",
       "The logger object is referenced without being imported or instantiated in the file."
     ]
+  },
+  {
+    "id": "ex-g0367",
+    "language": "python",
+    "title": "Global State Modification in Inventory",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "inventory_count = 100\n\ndef purchase_item(quantity):\n    global inventory_count\n    if inventory_count >= quantity:\n        inventory_count -= quantity\n        return True\n    return False\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "-    if inventory_count >= quantity:\n-        inventory_count -= quantity\n+    with threading.Lock():\n+        if inventory_count >= quantity:\n+        \tinventory_count -= quantity",
+    "reference": "This code modifies a shared global variable across function calls without any synchronization mechanism. In a multi-threaded environment, interleaved operations on 'inventory_count' can lead to race conditions and incorrect inventory levels. Using a threading lock ensures that the check and update steps execute atomically.",
+    "hints": [
+      "Look at how shared state is modified inside the function.",
+      "Consider what happens if multiple threads call this function simultaneously.",
+      "Introduce a threading Lock to make the check-and-update block atomic."
+    ]
+  },
+  {
+    "id": "ex-g0368",
+    "language": "python",
+    "title": "SMTP Exception Handling Defect",
+    "defect_class": "error-handling",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\n\ndef send_alert(recipient, message):\n    try:\n        server = smtplib.SMTP('smtp.example.com', 587)\n        server.starttls()\n        server.sendmail('admin@example.com', recipient, message)\n    except smtplib.SMTPException as e:\n        print(f\"Failed to send email: {e}\")\n        raise\n",
+    "real_lines": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "fix_diff": "@@ -4,4 +4,5 @@\n     try:\n+        server = None\n         server = smtplib.SMTP('smtp.example.com', 587)\n         server.starttls()\n         server.sendmail('admin@example.com', recipient, message)\n@@ -8,2 +9,4 @@\n         print(f\"Failed to send email: {e}\")\n+        if server:\n+            server.quit()\n         raise",
+    "reference": "The function attempts to send an email via SMTP but lacks proper resource cleanup if an exception occurs before the connection can be established or used safely. If smtplib.SMTP() fails partway through or throws an error before assignment, referencing 'server' in a finally block or cleanup handler could fail, or more commonly, the connection is never explicitly closed. Wrapping the connection in a context manager or ensuring safe closure prevents socket leaks.",
+    "hints": [
+      "Examine how network and socket resources are managed during exceptions.",
+      "Look closely at the lifecycle of the 'server' variable in the try-except block.",
+      "Consider what happens if an exception occurs on line 5 before 'server' is successfully bound."
+    ]
+  },
+  {
+    "id": "ex-g0369",
+    "language": "python",
+    "title": "Unclosed Image Resource in Thumbnail Generator",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "from PIL import Image\n\ndef create_thumbnail(input_path, output_path, size=(128, 128)):\n    img = Image.open(input_path)\n    img.thumbnail(size)\n    img.save(output_path)\n    return output_path\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- thumbnailer.py\n+++ thumbnailer.py\n@@ -4,1 +4,2 @@\n-    img = Image.open(input_path)\n+    with Image.open(input_path) as img:\n         img.thumbnail(size)",
+    "reference": "The function opens an image file using Pillow's Image.open(), but never explicitly closes it or uses a context manager. This can lead to file descriptor leaks, preventing the underlying file from being deleted or modified until garbage collection occurs. Using a context manager (the 'with' statement) ensures the file resource is properly released immediately after the operation completes.",
+    "hints": [
+      "Consider how external resources like files and streams are managed after they are opened.",
+      "Look closely at the Pillow library's Image.open() documentation regarding resource lifecycle.",
+      "Wrap the image opening statement in a context manager using the 'with' keyword."
+    ]
+  },
+  {
+    "id": "ex-g0370",
+    "language": "python",
+    "title": "Unclosed Database Connection in Authentication",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "import sqlite3\n\ndef authenticate_user(username, password):\n    conn = sqlite3.connect('users.db')\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT * FROM users WHERE username = ? AND password = ?\", (username, password))\n    user = cursor.fetchone()\n    return user is not None\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "--- auth.py\n+++ auth.py\n@@ -4,1 +4,2 @@\n-    conn = sqlite3.connect('users.db')\n+    with sqlite3.connect('users.db') as conn:\n+        cursor = conn.cursor()",
+    "reference": "Opening a database connection without a context manager or explicit closing can lead to resource leaks, file descriptor exhaustion, and locked databases. By using a context manager with the 'with' statement, the connection is automatically and safely closed when the block exits, even if exceptions occur during query execution.",
+    "hints": [
+      "Examine how external resources are acquired at the beginning of the function.",
+      "Consider what happens to the database connection object if an exception is raised inside the function.",
+      "Use a context manager like the 'with' statement to ensure the connection is properly closed after use."
+    ]
+  },
+  {
+    "id": "ex-g0371",
+    "language": "python",
+    "title": "Database Connection Leak in Job Worker",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "worker.py",
+    "code": "import time\n\ndef process_jobs(queue, db_pool):\n    while not queue.empty():\n        job = queue.get()\n        conn = db_pool.get_connection()\n        conn.execute(job.query)\n        queue.task_done()\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "--- worker.py\n+++ worker.py\n@@ -6,1 +6,2 @@\n         conn.execute(job.query)\n+        db_pool.release_connection(conn)\n",
+    "reference": "Long-running worker processes often utilize a connection pool to interact with a database. If connections are acquired per task but never released back to the pool, the pool will eventually exhaust its maximum capacity. This leads to thread starvation and prevents subsequent jobs from executing. Using a context manager or an explicit release in a finally block ensures the resource is properly returned regardless of task success or failure.",
+    "hints": [
+      "Examine how resources are acquired inside the loop.",
+      "Look closely at the lifecycle of database connections obtained from the pool.",
+      "The acquired connection is never returned to the pool after execution."
+    ]
+  },
+  {
+    "id": "ex-g0372",
+    "language": "python",
+    "title": "Unclosed File Resource",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def load_user_session(session_file):\n    file = open(session_file, 'r')\n    data = file.read()\n    if not data:\n        return None\n    return data.strip()\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -2,1 +2,2 @@\n-    file = open(session_file, 'r')\n+    with open(session_file, 'r') as file:\n         data = file.read()",
+    "reference": "Opening files without using a context manager or explicitly closing them can lead to file descriptor leaks. In a server environment handling many user authentication requests, this can eventually exhaust available file descriptors and crash the application. Using the 'with' statement ensures the file is automatically and properly closed once the block is exited, regardless of whether exceptions occur.",
+    "hints": [
+      "Check how external resources like files are being opened in the function.",
+      "Consider what happens to the file handle after it is read.",
+      "Use a context manager ('with' statement) to ensure the file is automatically closed."
+    ]
+  },
+  {
+    "id": "ex-g0373",
+    "language": "python",
+    "title": "Unauthenticated CSV Import Endpoint",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "views.py",
+    "code": "from flask import Blueprint, request, abort\nimport csv\n\nimport_bp = Blueprint('import', __name__)\n\n@import_bp.route('/api/import-users', methods=['POST'])\ndef import_users():\n    file = request.files.get('file')\n    reader = csv.reader(file.read().decode('utf-8').splitlines())\n    for row in reader:\n        print(f\"Processing user: {row[0]}\")\n    return {\"status\": \"success\"}, 200\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "@@ -7,1 +7,2 @@\n+@login_required\n @import_bp.route('/api/import-users', methods=['POST'])",
+    "reference": "The route handler processes sensitive user data from an uploaded CSV file without verifying the user's identity or authorization level. This allows any anonymous attacker to trigger the import process and potentially flood the system or harvest data. Securing the endpoint with an authentication decorator like @login_required ensures that only verified users can access the functionality.",
+    "hints": [
+      "Look closely at the decorators applied to the API route.",
+      "Check if the endpoint verifies who is making the HTTP request before processing the file.",
+      "Add an authentication decorator such as @login_required above the route definition."
+    ]
+  },
+  {
+    "id": "ex-g0374",
+    "language": "python",
+    "title": "Image Thumbnail Dimensions Check",
+    "defect_class": "clean",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "thumbnailer.py",
+    "code": "def calculate_thumbnail_size(original_width, original_height, max_size=128):\n    if original_width <= 0 or original_height <= 0:\n        raise ValueError(\"Dimensions must be positive\")\n    \n    ratio = min(max_size / original_width, max_size / original_height)\n    new_width = int(original_width * ratio)\n    new_height = int(original_height * ratio)\n    \n    return (new_width, new_height)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses floating-point division to calculate the scale ratio, which might look suspicious to reviewers worried about precision loss or float division errors. However, min(max_size / original_width, max_size / original_height) correctly determines the limiting dimension, and the subsequent multiplication and integer casting ensures valid pixel dimensions are returned. This is a standard, correct approach for maintaining aspect ratios.",
+    "hints": [
+      "Check how the scaling ratio is computed and whether it correctly handles both landscape and portrait images.",
+      "Verify if the final width and height are safely converted to integers suitable for image pixel coordinates."
+    ]
+  },
+  {
+    "id": "ex-g0375",
+    "language": "python",
+    "title": "Uncaught Specific Exception in Email Sender",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\n\ndef send_alert(recipient, message):\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.sendmail('admin@example.com', recipient, message)\n    server.quit()\n",
+    "real_lines": [
+      4,
+      5,
+      6
+    ],
+    "fix_diff": "@@ -4,3 +4,6 @@\n     server = smtplib.SMTP('smtp.example.com', 587)\n-    server.sendmail('admin@example.com', recipient, message)\n-    server.quit()\n+    try:\n+        server.sendmail('admin@example.com', recipient, message)\n+    finally:\n+        server.quit()",
+    "reference": "Network operations like sending emails can fail midway due to connection drops or server rejections, leaving the SMTP connection open and leaking resources. Wrapping the send operation in a try/finally block ensures that the server.quit() method is always executed, even if an exception occurs during transmission.",
+    "hints": [
+      "Consider what happens if an exception occurs during the mail transmission.",
+      "Network and I/O resources should always be properly cleaned up, regardless of success or failure.",
+      "Use a try...finally block to ensure server.quit() is called even if sendmail raises an error."
+    ]
+  },
+  {
+    "id": "ex-g0376",
+    "language": "python",
+    "title": "Unsynchronized Webhook Counter Increment",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook_receiver.py",
+    "code": "import threading\nfrom flask import Flask, request, jsonify\n\napp = Flask(__name__)\nwebhook_count = 0\ncounter_lock = threading.Lock()\n\n@app.route('/webhook', methods=['POST'])\ndef receive_webhook():\n    global webhook_count\n    webhook_count += 1\n    return jsonify({\"status\": \"success\", \"count\": webhook_count}), 200\n",
+    "real_lines": [
+      11
+    ],
+    "fix_diff": "@@ -10,2 +10,3 @@\n     global webhook_count\n-    webhook_count += 1\n+    with counter_lock:\n+        webhook_count += 1",
+    "reference": "The code updates a shared global counter from a Flask endpoint, which can be accessed concurrently by multiple request threads. Because the '+= 1' operation is not atomic, race conditions can lead to lost updates and an inaccurate count. Wrapping the increment operation in a threading.lock context manager ensures that only one thread modifies the shared variable at a time.",
+    "hints": [
+      "Consider how Flask handles incoming HTTP requests in a multi-threaded environment.",
+      "Look closely at the global variable being modified inside the route function.",
+      "The increment operator is not atomic; how can you protect critical sections using the provided lock object?"
+    ]
+  },
+  {
+    "id": "ex-g0377",
+    "language": "python",
+    "title": "Secure Email Dispatcher",
+    "defect_class": "clean",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "email_service.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert_email(recipient: str, subject: str, body: str) -> None:\n    msg = EmailMessage()\n    msg.set_content(body)\n    msg['Subject'] = subject\n    msg['From'] = \"alerts@company.com\"\n    msg['To'] = recipient\n\n    with smtplib.SMTP_SSL(\"smtp.company.com\", 465) as smtp:\n        smtp.login(\"env(SMTP_USER)\", \"env(SMTP_PASSWORD)\")\n        smtp.send_message(msg)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "The code uses hardcoded-looking string literals for credentials like 'env(SMTP_USER)'. To a novice reviewer, this looks like a hardcoded secret. However, this is simply a placeholder indicating that the actual credentials are dynamically retrieved or managed via a secure environment parser elsewhere, and the code correctly utilizes smtplib with SSL over port 465.",
+    "hints": [
+      "Check how the SMTP connection is being secured.",
+      "Look closely at the string arguments passed into the login method and consider if they are literal secrets or representation placeholders."
+    ]
+  },
+  {
+    "id": "ex-g0378",
+    "language": "python",
+    "title": "Unsafe File Extension Check",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "upload.py",
+    "code": "def allowed_file(filename):\n    allowed_extensions = ['.jpg', '.png', '.gif']\n    return filename in allowed_extensions\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    return filename in allowed_extensions\n+    return any(filename.endswith(ext) for ext in allowed_extensions)",
+    "reference": "The original code checks if the entire filename is equal to one of the extensions in the list rather than checking how the filename ends. This allows malicious files named like 'jpg.exe' to bypass the validation entirely. Using string end-checking methods ensures only files with the proper extension suffixes are accepted.",
+    "hints": [
+      "Look closely at what the 'in' operator checks for a string and a list.",
+      "Consider what happens if a user uploads a file named 'image.png.exe'.",
+      "You need to check if the filename ends with one of the allowed extensions rather than exact equality."
+    ]
+  },
+  {
+    "id": "ex-g0379",
+    "language": "python",
+    "title": "Uncaught Stripe Error",
+    "defect_class": "error-handling",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import stripe\n\ndef process_payment(amount_cents, token):\n    try:\n        charge = stripe.Charge.create(\n            amount=amount_cents,\n            currency=\"usd\",\n            source=token\n        )\n        return charge.id\n    except stripe.error.CardError:\n        return None\n",
+    "real_lines": [
+      10,
+      11
+    ],
+    "fix_diff": "--- payments.py\n+++ payments.py\n@@ -10,2 +10,4 @@\n     except stripe.error.CardError:\n+        logger.error(\"Card declined\")\n         return None",
+    "reference": "When catching payment exceptions, simply returning None without logging or handling other error types can cause debugging blind spots. The Stripe API can raise various exceptions like RateLimitError, AuthenticationError, or APIConnectionError beyond just CardError. Catching specific errors and ensuring proper logging or propagation helps maintain visibility into failed transactions.",
+    "hints": [
+      "Look closely at the exception handling block in the function.",
+      "Consider what happens if an API error occurs that is not a CardError.",
+      "Make sure you handle or log unexpected errors instead of silently returning None."
+    ]
+  },
+  {
+    "id": "ex-g0380",
+    "language": "python",
+    "title": "CSV Command Injection via Subprocess",
+    "defect_class": "injection",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import subprocess\n\ndef process_csv_import(file_path):\n    result = subprocess.run(\n        f\"awk -F, '{{print $1}}' {file_path}\",\n        shell=True,\n        capture_output=True,\n        text=True\n    )\n    return result.stdout.strip()\n",
+    "real_lines": [
+      4,
+      5,
+      6,
+      7
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -4,3 +4,3 @@\n     result = subprocess.run(\n-        f\"awk -F, '{{print $1}}' {file_path}\",\n-        shell=True,\n+        [\"awk\", \"-F,\", \"{print $1}\", file_path],\n+        shell=False,\n         capture_output=True",
+    "reference": "This code is vulnerable to command injection because the file_path variable is formatted directly into a shell command string while shell=True is enabled. An attacker can craft a malicious filename containing shell metacharacters like semicolons or backticks to execute arbitrary commands on the system. The fix is to pass the command and arguments as a list with shell=False, which treats the file path strictly as a data argument rather than executable shell syntax.",
+    "hints": [
+      "Examine how external utilities are invoked and whether user-controlled input influences the execution environment.",
+      "Look closely at the arguments passed to the subprocess function, specifically the combination of string formatting and shell execution.",
+      "Avoid using shell=True with interpolated strings; instead, pass the command and its arguments as a list of strings."
+    ]
+  },
+  {
+    "id": "ex-g0381",
+    "language": "python",
+    "title": "Unsynchronized Global Search Cache",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search_service.py",
+    "code": "search_cache = {}\n\ndef get_cached_search(query):\n    if query not in search_cache:\n        results = execute_expensive_search(query)\n        search_cache[query] = results\n    return search_cache[query]\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        search_cache[query] = results\n+        with cache_lock:\n+            search_cache[query] = results",
+    "reference": "Dictionary assignments in Python are not strictly atomic across thread context switches if underlying resizing or concurrent mutations happen, but more importantly, a classic race condition exists here where two threads might concurrently execute the expensive search and overwrite each other's cache entries. Wrapping the mutation inside a threading lock ensures thread-safe updates to the shared resource.",
+    "hints": [
+      "Look at how the shared global dictionary is accessed and mutated.",
+      "Consider what happens if two concurrent requests query for the same uncapped item at the exact same time.",
+      "Use a threading.Lock to synchronize writes to the global search_cache dictionary."
+    ]
+  },
+  {
+    "id": "ex-g0382",
+    "language": "python",
+    "title": "Unverified Webhook Signature Timing Attack",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import hmac\nimport hashlib\n\ndef verify_webhook(request_body: bytes, signature: str, secret: str) -> bool:\n    expected_signature = hmac.new(\n        secret.encode(),\n        request_body,\n        hashlib.sha256\n    ).hexdigest()\n    return signature == expected_signature\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-    return signature == expected_signature\n+    return hmac.compare_digest(signature, expected_signature)",
+    "reference": "Using the standard equality operator (==) to compare cryptographic signatures is vulnerable to timing attacks, as it short-circuits upon encountering the first incorrect byte. To prevent attackers from measuring response times to guess the signature byte-by-byte, always use hmac.compare_digest for constant-time string comparison.",
+    "hints": [
+      "Look closely at how the final boolean result is calculated.",
+      "Consider how string comparison operators behave at the hardware and bytecode level when evaluating secrets.",
+      "Replace the standard equality check with a security-focused comparison function from the hmac module."
+    ]
+  },
+  {
+    "id": "ex-g0383",
+    "language": "python",
+    "title": "Race Condition in Balance Deduction",
+    "defect_class": "concurrency",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import time\nimport threading\n\ndef process_payment(account, amount):\n    current_balance = account.get_balance()\n    if current_balance >= amount:\n        time.sleep(0.01)\n        account.set_balance(current_balance - amount)\n        return True\n    return False\n",
+    "real_lines": [
+      5,
+      7
+    ],
+    "fix_diff": "@@ -4,4 +4,4 @@\n def process_payment(account, amount):\n+    with account.lock:\n         current_balance = account.get_balance()\n         if current_balance >= amount:\n             time.sleep(0.01)\n             account.set_balance(current_balance - amount)\n             return True\n         return False",
+    "reference": "This code suffers from a classic check-then-act race condition where the account balance is read and later modified without synchronization. Between the balance check and the update, another thread could modify the balance, leading to potential overdraws or lost updates. Using a threading lock around the read-modify-write sequence ensures atomic execution and prevents concurrent interference.",
+    "hints": [
+      "Look closely at the order of operations when accessing shared mutable state.",
+      "Consider what happens if two threads execute this function simultaneously for the same account.",
+      "You need to introduce a synchronization primitive like a Lock to make the check-then-act block atomic."
+    ]
+  },
+  {
+    "id": "ex-g0384",
+    "language": "python",
+    "title": "Missing Pagination Offset",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "search_api.py",
+    "code": "def search_products(query, page=1, limit=20):\n    db = get_db_connection()\n    cursor = db.cursor()\n    offset = page * limit\n    cursor.execute(\"SELECT * FROM products WHERE name LIKE ? LIMIT ? OFFSET ?\", (f\"%{query}%\", limit, offset))\n    return cursor.fetchall()\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-    offset = page * limit\n+    offset = (page - 1) * limit",
+    "reference": "The offset calculation incorrectly multiplies page by limit directly without adjusting for 1-based indexing. For page 1 with a limit of 20, this skips the first 20 results and starts at index 20. Subtracting 1 from the page number ensures the first page correctly starts at offset 0.",
+    "hints": [
+      "Check how the database offset is calculated from the page number.",
+      "Consider what offset is generated when page equals 1.",
+      "Subtract 1 from the page variable before multiplying by the limit."
+    ]
+  },
+  {
+    "id": "ex-g0385",
+    "language": "python",
+    "title": "Missing Authorization Check in Cache Lookup",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "CACHE = {\"user:1\": \"secret_data_1\", \"user:2\": \"secret_data_2\"}\n\ndef get_cached_data(current_user_id, target_key):\n    if target_key in CACHE:\n        return CACHE[target_key]\n    return None\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-    if target_key in CACHE:\n+    if target_key == f\"user:{current_user_id}\" and target_key in CACHE:\n",
+    "reference": "The function allows any user to fetch cached data for arbitrary keys as long as the key exists in the cache dictionary. This bypasses access control and exposes sensitive information belonging to other users. The fix ensures that the requested cache key matches the current user's authorized identifier before returning the data.",
+    "hints": [
+      "Look closely at what parameters the function accepts and how they are used.",
+      "Examine if the user making the request is verified against the data they are trying to access.",
+      "Ensure that target_key strictly corresponds to the current_user_id before performing the cache lookup."
+    ]
+  },
+  {
+    "id": "ex-g0386",
+    "language": "python",
+    "title": "Insecure Password Comparison",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def verify_password(stored_password, provided_password):\n    if provided_password == stored_password:\n        return True\n    return False\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    if provided_password == stored_password:\n+    if hmac.compare_digest(provided_password, stored_password):",
+    "reference": "Using the standard equality operator (==) to compare passwords is vulnerable to timing attacks because it stops comparing strings at the first non-matching character. This allows malicious actors to measure the time it takes to respond and deduce the correct password character by character. Using a constant-time comparison function like hmac.compare_digest prevents this vulnerability by taking the same amount of time regardless of where the mismatch occurs.",
+    "hints": [
+      "Look closely at how the password strings are being compared.",
+      "Consider how string comparison operations behave when a mismatch is found early.",
+      "Use a cryptographic helper function designed to prevent timing attacks."
+    ]
   }
 ]
