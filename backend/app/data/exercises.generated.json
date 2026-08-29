@@ -6031,5 +6031,404 @@
       "Consider what happens if the input strings contain Redis key separators.",
       "Validate that the input parameters only contain safe characters before using them in the key."
     ]
+  },
+  {
+    "id": "ex-g0307",
+    "language": "python",
+    "title": "Uncached Configuration Loader",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "import json\nimport os\n\ndef load_config(path: str = \"config.json\") -> dict:\n    if not os.path.exists(path):\n        return {}\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code is completely correct and safe. Although it reads from the filesystem on every call without caching, this is intentional for this specific utility function to ensure hot-reloading of configuration values in a short-lived CLI context. It is a false positive for performance issues.",
+    "hints": [
+      "Check if the application context requires caching or if reading from disk on demand is actually intended.",
+      "Verify if the file handle is properly managed using a context manager."
+    ]
+  },
+  {
+    "id": "ex-g0308",
+    "language": "python",
+    "title": "Floating-Point Currency Calculation",
+    "defect_class": "logic",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "def calculate_total(items, tax_rate):\n    subtotal = sum(item[\"price\"] * item[\"quantity\"] for item in items)\n    tax = subtotal * tax_rate\n    total = subtotal + tax\n    return round(total, 2)\n",
+    "real_lines": [
+      3
+    ],
+    "fix_diff": "-    tax = subtotal * tax_rate\n+    from decimal import Decimal\n+    tax = Decimal(str(subtotal)) * Decimal(str(tax_rate))",
+    "reference": "Floating-point arithmetic cannot precisely represent certain decimal fractions, leading to rounding errors in financial applications. Multiplying floats directly can accumulate discrepancies over multiple transactions. Using Python's decimal module ensures exact precision for monetary calculations.",
+    "hints": [
+      "Look closely at how the tax is calculated from the subtotal.",
+      "Consider the limitations of standard floating-point representation in Python.",
+      "Replace standard float multiplication with the decimal module for currency precision."
+    ]
+  },
+  {
+    "id": "ex-g0309",
+    "language": "python",
+    "title": "Fix Report Total Calculation",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "report_generator.py",
+    "code": "def calculate_report_total(sales):\n    total = 0\n    for sale in sales:\n        total = sale\n    return total\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "-        total = sale\n+        total += sale",
+    "reference": "The bug in the function is that it overwrites the 'total' variable on every iteration with the current sale amount instead of accumulating the sum. By changing the assignment from '=' to '+=', the function correctly adds each sale to the running total. This ensures that the final returned value represents the sum of all items in the list rather than just the last item.",
+    "hints": [
+      "Look closely at how the total variable is updated inside the loop.",
+      "Check whether previous values in 'total' are preserved during each iteration.",
+      "Change the assignment operator '=' to '+=' to accumulate the values."
+    ]
+  },
+  {
+    "id": "ex-g0310",
+    "language": "python",
+    "title": "Unclosed Configuration File",
+    "defect_class": "resource",
+    "difficulty": "pro",
+    "source": "generated",
+    "filename": "config.py",
+    "code": "def load_config(filepath):\n    f = open(filepath, 'r')\n    data = f.read()\n    if not data:\n        raise ValueError(\"Empty config file\")\n    return data\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "--- config.py\n+++ config.py\n@@ -1,5 +1,6 @@\n def load_config(filepath):\n-    f = open(filepath, 'r')\n-    data = f.read()\n+    with open(filepath, 'r') as f:\n+        data = f.read()\n     if not data:\n         raise ValueError(\"Empty config file\")\n     return data",
+    "reference": "Opening a file without a context manager or explicit close leads to resource leaks, as the file descriptor remains open until garbage collection reclaims it. This can exhaust available file descriptors in high-throughput environments. Using a 'with' statement ensures the file is reliably closed as soon as the block is exited, regardless of whether exceptions occur.",
+    "hints": [
+      "Check how system resources are acquired and if they are ever released.",
+      "Look closely at the lifecycle of the file object created on line 2.",
+      "Refactor the file handling to use a context manager ('with' statement)."
+    ]
+  },
+  {
+    "id": "ex-g0311",
+    "language": "python",
+    "title": "Unbounded Rate Limit Tracker Growth",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "ratelimit.py",
+    "code": "import time\n\nrequest_counts = {}\n\ndef is_allowed(user_id: str) -> bool:\n    current_time = int(time.time())\n    if user_id not in request_counts:\n        request_counts[user_id] = []\n    request_counts[user_id].append(current_time)\n    return len(request_counts[user_id]) < 5\n",
+    "real_lines": [
+      9
+    ],
+    "fix_diff": "-    return len(request_counts[user_id]) < 5\n+    request_counts[user_id] = [t for t in request_counts[user_id] if current_time - t < 60]\n+    return len(request_counts[user_id]) < 5",
+    "reference": "This code suffers from a memory leak because request timestamps are appended indefinitely without ever being removed. Over time, as more users make requests, the dictionary will grow to consume all available memory. To fix this, you must filter out expired timestamps that fall outside the current time window before checking the list length.",
+    "hints": [
+      "Look closely at how data is added to the dictionary over time.",
+      "Consider what happens to users who made requests an hour ago and never return.",
+      "You need to clean up old timestamps from the user's list before checking the length."
+    ]
+  },
+  {
+    "id": "ex-g0312",
+    "language": "python",
+    "title": "Missing Admin Authorization in Job Cancellation",
+    "defect_class": "auth",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "job_queue.py",
+    "code": "def cancel_job(job_id, user):\n    job = fetch_job(job_id)\n    if not job:\n        return \"Job not found\"\n    \n    job.status = \"cancelled\"\n    job.save()\n    return \"Job cancelled successfully\"\n",
+    "real_lines": [
+      5
+    ],
+    "fix_diff": "--- job_queue.py\n+++ job_queue.py\n@@ -5,1 +5,3 @@\n+    if user.role != \"admin\" and job.owner_id != user.id:\n+        return \"Unauthorized\"\n     job.status = \"cancelled\"",
+    "reference": "The function allows any user to cancel any job by simply supplying its ID without verifying ownership or administrative privileges. This insecure direct object reference (IDOR) flaw permits unauthorized users to disrupt background tasks. To fix this, you must check whether the requesting user is either an administrator or the original owner of the job before modifying its state.",
+    "hints": [
+      "Examine how the 'user' parameter is used in the function.",
+      "Consider what prevents a malicious user from cancelling someone else's job.",
+      "Add a conditional check to verify if the user has permission to modify the job."
+    ]
+  },
+  {
+    "id": "ex-g0313",
+    "language": "python",
+    "title": "CSV Header Indexing Bug",
+    "defect_class": "logic",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "importer.py",
+    "code": "import csv\n\ndef process_csv(file_path):\n    with open(file_path, mode='r', encoding='utf-8') as f:\n        reader = csv.reader(f)\n        header = next(reader)\n        data_index = header.index('target_column')\n        for row in reader:\n            print(row[data_index])\n",
+    "real_lines": [
+      7
+    ],
+    "fix_diff": "--- importer.py\n+++ importer.py\n@@ -7,1 +7,1 @@\n-            print(row[data_index])\n+            print(row[data_index]) if len(row) > data_index else None",
+    "reference": "When processing external CSV files, rows can sometimes be shorter than the header due to malformed data or trailing empty lines. Directly accessing an index without checking the row length will raise an IndexError and crash the program. Adding a guard clause to verify the row length ensures robustness against uneven CSV structures.",
+    "hints": [
+      "Consider what happens if a row in the CSV file has fewer columns than the header.",
+      "Look closely at the data access operation inside the loop.",
+      "Ensure the row has enough elements before accessing it by index."
+    ]
+  },
+  {
+    "id": "ex-g0314",
+    "language": "python",
+    "title": "Unsynchronized Balance Update",
+    "defect_class": "concurrency",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "payments.py",
+    "code": "import time\nimport threading\n\naccount_balance = 100\n\ndef process_payment(amount):\n    global account_balance\n    current = account_balance\n    time.sleep(0.01)\n    account_balance = current - amount\n",
+    "real_lines": [
+      7,
+      8,
+      9,
+      10
+    ],
+    "fix_diff": "@@ -7,4 +7,4 @@\n     global account_balance\n-    current = account_balance\n-    time.sleep(0.01)\n-    account_balance = current - amount\n+    with lock:\n+        account_balance -= amount",
+    "reference": "This function suffers from a classic race condition where the read-modify-write cycle on account_balance is not atomic. If multiple threads execute this function concurrently, they may read the same initial balance before any thread writes back, resulting in lost updates. Using a threading lock ensures that only one thread can access and modify the balance at a time.",
+    "hints": [
+      "Consider what happens if two threads run this function at the exact same time.",
+      "Look closely at how the account balance is read into a local variable before being updated.",
+      "Introduce a threading Lock object and wrap the balance modification inside a with statement."
+    ]
+  },
+  {
+    "id": "ex-g0315",
+    "language": "python",
+    "title": "Email Subject Header Injection",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "mailer.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, subject, body):\n    msg = EmailMessage()\n    msg['Subject'] = subject\n    msg['From'] = \"admin@example.com\"\n    msg['To'] = recipient\n    msg.set_content(body)\n    \n    with smtplib.SMTP('localhost') as server:\n        server.send_message(msg)\n",
+    "real_lines": [
+      6
+    ],
+    "fix_diff": "-    msg['Subject'] = subject\n+    msg['Subject'] = subject.replace('\\n', '').replace('\\r', '')",
+    "reference": "The vulnerability occurs because untrusted user input is directly assigned to the email Subject header without sanitization. An attacker can inject newline characters (CRLF) into the subject string to manipulate the message headers or inject arbitrary CC/BCC recipients. To fix this, newline characters must be stripped from the subject before it is assigned to the message object.",
+    "hints": [
+      "Examine how user-supplied input is processed before being assigned to email headers.",
+      "Consider what special control characters could alter the structure of an internet message format (RFC 5322).",
+      "Sanitize the subject variable to remove carriage returns and line feeds using string replacement."
+    ]
+  },
+  {
+    "id": "ex-g0316",
+    "language": "python",
+    "title": "Path Traversal in File Upload",
+    "defect_class": "injection",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\ndef save_uploaded_file(upload_dir, file_obj):\n    filename = file_obj.filename\n    destination = os.path.join(upload_dir, filename)\n    \n    with open(destination, 'wb') as f:\n        f.write(file_obj.read())\n    return destination\n",
+    "real_lines": [
+      4,
+      5
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -1,6 +1,6 @@\n import os\n \n def save_uploaded_file(upload_dir, file_obj):\n-    filename = file_obj.filename\n-    destination = os.path.join(upload_dir, filename)\n+    filename = os.path.basename(file_obj.filename)\n+    destination = os.path.join(upload_dir, filename)",
+    "reference": "The code is vulnerable to path traversal because it trusts the raw filename provided by the user, which may contain directory traversal sequences like '../'. An attacker could exploit this to write files outside of the intended upload directory, potentially overwriting critical system files. Using os.path.basename strips any directory components from the filename, ensuring the file is saved strictly inside the intended upload directory.",
+    "hints": [
+      "Examine how the filename is retrieved from the uploaded object.",
+      "Consider what happens if the filename contains directory traversal sequences like '../'.",
+      "Use os.path.basename() on the filename before joining it with the destination directory."
+    ]
+  },
+  {
+    "id": "ex-g0317",
+    "language": "python",
+    "title": "Unclosed File Resource in Request Logger",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request_data):\n    f = open(\"requests.log\", \"a\")\n    f.write(request_data + \"\\n\")\n    print(\"Logged successfully\")\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "@@ -1,3 +1,4 @@\n def log_request(request_data):\n-    f = open(\"requests.log\", \"a\")\n-    f.write(request_data + \"\\n\")\n+    with open(\"requests.log\", \"a\") as f:\n+        f.write(request_data + \"\\n\")\n     print(\"Logged successfully\")",
+    "reference": "Opening a file manually without closing it or using a context manager can lead to file descriptor leaks over time. In Python, the preferred way to handle file I/O is using the 'with' statement, which automatically ensures the file resource is properly closed after the indented block finishes executing, even if errors occur.",
+    "hints": [
+      "Check how external system resources like files are acquired in the function.",
+      "Look closely at the lifecycle of the file opened on line 2; is it ever explicitly released?",
+      "Use a context manager ('with' statement) to ensure the file closes automatically when done."
+    ]
+  },
+  {
+    "id": "ex-g0318",
+    "language": "python",
+    "title": "Webhook Event File Descriptor Leak",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "import json\n\ndef process_webhook(request_path):\n    f = open(request_path, 'r')\n    payload = json.load(f)\n    if \"event\" not in payload:\n        return False\n    return payload[\"event\"] == \"push\"\n",
+    "real_lines": [
+      4
+    ],
+    "fix_diff": "@@ -4,2 +4,2 @@\n-    f = open(request_path, 'r')\n+    with open(request_path, 'r') as f:\n     payload = json.load(f)",
+    "reference": "The function opens a file to read the webhook payload but never explicitly closes it. Under high load, this causes a resource leak of open file descriptors which can eventually exhaust system limits. Using a context manager ('with' statement) ensures the file is automatically and safely closed once the block is exited.",
+    "hints": [
+      "Look closely at how external resources are acquired inside the function.",
+      "Consider what happens to operating system resources if an exception occurs before the function returns.",
+      "Use a context manager to guarantee that resources are automatically released when leaving the scope."
+    ]
+  },
+  {
+    "id": "ex-g0319",
+    "language": "python",
+    "title": "File Resource Leak in Inventory Export",
+    "defect_class": "resource",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "inventory.py",
+    "code": "def export_inventory(data, filename):\n    f = open(filename, 'w')\n    f.write(str(data))\n    print('Export complete')\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    f = open(filename, 'w')\n+    with open(filename, 'w') as f:",
+    "reference": "The function opens a file to write the inventory data but never closes it, leading to a potential file descriptor leak. Using a context manager (the 'with' statement) ensures that the file is properly closed automatically once the block is exited, even if an exception occurs.",
+    "hints": [
+      "Look at how external system resources like files are managed in this function.",
+      "Consider what happens to the file handle if an error occurs during writing or printing.",
+      "Use a context manager with the 'with' keyword to ensure the file is automatically closed."
+    ]
+  },
+  {
+    "id": "ex-g0320",
+    "language": "python",
+    "title": "Unverified Webhook Signature",
+    "defect_class": "logic",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "webhook.py",
+    "code": "def process_webhook(request):\n    event = request.json()\n    event_type = event.get(\"type\")\n    if event_type == \"payment.success\":\n        fulfillment(event.get(\"data\"))\n        return \"OK\"\n    return \"Ignored\"\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    event = request.json()\n+    # Verify signature before parsing\n+    verify_signature(request)\n+    event = request.json()",
+    "reference": "This webhook receiver immediately parses incoming JSON payload without verifying the cryptographic signature sent in the request headers. Attackers can forge malicious requests and trigger unauthorized actions such as fulfilling fake payments. The fix is to validate the webhook signature against a shared secret before processing the data.",
+    "hints": [
+      "Look at how the incoming request is trusted immediately.",
+      "Think about authentication and the security of incoming data over the public internet.",
+      "The function needs to verify a request signature before calling request.json()."
+    ]
+  },
+  {
+    "id": "ex-g0321",
+    "language": "python",
+    "title": "SQL Injection in User Authentication",
+    "defect_class": "injection",
+    "difficulty": "beginner",
+    "source": "generated",
+    "filename": "auth.py",
+    "code": "def authenticate(username, password):\n    query = f\"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'\"\n    cursor.execute(query)\n    user = cursor.fetchone()\n    return user is not None\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    query = f\"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'\"\n+    query = \"SELECT * FROM users WHERE username = %s AND password = %s\"\n+    cursor.execute(query, (username, password))",
+    "reference": "This code is vulnerable to SQL injection because user-supplied input is directly formatted into the SQL command string using f-strings. An attacker can manipulate the username or password parameters to alter the query logic and bypass authentication. The vulnerability is fixed by using parameterized queries, which safely separate the SQL code from the user data.",
+    "hints": [
+      "Examine how user input is incorporated into the database query.",
+      "Look closely at the string formatting used on line 2.",
+      "Replace the f-string interpolation with database driver placeholders and pass parameters as a separate tuple."
+    ]
+  },
+  {
+    "id": "ex-g0322",
+    "language": "python",
+    "title": "Unclosed File Resource in Request Logger",
+    "defect_class": "resource",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "logger.py",
+    "code": "def log_request(request_data):\n    log_file = open(\"requests.log\", \"a\")\n    log_file.write(f\"{request_data}\\n\")\n    if \"error\" in request_data:\n        raise ValueError(\"Invalid request\")\n    log_file.close()\n",
+    "real_lines": [
+      2
+    ],
+    "fix_diff": "-    log_file = open(\"requests.log\", \"a\")\n+    with open(\"requests.log\", \"a\") as log_file:",
+    "reference": "Opening a file without a context manager or explicit try-finally block can lead to resource leaks if an exception interrupts execution before .close() is called. In this function, if request_data contains 'error', a ValueError is raised and log_file.close() is bypassed entirely. Using a 'with' statement ensures the file handle is automatically closed when the block exits, regardless of exceptions.",
+    "hints": [
+      "Examine how external resources like files or network connections are acquired and released.",
+      "Trace what happens to the file handle if an exception occurs mid-execution.",
+      "Consider using a context manager (the 'with' statement) to manage the file lifecycle automatically."
+    ]
+  },
+  {
+    "id": "ex-g0323",
+    "language": "python",
+    "title": "Hardcoded SMTP Credentials",
+    "defect_class": "auth",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "email_sender.py",
+    "code": "import smtplib\nfrom email.message import EmailMessage\n\ndef send_alert(recipient, message):\n    msg = EmailMessage()\n    msg.set_content(message)\n    msg['Subject'] = 'System Alert'\n    msg['From'] = 'admin@example.com'\n    msg['To'] = recipient\n    server = smtplib.SMTP('smtp.example.com', 587)\n    server.login('admin@example.com', 'SuperSecretPass123')\n    server.send_message(msg)\n    server.quit()\n",
+    "real_lines": [
+      11
+    ],
+    "fix_diff": "-    server.login('admin@example.com', 'SuperSecretPass123')\n+    server.login(os.environ.get('SMTP_USER'), os.environ.get('SMTP_PASSWORD'))",
+    "reference": "Hardcoding sensitive credentials directly in source code is a major security vulnerability because anyone with access to the repository can extract and abuse them. Authentication secrets should instead be injected dynamically from secure environment variables or a dedicated secrets manager. This practice protects sensitive access tokens from accidental exposure in version control histories.",
+    "hints": [
+      "Examine how the authentication credentials are provided to the server login function.",
+      "Consider the security implications of placing plaintext passwords directly in the source code.",
+      "Use environment variables to retrieve sensitive credentials dynamically at runtime."
+    ]
+  },
+  {
+    "id": "ex-g0324",
+    "language": "python",
+    "title": "Swallowing Unexpected Exceptions in Cache Lookup",
+    "defect_class": "error-handling",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "cache.py",
+    "code": "import redis\n\ndef get_cached_user(client: redis.Redis, user_id: str):\n    try:\n        return client.get(f\"user:{user_id}\")\n    except redis.ConnectionError:\n        return None\n",
+    "real_lines": [
+      5,
+      6
+    ],
+    "fix_diff": "--- cache.py\n+++ cache.py\n@@ -4,3 +4,3 @@\n         return client.get(f\"user:{user_id}\")\n-    except redis.ConnectionError:\n+    except (redis.ConnectionError, redis.TimeoutError):\n         return None",
+    "reference": "When implementing caching layers, it is important to catch all expected operational failures rather than a single specific exception. By catching only redis.ConnectionError, other common transient issues like redis.TimeoutError will propagate up and potentially crash the application. Expanding the except clause to include all relevant redis exceptions ensures graceful degradation when the cache backend becomes unresponsive.",
+    "hints": [
+      "Consider what happens when the cache server is overloaded rather than completely disconnected.",
+      "Look closely at the types of exceptions a Redis client can raise during a network operation.",
+      "Catching a broader tuple of exceptions will prevent unexpected unhandled errors from slipping through."
+    ]
+  },
+  {
+    "id": "ex-g0325",
+    "language": "python",
+    "title": "Race Condition in File Upload Counter",
+    "defect_class": "concurrency",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "uploader.py",
+    "code": "import os\n\nUPLOAD_COUNT = 0\n\ndef handle_upload(file_obj, destination_dir):\n    global UPLOAD_COUNT\n    file_path = os.path.join(destination_dir, file_obj.name)\n    with open(file_path, \"wb+\") as dest:\n        for chunk in file_obj.chunks():\n            dest.write(chunk)\n    UPLOAD_COUNT += 1\n    return file_path\n",
+    "real_lines": [
+      10
+    ],
+    "fix_diff": "--- uploader.py\n+++ uploader.py\n@@ -10,1 +10,2 @@\n+    with threading.Lock():\n         UPLOAD_COUNT += 1\n",
+    "reference": "The function updates a global counter UPLOAD_COUNT without synchronization, which leads to a race condition in a multi-threaded environment like a WSGI web server. Because the read-modify-write operation on UPLOAD_COUNT is not atomic, concurrent uploads can result in lost increments and an inaccurate total count. This should be fixed by using a threading Lock or a thread-safe atomic counter to serialize access to the shared variable.",
+    "hints": [
+      "Look closely at how state is tracked across multiple function calls.",
+      "Consider what happens when two threads execute this function at the exact same time.",
+      "The global variable UPLOAD_COUNT is modified without any synchronization primitives like a lock."
+    ]
+  },
+  {
+    "id": "ex-g0326",
+    "language": "python",
+    "title": "Uncached Database Query in Inventory Service",
+    "defect_class": "clean",
+    "difficulty": "intermediate",
+    "source": "generated",
+    "filename": "inventory_service.py",
+    "code": "def get_current_stock(item_id: str, db_connection) -> int:\n    query = \"SELECT stock_level FROM inventory WHERE item_id = %s\"\n    cursor = db_connection.cursor()\n    cursor.execute(query, (item_id,))\n    result = cursor.fetchone()\n    cursor.close()\n    return result[0] if result else 0\n",
+    "real_lines": [],
+    "fix_diff": "",
+    "reference": "This code directly queries the database for the current stock level without apparent caching. A novice reviewer might flag this as a performance bottleneck or missing cache implementation. However, inventory systems often require strict real-time consistency to prevent overselling, making a direct database read the correct and safe pattern here.",
+    "hints": [
+      "Consider the business requirements for inventory accuracy during high-concurrency checkout events.",
+      "Check if serving stale stock data from a cache could lead to overselling items."
+    ]
   }
 ]
