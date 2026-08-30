@@ -140,8 +140,9 @@ export default function Auth() {
     setConfirm('')
   }
 
-  // signup -> /role-select (pick a track), login -> /home
-  const dest = isSignup ? '/role-select' : '/home'
+  // Both paths land on /home; OnboardingRoute sends a not-yet-onboarded user
+  // to /role-select from there.
+  const dest = '/home'
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
