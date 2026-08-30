@@ -40,7 +40,7 @@ export default function ProLevelSelect() {
 
   useEffect(() => {
     if (!hasPassedPromotionalTest) {
-      navigate('/pro/promotional-test')
+      navigate('/pro/entrance-test')
     }
   }, [hasPassedPromotionalTest, navigate])
 
