@@ -44,7 +44,14 @@ export default function App() {
       <Route path="/about" element={<Landing />} />
       <Route path="/intro" element={<IntroHero />} />
       <Route path="/auth" element={<Auth />} />
-      <Route path="/role-select" element={<RoleSelect />} />
+      <Route
+        path="/role-select"
+        element={
+          <ProtectedRoute>
+            <RoleSelect />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Main Home Dashboard - Central Experience */}
       <Route
