@@ -33,6 +33,10 @@ import BattleRoom from './pages/BattleRoom'
 import ConceptLearn from './pages/ConceptLearn'
 import PromotionExam from './pages/PromotionExam'
 
+// Admin (shared-password gate, separate from the Firebase auth)
+import { AdminGate } from './components/admin/AdminGate'
+import AdminDashboard from './pages/admin/AdminDashboard'
+
 export default function App() {
   return (
     <Routes>
@@ -251,6 +255,16 @@ export default function App() {
           <ProtectedRoute>
             <PromotionExam />
           </ProtectedRoute>
+        }
+      />
+
+      {/* Admin — its own password wall, not Firebase-gated */}
+      <Route
+        path="/admin"
+        element={
+          <AdminGate>
+            <AdminDashboard />
+          </AdminGate>
         }
       />
 

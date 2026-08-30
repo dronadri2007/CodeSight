@@ -346,3 +346,93 @@ export interface TopicPredictResult {
   classes: TopicClassResult[] // always 6, canonical order
   practice_exercise_ids: string[]
 }
+
+// --- admin (corpus management) ---------------------------------
+export const ADMIN_DEFECT_CLASSES = [
+  'injection',
+  'auth',
+  'error-handling',
+  'concurrency',
+  'logic',
+  'resource',
+  'clean',
+] as const
+
+export const ADMIN_TIERS = ['beginner', 'intermediate', 'pro'] as const
+
+export type AdminReviewStatus = 'approved' | 'rejected' | 'edited' | 'unreviewed'
+
+export interface AdminToken {
+  token: string
+  ttl_hours: number
+}
+
+export interface AdminExerciseRow {
+  id: string
+  title: string
+  defect_class: string
+  difficulty: string // backend tier
+  difficulty_label: string // Easy | Medium | Hard
+  source: string // curated | generated | admin
+  review_status: string // approved | unreviewed | edited | rejected
+  status_label: string // Approved | Pending | Draft | Archived
+  reports: number
+  line_count: number
+  hint_count: number
+}
+
+export interface AdminExercises {
+  total: number
+  matched: number
+  exercises: AdminExerciseRow[]
+}
+
+export interface AdminStats {
+  total: number
+  by_status: Record<string, number>
+  by_source: Record<string, number>
+  by_difficulty: Record<string, number>
+  by_defect_class: Record<string, number>
+  reported: number
+  hidden: number
+  sessions: number
+  attempts: number
+  distinct_reporters: number
+}
+
+export interface AdminExerciseFull {
+  id: string
+  language: string
+  title: string
+  defect_class: string
+  difficulty: string
+  filename: string
+  code: string
+  real_lines: number[]
+  fix_diff: string
+  reference: string
+  hints: string[]
+  source: string
+  review_status: string
+}
+
+export interface AdminExerciseCreate {
+  title: string
+  defect_class: string
+  difficulty: string
+  code: string
+  filename?: string
+  real_lines?: number[]
+  fix_diff?: string
+  reference?: string
+  hints?: string[]
+  review_status?: string
+}
+
+export type AdminExercisePatch = Partial<Omit<AdminExerciseCreate, 'review_status'>>
+
+export interface AdminWriteResult {
+  id: string
+  ok: boolean
+  review_status: string
+}
