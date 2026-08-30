@@ -26,7 +26,7 @@ service cloud.firestore {
         return [
           'uid', 'email', 'displayName', 'photoURL', 'provider',
           'createdAt', 'updatedAt',
-          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest',
+          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest', 'onboarded',
           'level', 'levelIndex',
           'totalXP', 'eloRating', 'globalRank', 'currentStreak', 'problemsSolved',
           'weaknessCatchRates', 'recentSubmissions'
@@ -37,7 +37,7 @@ service cloud.firestore {
       function editableFields() {
         return [
           'displayName', 'photoURL',
-          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest',
+          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest', 'onboarded',
           'updatedAt'
         ];
       }

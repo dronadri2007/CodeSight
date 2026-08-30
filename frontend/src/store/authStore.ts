@@ -63,6 +63,7 @@ function newUserDoc(u: FbUser, provider: string) {
     studentLevel: 'Beginner' as LevelTier,
     proLevel: 'Beginner' as LevelTier,
     hasPassedPromotionalTest: false,
+    onboarded: false,
     level: 'Student Beginner' as UserLevel,
     levelIndex: 1,
     totalXP: 0,
@@ -118,11 +119,13 @@ function stubProfile(u: FbUser): UserProfile {
 interface AuthState {
   isAuthenticated: boolean
   authReady: boolean
+  profileReady: boolean
   user: UserProfile | null
   selectedTrack: TrackType
   studentLevel: LevelTier
   proLevel: LevelTier
   hasPassedPromotionalTest: boolean
+  onboarded: boolean
 
   initAuthListener: () => void
 
@@ -138,6 +141,7 @@ interface AuthState {
   setStudentLevel: (level: LevelTier) => void
   setProLevel: (level: LevelTier) => void
   setPassedPromotionalTest: (passed: boolean) => void
+  setOnboarded: (value: boolean) => void
   resetPromotionalQualification: () => void
 
   // score-mutating writes now happen on the backend; kept as no-ops so existing
@@ -175,11 +179,13 @@ async function patchMyDoc(uid: string | undefined, data: Record<string, unknown>
 export const useAuthStore = create<AuthState>()((set, get) => ({
   isAuthenticated: false,
   authReady: !firebaseReady, // if Firebase is unconfigured we're "ready" (and signed out)
+  profileReady: !firebaseReady,
   user: null,
   selectedTrack: 'student',
   studentLevel: 'Beginner',
   proLevel: 'Beginner',
   hasPassedPromotionalTest: false,
+  onboarded: false,
 
   initAuthListener: () => {
     if (listenerStarted || !firebaseReady) return
@@ -190,16 +196,30 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       unsubDoc = null
 
       if (!fbUser) {
-        set({ isAuthenticated: false, user: null, authReady: true })
+        set({
+          isAuthenticated: false,
+          user: null,
+          authReady: true,
+          profileReady: true,
+          onboarded: false,
+        })
         return
       }
 
-      set({ isAuthenticated: true, user: stubProfile(fbUser), authReady: true })
+      set({
+        isAuthenticated: true,
+        user: stubProfile(fbUser),
+        authReady: true,
+        profileReady: false,
+      })
 
       unsubDoc = onSnapshot(
         doc(requireDb(), 'users', fbUser.uid),
         (snap) => {
-          if (!snap.exists()) return
+          if (!snap.exists()) {
+            set({ profileReady: true })
+            return
+          }
           const d = snap.data() as Record<string, unknown>
           set({
             user: toProfile(fbUser.uid, d),
@@ -207,9 +227,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
             studentLevel: (d.studentLevel as LevelTier) ?? 'Beginner',
             proLevel: (d.proLevel as LevelTier) ?? 'Beginner',
             hasPassedPromotionalTest: Boolean(d.hasPassedPromotionalTest),
+            onboarded: Boolean(d.onboarded),
+            profileReady: true,
           })
         },
-        (err) => console.error('[auth] profile listener error', err)
+        (err) => {
+          console.error('[auth] profile listener error', err)
+          set({ profileReady: true })
+        }
       )
     })
   },
@@ -279,6 +304,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   setPassedPromotionalTest: (passed) => {
     set({ hasPassedPromotionalTest: passed })
     patchMyDoc(get().user?.id, { hasPassedPromotionalTest: passed })
+  },
+
+  setOnboarded: (value) => {
+    set({ onboarded: value })
+    patchMyDoc(get().user?.id, { onboarded: value })
   },
 
   resetPromotionalQualification: () => {
