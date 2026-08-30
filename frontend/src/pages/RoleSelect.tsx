@@ -10,7 +10,7 @@ const EASE = [0.16, 1, 0.3, 1] as const
 
 export default function RoleSelect() {
   const navigate = useNavigate()
-  const { setSelectedTrack, hasPassedPromotionalTest } = useAuthStore()
+  const { setSelectedTrack, hasPassedPromotionalTest, setOnboarded } = useAuthStore()
   const { setFilters } = useProblemStore()
   const { theme } = useThemeStore()
 
@@ -23,7 +23,12 @@ export default function RoleSelect() {
   const choosePro = () => {
     setSelectedTrack('pro')
     setFilters({ mode: 'ai_engineer' })
-    navigate(hasPassedPromotionalTest ? '/pro/level-select' : '/pro/promotional-test')
+    if (hasPassedPromotionalTest) {
+      setOnboarded(true)
+      navigate('/home')
+    } else {
+      navigate('/pro/entrance-test')
+    }
   }
 
   const cap = 'flex items-start gap-2.5 text-[13px] leading-snug text-[#E5DFC9]/70'
