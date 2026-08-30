@@ -12,18 +12,13 @@ import { Badge } from '../components/ui/Badge'
 import { WeaknessChart } from '../components/profile/WeaknessChart'
 import { useAuthStore } from '../store/authStore'
 import { useProblemStore } from '../store/problemStore'
-import { mockProblems } from '../mock/problems'
 
 export default function HomeDashboard() {
   const navigate = useNavigate()
   const { user, hasPassedPromotionalTest, studentLevel, proLevel, setSelectedTrack } = useAuthStore()
   const { setFilters } = useProblemStore()
 
-  // Find recommended problem based on lowest catch rate
-  const catchRates = user?.weaknessCatchRates || {}
-  const sortedWeaknesses = Object.entries(catchRates).sort(([, a], [, b]) => a - b)
-  const weakestClassId = sortedWeaknesses[0] ? sortedWeaknesses[0][0] : 'error-handling'
-  const recommendedProblem = mockProblems.find((p) => p.defectClassId === weakestClassId) || mockProblems[0]
+  const hasActivity = (user?.recentSubmissions?.length ?? 0) > 0
 
   const handleStartStudent = () => {
     setSelectedTrack('student')
@@ -37,7 +32,7 @@ export default function HomeDashboard() {
     if (hasPassedPromotionalTest) {
       navigate('/pro/problems')
     } else {
-      navigate('/pro/promotional-entry')
+      navigate('/pro/entrance-test')
     }
   }
 
@@ -53,7 +48,7 @@ export default function HomeDashboard() {
               CENTRAL DASHBOARD
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#E5DFC9] tracking-tight">
-              Welcome back, {user?.name?.split(' ')[0] || 'Afrid'}
+              Welcome back, {user?.name?.split(' ')[0] || 'there'}
             </h1>
             <p className="text-xs text-[#E5DFC9]/70 mt-1">
               Select your track or resume your adaptive practice recommendations.
@@ -97,7 +92,7 @@ export default function HomeDashboard() {
                     <GraduationCap size={20} />
                   </div>
                   <Badge variant="navy" size="sm">
-                    LEVEL: {studentLevel?.toUpperCase() || 'INTERMEDIATE'}
+                    LEVEL: {studentLevel?.toUpperCase() || 'BEGINNER'}
                   </Badge>
                 </div>
 
@@ -219,11 +214,11 @@ export default function HomeDashboard() {
                   fullWidth
                   size="md"
                   variant="gold"
-                  onClick={() => navigate('/pro/promotional-test')}
+                  onClick={() => navigate('/pro/entrance-test')}
                   iconRight={<ArrowRight size={14} />}
                   className="font-bold text-xs shadow-md uppercase tracking-wider"
                 >
-                  Take Promotional Test →
+                  Take Entrance Test →
                 </Button>
               )}
             </Card>
@@ -244,7 +239,7 @@ export default function HomeDashboard() {
                   <CheckCircle2 size={13} className="text-[#E5DFC9]" />
                   <span>Solved</span>
                 </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.problemsSolved || 18}</p>
+                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.problemsSolved ?? 0}</p>
                 <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Exercises cleared</p>
               </Card>
 
@@ -253,7 +248,7 @@ export default function HomeDashboard() {
                   <Flame size={13} className="text-amber-400" />
                   <span>Streak</span>
                 </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.currentStreak || 4} <span className="text-xs font-normal">days</span></p>
+                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.currentStreak ?? 0} <span className="text-xs font-normal">days</span></p>
                 <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Consistent review</p>
               </Card>
 
@@ -262,7 +257,7 @@ export default function HomeDashboard() {
                   <Award size={13} className="text-[#E5DFC9]" />
                   <span>Total XP</span>
                 </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.totalXP || 2847}</p>
+                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.totalXP ?? 0}</p>
                 <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Score accumulated</p>
               </Card>
 
@@ -271,33 +266,30 @@ export default function HomeDashboard() {
                   <TrendingUp size={13} className="text-[#E5DFC9]" />
                   <span>Global Rank</span>
                 </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">#{user?.globalRank || 1}</p>
+                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.globalRank ? `#${user.globalRank}` : '—'}</p>
                 <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Top percentile</p>
               </Card>
             </div>
 
             {/* Adaptive Learning Callout */}
-            <Card className="p-4 bg-[#1A130D] border-[#3A2F1D] space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-2xs font-mono uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1.5">
+            {hasActivity && (
+              <Card className="p-4 bg-[#1A130D] border-[#3A2F1D] space-y-3">
+                <span className="text-xs font-mono uppercase tracking-wider text-[#E3A24A] font-bold flex items-center gap-1.5">
                   <Zap size={12} /> ADAPTIVE RECOMMENDATION
                 </span>
-              </div>
-              <p className="text-xs font-bold text-[#E5DFC9]">
-                {recommendedProblem.title}
-              </p>
-              <p className="text-2xs text-[#E5DFC9]/70">
-                Targeting your lowest catch rate in <span className="font-bold text-[#E5DFC9]">{recommendedProblem.defectClassName}</span>.
-              </p>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => navigate(`/practice/${recommendedProblem.id}`)}
-                className="w-full text-xs font-bold"
-              >
-                Practice This Weakness
-              </Button>
-            </Card>
+                <p className="text-xs text-[#E5DFC9]/70">
+                  Keep working your weakest defect classes — the practice list is sorted by your lowest catch rate.
+                </p>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => navigate('/problems')}
+                  className="w-full text-xs font-bold"
+                >
+                  Go to practice
+                </Button>
+              </Card>
+            )}
           </div>
 
           {/* Weakness Profile Column (2 Cols wide) */}
