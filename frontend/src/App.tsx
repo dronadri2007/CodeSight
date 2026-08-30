@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { OnboardingRoute } from './components/auth/OnboardingRoute'
 
 // Core Navigation & Onboarding
 import Landing from './pages/Landing'
@@ -18,11 +19,9 @@ import StudentWorkspace from './pages/student/StudentWorkspace'
 import StudentResults from './pages/student/StudentResults'
 
 // AI-Assisted Professional Track Pages
-import ProPromotionalEntry from './pages/pro/ProPromotionalEntry'
-import ProPromotionalTest from './pages/pro/ProPromotionalTest'
-import ProPromotionalResult from './pages/pro/ProPromotionalResult'
+import ProEntranceTest from './pages/pro/ProEntranceTest'
+import ProEntranceResult from './pages/pro/ProEntranceResult'
 import ProLevelSelect from './pages/pro/ProLevelSelect'
-import ProLevelTest from './pages/pro/ProLevelTest'
 import ProProblems from './pages/pro/ProProblems'
 import ProDebugWorkspace from './pages/pro/ProDebugWorkspace'
 import ProReviewResults from './pages/pro/ProReviewResults'
@@ -51,17 +50,17 @@ export default function App() {
       <Route
         path="/home"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <HomeDashboard />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <HomeDashboard />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
 
@@ -69,9 +68,9 @@ export default function App() {
       <Route
         path="/problems"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ProblemListHome />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
 
@@ -95,115 +94,99 @@ export default function App() {
       <Route
         path="/student/problems"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <StudentProblems />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/student/practice/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <StudentWorkspace />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/practice/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <StudentWorkspace />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/student/results/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <StudentResults />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/results/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <StudentResults />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
 
       {/* ================= AI-ASSISTED PRO TRACK ================= */}
       <Route
-        path="/pro/promotional-entry"
+        path="/pro/entrance-test"
         element={
           <ProtectedRoute>
-            <ProPromotionalEntry />
+            <ProEntranceTest />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/pro/promotional-test"
+        path="/pro/entrance-result"
         element={
           <ProtectedRoute>
-            <ProPromotionalTest />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/pro/promotional-result"
-        element={
-          <ProtectedRoute>
-            <ProPromotionalResult />
+            <ProEntranceResult />
           </ProtectedRoute>
         }
       />
       <Route
         path="/pro/level-select"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ProLevelSelect />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/pro/level-test"
-        element={
-          <ProtectedRoute>
-            <ProLevelTest />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/pro/problems"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ProProblems />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/pro/debug/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ProDebugWorkspace />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/pro/practice/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ProDebugWorkspace />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/pro/results/:id"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ProReviewResults />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
 
@@ -211,50 +194,50 @@ export default function App() {
       <Route
         path="/profile"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <Profile />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/profile/:userId"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <Profile />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/contest"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <BattleLobby />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route path="/battle" element={<Navigate to="/contest" replace />} />
       <Route
         path="/battle/:roomId"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <BattleRoom />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/learn/:conceptId"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <ConceptLearn />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
       <Route
         path="/exam"
         element={
-          <ProtectedRoute>
+          <OnboardingRoute>
             <PromotionExam />
-          </ProtectedRoute>
+          </OnboardingRoute>
         }
       />
 
