@@ -153,6 +153,7 @@ interface AuthState {
 
 let listenerStarted = false
 let unsubDoc: (() => void) | null = null
+let onboardedLocally = false
 
 async function ensureUserDoc(cred: UserCredential, provider: string) {
   const db = requireDb()
@@ -196,16 +197,22 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       unsubDoc = null
 
       if (!fbUser) {
+        onboardedLocally = false
         set({
           isAuthenticated: false,
           user: null,
           authReady: true,
           profileReady: true,
           onboarded: false,
+          hasPassedPromotionalTest: false,
+          selectedTrack: 'student',
+          studentLevel: 'Beginner',
+          proLevel: 'Beginner',
         })
         return
       }
 
+      onboardedLocally = false
       set({
         isAuthenticated: true,
         user: stubProfile(fbUser),
@@ -227,7 +234,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
             studentLevel: (d.studentLevel as LevelTier) ?? 'Beginner',
             proLevel: (d.proLevel as LevelTier) ?? 'Beginner',
             hasPassedPromotionalTest: Boolean(d.hasPassedPromotionalTest),
-            onboarded: Boolean(d.onboarded),
+            onboarded: Boolean(d.onboarded) || onboardedLocally,
             profileReady: true,
           })
         },
@@ -275,7 +282,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     if (firebaseReady) await signOut(requireAuth())
     unsubDoc?.()
     unsubDoc = null
-    set({ isAuthenticated: false, user: null })
+    onboardedLocally = false
+    set({
+      isAuthenticated: false,
+      user: null,
+      onboarded: false,
+      hasPassedPromotionalTest: false,
+      selectedTrack: 'student',
+      studentLevel: 'Beginner',
+      proLevel: 'Beginner',
+    })
   },
 
   setRole: (role) => {
@@ -307,6 +323,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   setOnboarded: (value) => {
+    if (value) onboardedLocally = true
     set({ onboarded: value })
     patchMyDoc(get().user?.id, { onboarded: value })
   },

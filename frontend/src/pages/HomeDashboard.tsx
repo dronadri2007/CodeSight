@@ -2,8 +2,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   GraduationCap, Bot, ArrowRight, Shield, Award, Flame,
-  TrendingUp, Lock, CheckCircle2, ChevronRight, Zap, Target,
-  Sparkles, Code2, AlertTriangle
+  TrendingUp, Lock, CheckCircle2, ChevronRight, Zap,
+  Sparkles
 } from 'lucide-react'
 import { Navbar } from '../components/navigation/Navbar'
 import { Button } from '../components/ui/Button'

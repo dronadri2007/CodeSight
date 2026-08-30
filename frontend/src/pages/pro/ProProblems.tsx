@@ -19,7 +19,7 @@ export default function ProProblems() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!hasPassedPromotionalTest) navigate('/pro/promotional-test')
+    if (!hasPassedPromotionalTest) navigate('/pro/entrance-test')
   }, [hasPassedPromotionalTest, navigate])
 
   useEffect(() => {

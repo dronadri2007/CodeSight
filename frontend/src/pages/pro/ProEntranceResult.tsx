@@ -13,7 +13,12 @@ const ELIGIBLE_MIN = 6
 
 export default function ProEntranceResult() {
   const navigate = useNavigate()
-  const state = useLocation().state as EntranceResultState | null
+  const raw = useLocation().state as EntranceResultState | null
+  const state =
+    raw && typeof raw.score === 'number' && typeof raw.maxScore === 'number' &&
+    typeof raw.eligible === 'boolean' && typeof raw.tier === 'string'
+      ? raw
+      : null
   const { setSelectedTrack, setStudentLevel, setOnboarded } = useAuthStore()
   const { setFilters } = useProblemStore()
 

@@ -77,7 +77,7 @@ export default function ProblemListHome() {
             <button
               onClick={() => {
                 if (!hasPassedPromotionalTest) {
-                  navigate('/pro/promotional-test')
+                  navigate('/pro/entrance-test')
                 } else {
                   setFilters({ mode: 'ai_engineer' })
                 }
@@ -157,7 +157,7 @@ export default function ProblemListHome() {
                       if (hasPassedPromotionalTest) {
                         navigate(`/pro/debug/${problem.id}`)
                       } else {
-                        navigate('/pro/promotional-test')
+                        navigate('/pro/entrance-test')
                       }
                     } else {
                       navigate(`/student/practice/${problem.id}`)
@@ -223,7 +223,7 @@ export default function ProblemListHome() {
                           if (hasPassedPromotionalTest) {
                             navigate(`/pro/debug/${problem.id}`)
                           } else {
-                            navigate('/pro/promotional-test')
+                            navigate('/pro/entrance-test')
                           }
                         } else {
                           navigate(`/student/practice/${problem.id}`)

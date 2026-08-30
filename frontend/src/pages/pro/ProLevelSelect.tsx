@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Bot, ArrowRight, HelpCircle, Check, Shield } from 'lucide-react'
+import { Bot, ArrowRight, Check, Shield } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -125,18 +125,6 @@ export default function ProLevelSelect() {
               </Card>
             </motion.div>
           ))}
-        </div>
-
-        {/* Secondary: Don't know your level? */}
-        <div className="pt-4 text-center">
-          <button
-            onClick={() => navigate('/pro/level-test')}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1A130D] border border-[#3A2F1D] text-xs font-semibold text-[#E5DFC9] hover:border-[#E5DFC9]/60 hover:bg-[#3A2F1D]/40 transition-all shadow-md"
-          >
-            <HelpCircle size={15} className="text-[#E5DFC9]" />
-            <span className="uppercase tracking-wider font-bold">DON'T KNOW YOUR LEVEL?</span>
-            <span className="text-[#E5DFC9]/70 ml-1">· Launch Review Diagnostic →</span>
-          </button>
         </div>
       </main>
     </div>
