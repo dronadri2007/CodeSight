@@ -9,6 +9,8 @@ import { defectClasses } from '../../tokens'
 import { listExerciseSummaries, type ExerciseSummary, ApiError } from '../../api'
 
 const DIFFS = ['all', 'beginner', 'intermediate', 'pro'] as const
+const SOURCES = ['all', 'curated', 'generated'] as const
+const PAGE = 60
 
 export default function ProProblems() {
   const navigate = useNavigate()
@@ -17,6 +19,8 @@ export default function ProProblems() {
 
   const [rows, setRows] = useState<ExerciseSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [source, setSource] = useState<(typeof SOURCES)[number]>('all')
+  const [visible, setVisible] = useState(PAGE)
 
   useEffect(() => {
     if (!hasPassedPromotionalTest) navigate('/pro/entrance-test')
@@ -26,15 +30,21 @@ export default function ProProblems() {
     let dead = false
     setRows(null)
     setError(null)
-    listExerciseSummaries({ source: 'curated' })
+    listExerciseSummaries()
       .then((r) => { if (!dead) setRows(r) })
       .catch((e) => { if (!dead) setError(e instanceof ApiError ? `${e.status}` : String(e)) })
     return () => { dead = true }
   }, [])
 
+  // reset the page size whenever the result set changes
+  useEffect(() => {
+    setVisible(PAGE)
+  }, [filters.difficulty, filters.defectClassId, filters.searchQuery, source, rows])
+
   const reviewedIds = new Set((user?.recentSubmissions || []).map((s) => s.problemId))
 
-  const shown = (rows || []).filter((p) => {
+  const matched = (rows || []).filter((p) => {
+    if (source !== 'all' && p.source !== source) return false
     if (filters.difficulty !== 'all' && p.difficulty !== filters.difficulty) return false
     if (filters.defectClassId !== 'all' && p.defect_class !== filters.defectClassId) return false
     if (filters.searchQuery) {
@@ -43,6 +53,7 @@ export default function ProProblems() {
     }
     return true
   })
+  const shown = matched.slice(0, visible)
 
   return (
     <div className="min-h-screen bg-[#000000] text-[#E5DFC9] flex flex-col selection:bg-[#E5DFC9]/25 selection:text-[#E5DFC9]">
@@ -73,18 +84,33 @@ export default function ProProblems() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-[#3A2F1D]">
-          <div className="flex items-center p-1 rounded-xl bg-[#1A130D] border border-[#3A2F1D]">
-            {DIFFS.map((diff) => (
-              <button
-                key={diff}
-                onClick={() => setFilters({ difficulty: diff })}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
-                  filters.difficulty === diff ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm' : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9]'
-                }`}
-              >
-                {diff === 'all' ? 'All Tiers' : diff}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center p-1 rounded-xl bg-[#1A130D] border border-[#3A2F1D]">
+              {DIFFS.map((diff) => (
+                <button
+                  key={diff}
+                  onClick={() => setFilters({ difficulty: diff })}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                    filters.difficulty === diff ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm' : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9]'
+                  }`}
+                >
+                  {diff === 'all' ? 'All Tiers' : diff}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center p-1 rounded-xl bg-[#1A130D] border border-[#3A2F1D]">
+              {SOURCES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSource(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                    source === s ? 'bg-[#E5DFC9] text-[#000000] font-bold shadow-sm' : 'text-[#E5DFC9]/70 hover:text-[#E5DFC9]'
+                  }`}
+                >
+                  {s === 'all' ? 'All Sources' : s}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="relative w-full sm:w-64">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#E5DFC9]/40" />
@@ -118,6 +144,13 @@ export default function ProProblems() {
             </button>
           ))}
         </div>
+
+        {!error && rows !== null && (
+          <p className="font-mono text-2xs text-[#E5DFC9]/45">
+            {matched.length.toLocaleString()} of {rows.length.toLocaleString()} exercises
+            {matched.length > shown.length && ` · showing ${shown.length}`}
+          </p>
+        )}
 
         <div className="rounded-2xl border border-[#3A2F1D] bg-[#1A130D] overflow-hidden shadow-xl">
           {error && (
@@ -179,6 +212,18 @@ export default function ProProblems() {
                   )}
                 </tbody>
               </table>
+              {matched.length > shown.length && (
+                <div className="border-t border-[#3A2F1D] p-4 text-center">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="text-xs"
+                    onClick={() => setVisible((v) => v + PAGE)}
+                  >
+                    Show more ({(matched.length - shown.length).toLocaleString()} left)
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
