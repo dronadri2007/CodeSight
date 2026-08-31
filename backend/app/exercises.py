@@ -163,6 +163,8 @@ def list_summaries(
         if tier not in TIER_ORDER:
             raise HTTPException(status_code=422, detail="unknown tier")
         allowed = set(TIER_ORDER[: TIER_ORDER.index(tier) + 1])
+    if source is not None and source not in ("curated", "generated"):
+        raise HTTPException(status_code=422, detail="unknown source")
     hidden = hidden_ids or set()
     return [
         _summary(r)

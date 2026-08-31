@@ -7,6 +7,7 @@ corpus + review-progress at a glance.
 """
 from collections import Counter
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -52,6 +53,15 @@ def list_exercises(
     source: str | None = None,
     limit: int = 500,
 ) -> AdminExercises:
+    _VALID_STATUS = {
+        "all",
+        *(_STATUS.keys()),  # approved, unreviewed, edited, rejected
+        *(v.lower() for v in _STATUS.values()),  # approved, pending, draft, archived
+        "deleted",
+    }
+    if status and status.lower() not in _VALID_STATUS:
+        raise HTTPException(status_code=422, detail="unknown status filter")
+
     rc = reports.report_counts(db)
     rows = [_row(r, rc.get(r["id"], 0)) for r in ex.all_rows()]
     total = len(rows)

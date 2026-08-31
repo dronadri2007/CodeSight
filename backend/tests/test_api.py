@@ -852,3 +852,12 @@ def test_report_same_session_thrice_does_not_hide(client):
 
 def test_report_unknown_exercise_is_404(client):
     assert client.post("/exercises/nope/report", json={"session_id": "a"}).status_code == 404
+
+
+def test_exercises_unknown_source_is_422(client):
+    assert client.get("/exercises?source=bogus").status_code == 422
+
+
+def test_admin_exercises_unknown_status_is_422(client, admin_headers):
+    r = client.get("/admin/exercises?status=bogus", headers=admin_headers)
+    assert r.status_code == 422
