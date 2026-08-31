@@ -6,8 +6,8 @@ The GEMINI_API_KEY stays server-side. Never return it or log it.
 """
 import hashlib
 import json
-import logging
 
+import structlog
 from google.genai import errors as genai_errors
 from google.genai import types
 
@@ -16,7 +16,7 @@ from app.gemini import client as _client
 from app.gemini import generate
 from app.schemas import ExplanationGrade
 
-log = logging.getLogger("codesight.grader")
+log = structlog.get_logger("codesight.grader")
 
 SYSTEM = """You grade a student's code review. You do not review the code yourself.
 
@@ -139,7 +139,7 @@ def grade_explanation(
         data = parsed.model_dump() if parsed is not None else json.loads(resp.text)
         data["explanation_score"] = max(0.0, min(1.0, float(data["explanation_score"])))
     except (genai_errors.APIError, json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
-        log.warning("grader call failed for %s: %s", exercise_id, e)
+        log.warning("grader_call_failed", exercise_id=exercise_id, error=str(e))
         return _fallback(reference, localisation_verdict)
 
     _cache[ck] = data

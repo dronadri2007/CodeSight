@@ -5,8 +5,8 @@ Runs the model as an independent reviewer of the same file the student saw
 marked lines, and the ground-truth fix lines.
 """
 import json
-import logging
 
+import structlog
 from google.genai import types
 
 from app.config import GRADER_MODEL
@@ -14,7 +14,7 @@ from app.gemini import client as _client
 from app.gemini import generate
 from app.schemas import AiReviewOutput
 
-log = logging.getLogger("codesight.ai_review")
+log = structlog.get_logger("codesight.ai_review")
 
 TOLERANCE = 2
 
@@ -67,7 +67,7 @@ def ai_findings(exercise_id: str, code: str) -> tuple[list[dict], bool, str | No
         ]
     except Exception as e:  # noqa: BLE001 - surface the reason for now
         reason = f"{type(e).__name__}: {e}"
-        log.warning("ai review failed for %s: %s", exercise_id, reason)
+        log.warning("ai_review_failed", exercise_id=exercise_id, reason=reason)
         return [], False, reason
 
     _cache[exercise_id] = findings

@@ -1,14 +1,14 @@
 """SQLAlchemy engine + session. Tables are created on startup (no migrations
 for a 3-day build)."""
-import logging
 from collections.abc import Iterator
 
+import structlog
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import DATABASE_URL, DB_IS_SQLITE
 
-log = logging.getLogger("codesight.db")
+log = structlog.get_logger("codesight.db")
 
 _connect_args = {"check_same_thread": False} if DB_IS_SQLITE else {}
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=_connect_args)
@@ -50,7 +50,7 @@ def _ensure_columns() -> None:
                 continue
             with engine.begin() as conn:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
-            log.info("added column %s.%s", table, name)
+            log.info("added_column", table=table, column=name)
 
 
 def get_db() -> Iterator[Session]:

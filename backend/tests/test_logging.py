@@ -1,4 +1,6 @@
 import logging
+import pathlib
+
 import structlog
 from app.logging import configure_logging
 
@@ -19,3 +21,15 @@ def test_stdlib_logging_flows_through_structlog(capsys):
     logging.getLogger("some.legacy.module").warning("legacy line")
     out = capsys.readouterr().out
     assert "legacy line" in out
+
+
+def test_no_stdlib_getlogger_in_app_modules():
+    app_dir = pathlib.Path(__file__).parent.parent / "app"
+    offenders = []
+    for py in app_dir.glob("*.py"):
+        if py.name == "logging.py":
+            continue
+        text = py.read_text(encoding="utf-8")
+        if "getLogger" in text:
+            offenders.append(py.name)
+    assert not offenders, f"use structlog.get_logger: {offenders}"

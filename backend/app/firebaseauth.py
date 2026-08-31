@@ -39,9 +39,9 @@ def _init() -> None:
         cred = credentials.Certificate(json.loads(FIREBASE_SERVICE_ACCOUNT_JSON))
         _app = firebase_admin.initialize_app(cred)
         _db = firestore.client()
-        log.info("Firebase Admin SDK initialised.")
+        log.info("firebase_admin_initialised")
     except Exception:  # bad JSON, missing package, network — degrade gracefully
-        log.exception("Firebase Admin init failed; auth disabled.")
+        log.exception("firebase_admin_init_failed")
         _app = None
         _db = None
 
