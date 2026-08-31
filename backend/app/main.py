@@ -17,7 +17,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
@@ -248,9 +248,28 @@ def get_hint(exercise_id: str, index: int):
     return ex.get_hint(exercise_id, index)
 
 
+def _write_profile_bg(uid: str, *, defect_class: str, localisation_score: float,
+                      total_score: int, passed: bool, submission: dict) -> None:
+    """Run the signed-in Firestore profile write off the request path. Wrapped
+    here so a future un-guarded raise in ``record_graded_submission`` cannot
+    escape the BackgroundTasks runner."""
+    try:
+        record_graded_submission(
+            uid,
+            defect_class=defect_class,
+            localisation_score=localisation_score,
+            total_score=total_score,
+            passed=passed,
+            submission=submission,
+        )
+    except Exception:
+        log.exception("profile_write_failed", uid=uid, exercise_id=submission.get("exerciseId"))
+
+
 @app.post("/grade", response_model=GradeResponse)
 def grade(
     req: GradeRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: dict | None = Depends(maybe_user),
 ):
@@ -302,21 +321,23 @@ def grade(
     if user and user.get("uid"):
         from datetime import datetime, timezone
 
-        record_graded_submission(
+        submission = {
+            "exerciseId": req.exercise_id,
+            "defectClass": answer["defect_class"],
+            "localisationScore": loc["score"],
+            "explanationScore": expl["explanation_score"],
+            "scoreAfterHints": score_after_hints,
+            "pass": combined >= 0.6,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        background_tasks.add_task(
+            _write_profile_bg,
             user["uid"],
             defect_class=answer["defect_class"],
             localisation_score=loc["score"],
             total_score=int(round(score_after_hints)),
             passed=combined >= 0.6,
-            submission={
-                "exerciseId": req.exercise_id,
-                "defectClass": answer["defect_class"],
-                "localisationScore": loc["score"],
-                "explanationScore": expl["explanation_score"],
-                "scoreAfterHints": score_after_hints,
-                "pass": combined >= 0.6,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
+            submission=submission,
         )
 
     return GradeResponse(

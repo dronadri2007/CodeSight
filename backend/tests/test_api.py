@@ -923,3 +923,33 @@ def test_exercises_unknown_source_is_422(client):
 def test_admin_exercises_unknown_status_is_422(client, admin_headers):
     r = client.get("/admin/exercises?status=bogus", headers=admin_headers)
     assert r.status_code == 422
+
+
+def test_grade_survives_a_raising_profile_write(client, monkeypatch):
+    import app.main as main_mod
+
+    def _boom(*a, **k):
+        raise RuntimeError("firestore down")
+
+    # Force the signed-in branch. Patching main_mod.maybe_user does NOT take —
+    # FastAPI resolved Depends(maybe_user) to the object captured at route
+    # definition time — so drive it through the real dependency instead: a valid
+    # Bearer token + a verify_id_token that returns a uid.
+    monkeypatch.setattr("app.firebaseauth.verify_id_token", lambda t: {"uid": "u1"})
+    # _write_profile_bg calls the module-global record_graded_submission in
+    # app.main; patch it there so the background task raises.
+    monkeypatch.setattr(main_mod, "record_graded_submission", _boom)
+
+    r = client.post(
+        "/grade",
+        headers={"Authorization": "Bearer x"},
+        json={
+            "session_id": "s-grade-resilience",
+            "exercise_id": "ex-001",
+            "selected_lines": [3],
+            "explanation": "SQL string interpolation on the query.",
+            "hints_used": 0,
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert "localisation" in r.json()
