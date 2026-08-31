@@ -12,9 +12,9 @@ Endpoints (see CONTRACT.md):
   GET  /topics · GET /topic/{id} · POST /topic/{id}/predict
   GET  /promotion-test/{session_id} · POST /promotion-test/{session_id}/evaluate
 """
-import logging
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -78,8 +78,10 @@ from app.schemas import (
     WeaknessProfile,
 )
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("codesight")
+from app.logging import configure_logging
+
+configure_logging()
+log = structlog.get_logger("codesight")
 
 
 # Create tables at import time so any ASGI runner (and TestClient without a
@@ -91,8 +93,8 @@ init_db()
 async def lifespan(_: FastAPI):
     init_db()
     if DB_IS_SQLITE:
-        log.warning("DATABASE_URL unset — using local SQLite file (dev only).")
-    log.info("grader model: %s", GRADER_MODEL)
+        log.warning("sqlite_fallback", detail="DATABASE_URL unset — local SQLite file (dev only)")
+    log.info("grader_model", model=GRADER_MODEL)
     yield
 
 
