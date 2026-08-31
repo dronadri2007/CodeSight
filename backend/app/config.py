@@ -29,7 +29,7 @@ ALLOWED_ORIGINS: list[str] = [
 # needing the exact URL. Override with ALLOWED_ORIGIN_REGEX; set to "" to disable.
 ALLOWED_ORIGIN_REGEX: str = os.getenv(
     "ALLOWED_ORIGIN_REGEX",
-    r"https://[a-z0-9-]+\.vercel\.app|http://localhost:\d+",
+    r"^(https://[a-z0-9-]+\.vercel\.app|http://localhost:\d+)$",
 )
 
 # Postgres in prod; local SQLite file if DATABASE_URL is unset.

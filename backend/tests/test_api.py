@@ -9,8 +9,12 @@ def test_health(client):
     assert client.get("/health").json() == {"ok": True}
 
 
-def test_debug_shape(client):
-    d = client.get("/debug").json()
+def test_debug_requires_admin(client):
+    assert client.get("/debug").status_code == 401
+
+
+def test_debug_shape(client, admin_headers):
+    d = client.get("/debug", headers=admin_headers).json()
     assert d["db"] in {"sqlite", "postgres"}
     assert "gemini_key_present" in d["grader"]
 

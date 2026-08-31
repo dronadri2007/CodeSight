@@ -195,7 +195,7 @@ def health():
     return {"ok": True}
 
 
-@app.get("/debug")
+@app.get("/debug", dependencies=[Depends(adminauth.require_admin)])
 def debug(probe: bool = False):
     """Deploy sanity check. /debug?probe=1 runs one live grader call and
     returns the exception if it fails. No secrets in the response."""
