@@ -142,6 +142,17 @@ async def request_context(request: Request, call_next):
     return response
 
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    rid = getattr(request.state, "request_id", None) or request.headers.get("x-request-id", "")
+    log.exception("unhandled_error", request_id=rid, path=request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "internal error", "request_id": rid},
+        headers={"X-Request-ID": rid},
+    )
+
+
 @app.get("/")
 def root():
     return {"service": "codesight-api", "docs": "/docs", "health": "/health"}
