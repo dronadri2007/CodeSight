@@ -1,12 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { UserProfile, SubmissionRecord, DefectClass, UserLevel } from '@/lib/profile';
 
-export type UserLevel = 
-  | 'Student Beginner'
-  | 'Student Intermediate'
-  | 'Student Pro'
-  | 'AI Engineer Beginner'
-  | 'AI Engineer Intermediate'
-  | 'AI Engineer Pro';
+// Shared profile types live in @/lib/profile now (avoids a circular import with
+// AuthContext). Re-exported here so @/contexts/AuthContext stays a valid import
+// site for them. INTERIM: Task 4 rewrites this whole file.
+export type { UserProfile, SubmissionRecord, DefectClass, UserLevel };
 
 export const LEVEL_TIERS: UserLevel[] = [
   'Student Beginner',
@@ -16,43 +14,6 @@ export const LEVEL_TIERS: UserLevel[] = [
   'AI Engineer Intermediate',
   'AI Engineer Pro'
 ];
-
-export type DefectClass = 
-  | 'SQL Injection'
-  | 'Unchecked Returns'
-  | 'Race Conditions'
-  | 'Infinite Loops'
-  | 'Resource Leaks'
-  | 'Type Mismatches';
-
-export interface SubmissionRecord {
-  id: string;
-  problemId: string;
-  title: string;
-  score: number;
-  date: string;
-  mode: 'student' | 'engineer';
-  userTimeComplexity: string;
-  userSpaceComplexity: string;
-  optimalTimeComplexity: string;
-  optimalSpaceComplexity: string;
-  feedback: string;
-  defectClass: DefectClass;
-}
-
-export interface UserProfile {
-  name: string;
-  handle: string;
-  avatar: string;
-  level: UserLevel;
-  levelIndex: number;
-  xp: number;
-  globalRank: number;
-  streakDays: number;
-  solvedCount: number;
-  history: SubmissionRecord[];
-  defectStats: Record<DefectClass, { successful: number; total: number }>;
-}
 
 const DEFAULT_PROFILE: UserProfile = {
   name: 'Alex Morgan',
