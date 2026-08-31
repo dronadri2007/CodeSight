@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -38,7 +38,10 @@ export const LEVEL_TIERS: UserLevel[] = [
   'AI Engineer Pro'
 ]
 
-const todayStr = () => new Date().toISOString().slice(0, 10)
+// Spec §5: streak comparison is against the user's LOCAL calendar date, not UTC.
+const fmtLocalDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const todayStr = () => fmtLocalDate(new Date())
 
 // §5 schema — client-owned create fields only. Matches Task 8's Firestore rules
 // exactly: no stats fields (backend-owned), no `updatedAt` on create.
@@ -79,6 +82,21 @@ async function patchMyDoc(uid: string, data: Record<string, unknown>) {
   }
 }
 
+// Spec §5: bump the streak at most once per local-day rollover. Called only from
+// the snapshot handler when the doc exists.
+function maybeBumpStreak(uid: string, d: Record<string, unknown>) {
+  const last = String(d.lastActiveDate ?? '')
+  const today = todayStr()
+  if (last === today) return
+  const y = fmtLocalDate(new Date(Date.now() - 864e5))
+  patchMyDoc(
+    uid,
+    last === y
+      ? { streakDays: Number(d.streakDays ?? 0) + 1, lastActiveDate: today }
+      : { streakDays: 1, lastActiveDate: today },
+  )
+}
+
 function authErrorMessage(e: unknown): string {
   const code = (e as { code?: string }).code ?? ''
   if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found')
@@ -92,6 +110,26 @@ function authErrorMessage(e: unknown): string {
   if (code === 'auth/unauthorized-domain')
     return "This domain isn't authorised in Firebase (Authentication → Settings → Authorized domains)."
   return (e as Error).message || 'Something went wrong.'
+}
+
+// Spec §3.4: score-mutating writes are server-authoritative now. These stay as
+// no-ops so existing callers compile; each logs once so a stray client write is
+// visible in dev without spamming the console.
+const noopWarned: Record<string, boolean> = {}
+function noteNoop(key: string, msg: string) {
+  if (noopWarned[key]) return
+  noopWarned[key] = true
+  console.debug(msg)
+}
+const noopMutators = {
+  addSubmission: (..._a: unknown[]) =>
+    noteNoop('addSubmission', 'addSubmission is server-authoritative; ignoring client write'),
+  promoteUserLevel: () => {
+    noteNoop('promoteUserLevel', 'promoteUserLevel is server-authoritative; ignoring client write')
+    return false
+  },
+  updateWeakness: (..._a: unknown[]) =>
+    noteNoop('updateWeakness', 'updateWeakness is server-authoritative; ignoring client write'),
 }
 
 interface Ctx {
@@ -127,9 +165,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!firebaseReady) return
+    let cancelled = false
     const unsub = onAuthStateChanged(requireAuth(), async (fb) => {
       unsubDoc.current?.()
       unsubDoc.current = null
+      if (cancelled) return
 
       if (!fb) {
         setFbUser(null)
@@ -151,11 +191,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         /* rank stays null */
       }
+      if (cancelled) return
 
       unsubDoc.current = onSnapshot(
         doc(requireDb(), 'users', fb.uid),
         (snap) => {
-          const d = snap.exists() ? (snap.data() as Record<string, unknown>) : {}
+          if (!snap.exists()) {
+            // Spec §3.1: self-heal a doc-less signed-in user (redirect-fallback
+            // sign-in, or any Auth user whose users/{uid} was never written).
+            // The write triggers another snapshot that lands in the branch below.
+            const provider = fb.providerData[0]?.providerId ?? 'password'
+            setDoc(doc(requireDb(), 'users', fb.uid), newUserDoc(fb, provider)).catch((e) =>
+              console.error('[auth] users/{uid} bootstrap failed', e))
+            setUser(mapProfile(fb.uid, {}, rank))
+            setProfileReady(true)
+            return
+          }
+          const d = snap.data() as Record<string, unknown>
           setUser(mapProfile(fb.uid, d, rank))
           setProfileReady(true)
           maybeBumpStreak(fb.uid, d)
@@ -168,68 +220,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       )
     })
     return () => {
+      cancelled = true
       unsub()
       unsubDoc.current?.()
+      unsubDoc.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function maybeBumpStreak(uid: string, d: Record<string, unknown>) {
-    const last = String(d.lastActiveDate ?? '')
-    const today = todayStr()
-    if (last === today) return
-    const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10)
-    patchMyDoc(
-      uid,
-      last === y
-        ? { streakDays: Number(d.streakDays ?? 0) + 1, lastActiveDate: today }
-        : { streakDays: 1, lastActiveDate: today },
-    )
-  }
-
-  const wrap = (fn: () => Promise<void>) => async () => {
-    setPending(true)
-    setError(null)
-    try {
-      await fn()
-    } catch (e) {
-      const m = authErrorMessage(e)
-      if (m) setError(m)
-      throw e
-    } finally {
-      setPending(false)
-    }
-  }
-
-  const signup = (email: string, password: string, name: string) =>
-    wrap(async () => {
-      const cred = await createUserWithEmailAndPassword(requireAuth(), email, password)
-      if (name.trim()) await updateProfile(cred.user, { displayName: name.trim() })
-      await setDoc(doc(requireDb(), 'users', cred.user.uid), newUserDoc(cred.user, 'password', name))
-    })()
-
-  const login = (email: string, password: string) =>
-    wrap(async () => {
-      await signInWithEmailAndPassword(requireAuth(), email, password)
-    })()
-
-  const loginWithProvider = (p: 'google' | 'github') =>
-    wrap(async () => {
-      const prov = p === 'google' ? googleProvider : githubProvider
+  const wrap = useCallback(
+    (fn: () => Promise<void>) => async () => {
+      setPending(true)
+      setError(null)
       try {
-        const cred = await signInWithPopup(requireAuth(), prov)
-        await ensureUserDoc(cred, p)
+        await fn()
       } catch (e) {
-        const code = (e as { code?: string }).code
-        if (code === 'auth/popup-blocked') {
-          await signInWithRedirect(requireAuth(), prov)
-          return
-        }
+        const m = authErrorMessage(e)
+        if (m) setError(m)
         throw e
+      } finally {
+        setPending(false)
       }
-    })()
+    },
+    [],
+  )
 
-  const logout = async () => {
+  const signup = useCallback(
+    (email: string, password: string, name: string) =>
+      wrap(async () => {
+        const cred = await createUserWithEmailAndPassword(requireAuth(), email, password)
+        if (name.trim()) await updateProfile(cred.user, { displayName: name.trim() })
+        await setDoc(doc(requireDb(), 'users', cred.user.uid), newUserDoc(cred.user, 'password', name))
+      })(),
+    [wrap],
+  )
+
+  const login = useCallback(
+    (email: string, password: string) =>
+      wrap(async () => {
+        await signInWithEmailAndPassword(requireAuth(), email, password)
+      })(),
+    [wrap],
+  )
+
+  const loginWithProvider = useCallback(
+    (p: 'google' | 'github') =>
+      wrap(async () => {
+        const prov = p === 'google' ? googleProvider : githubProvider
+        try {
+          const cred = await signInWithPopup(requireAuth(), prov)
+          await ensureUserDoc(cred, p)
+        } catch (e) {
+          const code = (e as { code?: string }).code
+          if (code === 'auth/popup-blocked') {
+            await signInWithRedirect(requireAuth(), prov)
+            return
+          }
+          throw e
+        }
+      })(),
+    [wrap],
+  )
+
+  const logout = useCallback(async () => {
     setPending(true)
     try {
       if (firebaseReady) await signOut(requireAuth())
@@ -239,26 +292,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       resetSessionId()
       setPending(false)
     }
-  }
+  }, [])
 
-  const value: Ctx = {
-    user,
-    firebaseUser,
-    isAuthenticated: !!firebaseUser,
-    authReady,
-    profileReady,
-    configured: firebaseReady,
-    error,
-    pending,
-    signup,
-    login,
-    loginWithProvider,
-    logout,
-    clearError: () => setError(null),
-    addSubmission: () => {},
-    promoteUserLevel: () => false,
-    updateWeakness: () => {},
-  }
+  const clearError = useCallback(() => setError(null), [])
+
+  // Memo keys are the six state values below; the action fns are all stable
+  // (useCallback), so `value` only changes when auth/profile state changes.
+  const value = useMemo<Ctx>(
+    () => ({
+      user,
+      firebaseUser,
+      isAuthenticated: !!firebaseUser,
+      authReady,
+      profileReady,
+      configured: firebaseReady,
+      error,
+      pending,
+      signup,
+      login,
+      loginWithProvider,
+      logout,
+      clearError,
+      ...noopMutators,
+    }),
+    [user, firebaseUser, authReady, profileReady, error, pending, signup, login, loginWithProvider, logout, clearError],
+  )
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
