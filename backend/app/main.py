@@ -12,11 +12,14 @@ Endpoints (see CONTRACT.md):
   GET  /topics · GET /topic/{id} · POST /topic/{id}/predict
   GET  /promotion-test/{session_id} · POST /promotion-test/{session_id}/evaluate
 """
+import time
+import uuid
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app import admin as adm
@@ -107,6 +110,36 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_context(request: Request, call_next):
+    rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    request.state.request_id = rid
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(request_id=rid)
+    start = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        dur_ms = round((time.perf_counter() - start) * 1000, 1)
+        log.exception(
+            "request_error",
+            method=request.method,
+            path=request.url.path,
+            duration_ms=dur_ms,
+        )
+        raise
+    dur_ms = round((time.perf_counter() - start) * 1000, 1)
+    log.info(
+        "request",
+        method=request.method,
+        path=request.url.path,
+        status=response.status_code,
+        duration_ms=dur_ms,
+    )
+    response.headers["X-Request-ID"] = rid
+    return response
 
 
 @app.get("/")
