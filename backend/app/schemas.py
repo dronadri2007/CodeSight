@@ -18,6 +18,13 @@ class ExerciseSummary(BaseModel):
     source: str  # "curated" | "generated"
 
 
+class ExerciseList(BaseModel):
+    items: list[ExerciseSummary]
+    total: int
+    limit: int
+    offset: int
+
+
 # --- GET /exercises/{id} ---------------------------------------------------
 class ExerciseFile(BaseModel):
     id: str

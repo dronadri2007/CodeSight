@@ -5,6 +5,19 @@ deterministically, and localisation + persistence + profile are fully exercised.
 """
 
 
+def _all_exercise_items(client, q=""):
+    """Walk every page of GET /exercises. The corpus (~1018) exceeds the 500
+    max `limit`, so membership / subset checks over the whole set must paginate.
+    `q` is an extra query fragment, e.g. "&tier=intermediate"."""
+    out, offset = [], 0
+    while True:
+        body = client.get(f"/exercises?limit=500&offset={offset}{q}").json()
+        out.extend(body["items"])
+        offset += 500
+        if offset >= body["total"]:
+            return out
+
+
 def test_health(client):
     assert client.get("/health").json() == {"ok": True}
 
@@ -21,7 +34,9 @@ def test_debug_shape(client, admin_headers):
 
 # --- /exercises ---------------------------------------------------------
 def test_exercise_list_has_no_answer_fields(client):
-    items = client.get("/exercises").json()
+    body = client.get("/exercises?limit=500").json()
+    items = body["items"]
+    assert body["total"] >= 3
     assert len(items) >= 3
     for it in items:
         assert set(it) == {
@@ -34,13 +49,17 @@ def test_exercise_list_has_no_answer_fields(client):
 
 
 def test_exercises_tier_gate_is_cumulative(client):
-    beginner = {e["id"] for e in client.get("/exercises?tier=beginner").json()}
-    inter = {e["id"] for e in client.get("/exercises?tier=intermediate").json()}
-    all_ex = {e["id"] for e in client.get("/exercises").json()}
+    def ids(q=""):
+        return {e["id"] for e in _all_exercise_items(client, q)}
+
+    beginner = ids("&tier=beginner")
+    inter = ids("&tier=intermediate")
+    all_ex = ids()
     assert beginner < inter <= all_ex
-    assert all(e["difficulty"] == "beginner" for e in client.get("/exercises?tier=beginner").json())
+    assert all(e["difficulty"] == "beginner"
+               for e in _all_exercise_items(client, "&tier=beginner"))
     assert all(e["difficulty"] in {"beginner", "intermediate"}
-               for e in client.get("/exercises?tier=intermediate").json())
+               for e in _all_exercise_items(client, "&tier=intermediate"))
 
 
 def test_exercises_unknown_tier_is_422(client):
@@ -48,8 +67,49 @@ def test_exercises_unknown_tier_is_422(client):
 
 
 def test_exercises_source_filter(client):
-    curated = client.get("/exercises?source=curated").json()
-    assert curated and all(e["source"] == "curated" for e in curated)
+    body = client.get("/exercises?source=curated&limit=500").json()
+    assert body["items"] and all(e["source"] == "curated" for e in body["items"])
+    assert body["total"] == len(body["items"])
+
+
+def test_exercises_pagination_walks_the_set(client):
+    full = client.get("/exercises?limit=500").json()
+    total = full["total"]
+    assert total > 10
+
+    p1 = client.get("/exercises?limit=10&offset=0").json()
+    assert p1["limit"] == 10 and p1["offset"] == 0 and p1["total"] == total
+    assert len(p1["items"]) == 10
+
+    p2 = client.get("/exercises?limit=10&offset=10").json()
+    assert [e["id"] for e in p1["items"]] != [e["id"] for e in p2["items"]]
+    assert {e["id"] for e in p1["items"]}.isdisjoint({e["id"] for e in p2["items"]})
+
+
+def test_exercises_default_limit_is_100(client):
+    body = client.get("/exercises").json()
+    assert body["limit"] == 100
+    assert len(body["items"]) == min(100, body["total"])
+
+
+def test_exercises_limit_out_of_bounds_is_422(client):
+    assert client.get("/exercises?limit=0").status_code == 422
+    assert client.get("/exercises?limit=99999").status_code == 422
+
+
+def test_exercises_summary_cache_busts_on_admin_write(client, admin_headers):
+    before = client.get("/exercises?limit=500").json()["total"]
+    body = {
+        "title": "Cache bust probe", "language": "python",
+        "defect_class": "logic", "difficulty": "beginner",
+        "filename": "snippet.py", "code": "def f():\n    return 1\n",
+        "real_lines": [], "fix_diff": "", "reference": "", "hints": [],
+        "review_status": "approved",
+    }
+    r = client.post("/admin/exercises", headers=admin_headers, json=body)
+    assert r.status_code == 201, r.text
+    after = client.get("/exercises?limit=500").json()["total"]
+    assert after == before + 1
 
 
 def test_exercise_file_hides_answers(client):
@@ -616,15 +676,15 @@ def test_admin_exercises_reports_reflected(client, admin_headers):
 # --- admin write path (Postgres overlay) ----------------------
 def test_admin_review_status_persists_and_gates_listings(client, admin_headers):
     # reject a generated exercise -> it drops from the public listing
-    assert "ex-g0002" in {e["id"] for e in client.get("/exercises").json()}
+    assert "ex-g0002" in {e["id"] for e in _all_exercise_items(client)}
     r = client.post("/admin/exercises/ex-g0002/review", headers=admin_headers, json={"status": "rejected", "note": "wrong fix"})
     assert r.status_code == 200 and r.json()["review_status"] == "rejected"
-    assert "ex-g0002" not in {e["id"] for e in client.get("/exercises").json()}
+    assert "ex-g0002" not in {e["id"] for e in _all_exercise_items(client)}
     # still resolvable by id
     assert client.get("/exercises/ex-g0002").status_code == 200
     # approve it back
     client.post("/admin/exercises/ex-g0002/review", headers=admin_headers, json={"status": "approved"})
-    assert "ex-g0002" in {e["id"] for e in client.get("/exercises").json()}
+    assert "ex-g0002" in {e["id"] for e in _all_exercise_items(client)}
 
 
 def test_admin_create_edit_delete_exercise(client, admin_headers):
@@ -640,7 +700,7 @@ def test_admin_create_edit_delete_exercise(client, admin_headers):
     assert exid.startswith("adm-")
 
     # it shows up everywhere the effective set is used
-    assert exid in {e["id"] for e in client.get("/exercises").json()}
+    assert exid in {e["id"] for e in _all_exercise_items(client)}
     f = client.get(f"/exercises/{exid}").json()
     assert f["title"] == "Admin-made injection" and "real_lines" not in f
     full = client.get(f"/admin/exercises/{exid}", headers=admin_headers).json()
@@ -835,7 +895,7 @@ def test_report_hides_exercise_after_three_distinct_sessions(client):
     r = client.post(f"/exercises/{xid}/report", json={"session_id": "c", "reason": "bad"}).json()
     assert r["reports"] == 3 and r["hidden"] is True
     # gone from the listing
-    assert xid not in {e["id"] for e in client.get("/exercises").json()}
+    assert xid not in {e["id"] for e in _all_exercise_items(client)}
     # still resolvable by id (in-progress attempt)
     assert client.get(f"/exercises/{xid}").status_code == 200
     assert client.post("/grade", json={

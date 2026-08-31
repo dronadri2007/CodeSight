@@ -70,6 +70,11 @@ _EXERCISES = _load()
 # invalidate() after every write.
 _EFFECTIVE: dict[str, dict] | None = None
 
+# Memoised ExerciseSummary lists, keyed by (tier, source, reviewed_only). The
+# ~1018 Pydantic models are built once per key; hidden/reported filtering and
+# the limit/offset slice happen per-request on a copy. Cleared by invalidate().
+_SUMMARY_CACHE: dict[tuple, list[ExerciseSummary]] = {}
+
 
 def _load_overrides() -> list:
     try:
@@ -127,9 +132,10 @@ def _effective() -> dict[str, dict]:
 
 
 def invalidate() -> None:
-    """Drop the effective-set cache — call after any admin write."""
+    """Drop the effective-set + summary caches — call after any admin write."""
     global _EFFECTIVE
     _EFFECTIVE = None
+    _SUMMARY_CACHE.clear()
 
 
 def _line_count(code: str) -> int:
@@ -148,16 +154,17 @@ def _summary(r: dict) -> ExerciseSummary:
     )
 
 
-def list_summaries(
-    tier: str | None = None,
-    source: str | None = None,
-    hidden_ids: set[str] | None = None,
-    reviewed_only: bool = False,
+def _summaries_for(
+    tier: str | None, source: str | None, reviewed_only: bool
 ) -> list[ExerciseSummary]:
-    """`tier` is cumulative — tier="intermediate" returns beginner + intermediate.
-    `source` filters to exactly that pool. `hidden_ids` are excluded (reported).
-    Exercises a reviewer marked "rejected" are always excluded; `reviewed_only`
-    additionally drops anything not yet "approved"."""
+    """Memoised ExerciseSummary list for a (tier, source, reviewed_only) key.
+    Cache lookup happens before validation, so an invalid key re-validates (and
+    raises) every call rather than being cached. Never mutate the returned list."""
+    key = (tier, source, reviewed_only)
+    cached = _SUMMARY_CACHE.get(key)
+    if cached is not None:
+        return cached
+
     allowed = None
     if tier is not None:
         if tier not in TIER_ORDER:
@@ -165,16 +172,41 @@ def list_summaries(
         allowed = set(TIER_ORDER[: TIER_ORDER.index(tier) + 1])
     if source is not None and source not in ("curated", "generated"):
         raise HTTPException(status_code=422, detail="unknown source")
-    hidden = hidden_ids or set()
-    return [
+
+    built = [
         _summary(r)
         for r in _effective().values()
-        if r["id"] not in hidden
-        and r.get("review_status") != "rejected"
+        if r.get("review_status") != "rejected"
         and (not reviewed_only or r.get("review_status") == "approved")
         and (allowed is None or r["difficulty"] in allowed)
         and (source is None or r["source"] == source)
     ]
+    _SUMMARY_CACHE[key] = built
+    return built
+
+
+def list_summaries(
+    tier: str | None = None,
+    source: str | None = None,
+    hidden_ids: set[str] | None = None,
+    reviewed_only: bool = False,
+    limit: int | None = None,
+    offset: int = 0,
+) -> tuple[list[ExerciseSummary], int]:
+    """Returns (page, total). `total` is the count after tier/source/hidden/
+    reviewed filters, before the limit/offset slice. `limit=None` -> no slice.
+
+    `tier` is cumulative — tier="intermediate" returns beginner + intermediate.
+    `source` filters to exactly that pool. `hidden_ids` are excluded (reported).
+    Exercises a reviewer marked "rejected" are always excluded; `reviewed_only`
+    additionally drops anything not yet "approved"."""
+    built = _summaries_for(tier, source, reviewed_only)
+    hidden = hidden_ids or set()
+    filtered = [s for s in built if s.id not in hidden] if hidden else built
+    total = len(filtered)
+    if limit is None:
+        return list(filtered), total
+    return filtered[offset : offset + limit], total
 
 
 def review_counts() -> dict[str, int]:

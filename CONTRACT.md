@@ -19,31 +19,44 @@ Response 200: `{ "ok": true }`
 
 ## GET /exercises
 
-List of exercises, metadata only — no answer data.
+Paginated list of exercises, metadata only — no answer data.
 
-Query params (optional):
-- `tier` = `beginner` | `intermediate` | `pro` — **cumulative** gate:
-  `tier=intermediate` returns beginner + intermediate. Unknown value → 422.
-- `source` = `curated` | `generated` — filter to exactly that pool.
+    GET /exercises?tier=&source=&limit=&offset=
+      tier    : beginner|intermediate|pro (cumulative)   optional
+      source  : curated|generated                        optional
+      limit   : 1..500, default 100                      optional
+      offset  : >=0, default 0                           optional
+      -> 200 { "items": [ExerciseSummary], "total": int, "limit": int, "offset": int }
+         422 on unknown tier/source or out-of-range limit
+
+- `tier` is a **cumulative** gate: `tier=intermediate` returns beginner +
+  intermediate.
+- `source` filters to exactly that pool: `curated` (human-reviewed) or
+  `generated` (LLM, unvalidated).
+- `total` is the count after all filters (tier/source/hidden), before the
+  `limit`/`offset` slice.
 
 Exercises reported by 3+ distinct sessions are omitted (see
 `POST /exercises/{id}/report`).
 
 Response 200:
 
-    [
-      {
-        "id": "ex-001",
-        "language": "python",
-        "title": "User lookup by email",
-        "defect_class": "injection",
-        "line_count": 3,
-        "difficulty": "beginner",
-        "source": "curated"
-      }
-    ]
-
-- `source`: `curated` (human-reviewed) or `generated` (LLM, unvalidated).
+    {
+      "items": [
+        {
+          "id": "ex-001",
+          "language": "python",
+          "title": "User lookup by email",
+          "defect_class": "injection",
+          "line_count": 3,
+          "difficulty": "beginner",
+          "source": "curated"
+        }
+      ],
+      "total": 1018,
+      "limit": 100,
+      "offset": 0
+    }
 
 ---
 

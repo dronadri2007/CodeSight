@@ -53,7 +53,7 @@ from app.schemas import (
     Concept,
     ConceptSummary,
     ExerciseFile,
-    ExerciseSummary,
+    ExerciseList,
     GradeRequest,
     GradeResponse,
     HintResponse,
@@ -207,18 +207,25 @@ def debug(probe: bool = False):
     }
 
 
-@app.get("/exercises", response_model=list[ExerciseSummary])
+@app.get("/exercises", response_model=ExerciseList)
 def list_exercises(
     tier: str | None = None,
     source: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
     """`tier` gates cumulatively (beginner -> +intermediate -> +pro).
-    `source=curated` hides generated exercises. Exercises reported by 3+
-    sessions are omitted."""
-    return ex.list_summaries(
-        tier=tier, source=source, hidden_ids=reports.hidden_exercise_ids(db)
+    `source=curated|generated` filters the pool. Exercises reported by 3+
+    sessions are omitted. Paginated: `limit` 1..500 (default 100), `offset`>=0."""
+    items, total = ex.list_summaries(
+        tier=tier,
+        source=source,
+        hidden_ids=reports.hidden_exercise_ids(db),
+        limit=limit,
+        offset=offset,
     )
+    return ExerciseList(items=items, total=total, limit=limit, offset=offset)
 
 
 @app.get("/exercises/{exercise_id}", response_model=ExerciseFile)

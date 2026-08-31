@@ -17,6 +17,7 @@ def _reload_with_sidecar(tmp_path, monkeypatch, mapping):
     monkeypatch.setattr(ex, "_EXERCISES", loaded)
     monkeypatch.setattr(ex, "_EFFECTIVE", None)
     monkeypatch.setattr(ex, "_load_overrides", lambda: [])
+    ex._SUMMARY_CACHE.clear()  # drop any summary memo built from the real set
     return loaded
 
 
@@ -33,7 +34,8 @@ def test_rejected_is_hidden_from_listings(tmp_path, monkeypatch):
     monkeypatch.setattr(ex, "_EXERCISES", loaded)
 
     assert loaded[victim]["review_status"] == "rejected"
-    assert victim not in {s.id for s in ex.list_summaries()}
+    items, _ = ex.list_summaries()
+    assert victim not in {s.id for s in items}
     # still resolvable by id for an in-progress attempt
     assert ex.get_answer(victim)["id"] == victim
 
@@ -53,8 +55,8 @@ def test_reviewed_only_excludes_unreviewed(tmp_path, monkeypatch):
     loaded = _reload_with_sidecar(tmp_path, monkeypatch, {})
     monkeypatch.setattr(ex, "_EXERCISES", loaded)
 
-    everything = ex.list_summaries()
-    approved = ex.list_summaries(reviewed_only=True)
+    everything, _ = ex.list_summaries()
+    approved, _ = ex.list_summaries(reviewed_only=True)
     assert len(approved) < len(everything)
     assert all(ex._EXERCISES[s.id]["review_status"] == "approved" for s in approved)
 
