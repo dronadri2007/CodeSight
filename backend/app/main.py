@@ -20,6 +20,8 @@ import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
 
 from app import admin as adm
@@ -84,6 +86,7 @@ from app.schemas import (
 )
 
 from app.logging import configure_logging
+from app.ratelimit import limiter
 
 configure_logging()
 log = structlog.get_logger("codesight")
@@ -116,6 +119,16 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="CodeSight API", lifespan=lifespan)
+
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limited(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"detail": "rate limit exceeded"})
+
+
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -168,11 +181,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/")
+@limiter.exempt
 def root():
     return {"service": "codesight-api", "docs": "/docs", "health": "/health"}
 
 
 @app.get("/health")
+@limiter.exempt
 def health():
     return {"ok": True}
 
@@ -369,7 +384,8 @@ def leaderboard(
 # needs `Authorization: Bearer <token>`. Whole surface is 503 if ADMIN_PASSWORD
 # is unset. Writes are a Postgres overlay on the committed exercise JSON.
 @app.post("/admin/login", response_model=AdminToken)
-def admin_login(req: AdminLoginRequest):
+@limiter.limit("5/minute")
+def admin_login(request: Request, req: AdminLoginRequest):
     if not adminauth.admin_enabled():
         raise HTTPException(status_code=503, detail="admin API disabled (ADMIN_PASSWORD unset)")
     if not adminauth.check_password(req.password):

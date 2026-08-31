@@ -20,6 +20,16 @@ from app.main import app  # NB: `app` here is the FastAPI instance, not the pack
 TEST_ADMIN_PW = "test-admin-pw"
 
 
+@pytest.fixture(autouse=True)
+def _disable_rate_limit():
+    from app.ratelimit import limiter
+
+    prev = limiter.enabled
+    limiter.enabled = False
+    yield
+    limiter.enabled = prev
+
+
 @pytest.fixture(autouse=True, scope="session")
 def _no_real_gemini():
     """Force the grader/reviewer fallback path even if a real GEMINI_API_KEY is
