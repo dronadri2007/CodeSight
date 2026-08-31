@@ -20,7 +20,7 @@
 - **`useAuth()` compatibility:** every member the current `src/contexts/AuthContext.tsx` exposes must still exist after the rewrite (see spec §3). `login`'s signature changes from `login(name: string)` to `login(email: string, password: string)` — the full-frontend `tsc` sweep (Task 9) fixes every caller.
 - **No backend changes.** `firestore.rules` (repo root) IS edited here; re-publishing it in the Firebase console is a human step (Task 8 note).
 - **Do not** replace `wouter`, restructure the shader/three.js code, or do any visual redesign. A is data-layer + auth only: it touches `src/api/*`, `src/lib/*`, `src/contexts/AuthContext.tsx`, `src/lib/profile.ts` (new), `src/components/auth/*` (new), `src/components/AuthModal.tsx`, `src/pages/AuthLandingPage.tsx`, `src/App.tsx`, `firestore.rules`.
-- **Verification (every task that changes `.ts/.tsx`):** `npx tsc --noEmit` from `frontend/` must be clean before commit. The final tasks add `npx vite build` and a browser walkthrough.
+- **Verification (CORRECTED — the plan's original `npx tsc --noEmit` is a no-op in this repo: root `tsconfig.json` is a solution file with `files:[]`):** the real type-check is **`npx tsc -b`** from `frontend/`. The real bundle gate is **`npx vite build`**. Both are run from `frontend/` after `npm install` (done). Task 4B repairs the pre-existing build breakage; from Task 4B onward every `.ts/.tsx` task ends with `npx tsc -b` (only the 2 known transient `login()` TS2554 errors in `AuthModal.tsx` / `AuthLandingPage.tsx` are allowed until Tasks 5–6 clear them) and, where a task touches build config or many files, `npx vite build` → `✓ built`.
 - **`.env.local`** (gitignored, already present in `frontend/`) has `VITE_API_BASE_URL` (Railway) + all six `VITE_FIREBASE_*` — so `USE_MOCK` is false and `firebaseReady` is true locally. Do not commit `.env.local`.
 - **Commits:** prefix every git command with `git -c gc.auto=0`. End every commit message with:
   ```
@@ -584,6 +584,102 @@ Claude-Session: https://claude.ai/code/session_012181wrtyfEbJnMnUFrsZEn
 EOF
 )"
 ```
+
+---
+
+## Task 4B: Repair the frontend build + clear the pre-existing TS wall
+
+**Why this exists:** the teammate's `adb1697` frontend has never built. `npx vite build` fails on a Tailwind v3/v4 mismatch, and `npx tsc -b` reports ~35 errors, ~27 of them pre-existing generator cruft. Sub-project A's Task 10 (walkthrough) and every later sub-project need a buildable, type-clean base. The user chose "fix everything".
+
+**Files:**
+- Modify: `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.app.json`, `frontend/tsconfig.node.json`, `frontend/src/index.css` (only if a v4 migration needs a tweak)
+- Create: `frontend/src/vite-env.d.ts`
+- Delete: `frontend/src/components/Map.tsx`, `frontend/src/const.ts`, `frontend/src/components/ManusDialog.tsx`, `frontend/src/pages/NotFound.tsx`
+- Rename (case-only, via `git mv` two-step): `frontend/src/components/ui/Button.tsx` → `button.tsx`, `Card.tsx` → `card.tsx`, `Badge.tsx` → `badge.tsx`
+- Delete: `frontend/postcss.config.js`, `frontend/tailwind.config.js` (Tailwind v4 is CSS-first, no JS config)
+
+**Interfaces:**
+- Produces: a frontend where `npx vite build` → `✓ built` and `npx tsc -b` → **only** the 2 known transient `login()` TS2554 errors (`src/components/AuthModal.tsx`, `src/pages/AuthLandingPage.tsx`), which Tasks 5–6 clear.
+
+- [ ] **Step 1: Migrate Tailwind v3 → v4**
+
+`src/index.css` is already pure v4 (`@import "tailwindcss";`, `@import "tw-animate-css";`, `@custom-variant dark (…)`, `@theme inline { … }`). Align the toolchain to it:
+- `cd frontend && npm install -D tailwindcss@^4 @tailwindcss/vite@^4` (the repo already lists `@tailwindcss/vite@^4.1.3`).
+- `npm remove tailwindcss-animate autoprefixer postcss` — v4 bundles autoprefixing; `tw-animate-css` (already a dep) is the v4 animation lib.
+- Delete `frontend/postcss.config.js` and `frontend/tailwind.config.js`.
+- In `frontend/vite.config.ts`, add the plugin:
+  ```ts
+  import tailwindcss from '@tailwindcss/vite'
+  // ...
+  plugins: [react(), tailwindcss()],
+  ```
+- If anything renders `prose` classes (grep `src/` for `"prose`), add `@plugin "@tailwindcss/typography";` after the `@import` lines in `src/index.css` and keep `@tailwindcss/typography` in devDeps; otherwise `npm remove @tailwindcss/typography`.
+- Run `npx vite build`. If v4 chokes on a specific `@theme` / `@apply` line, fix that line per the v4 upgrade guide (minimal edit) and note it in the report. Do **not** restyle anything.
+
+- [ ] **Step 2: `src/vite-env.d.ts`**
+
+Create `frontend/src/vite-env.d.ts` containing exactly:
+```ts
+/// <reference types="vite/client" />
+```
+This types `import.meta.env` — clears the TS2339 `Property 'env' does not exist on type 'ImportMeta'` errors in `src/api/client.ts`, `src/api/admin.ts`, `src/lib/firebase.ts` (and the pre-existing ones once the dead files below are gone).
+
+- [ ] **Step 3: `tsconfig.app.json` — ES2022**
+
+Change `"target": "ES2020"` → `"target": "ES2022"` and `"lib": ["ES2020", "DOM", "DOM.Iterable"]` → `"lib": ["ES2022", "DOM", "DOM.Iterable"]`. Clears the 14 `TS2550: Property 'replaceAll' does not exist` errors in `src/data/codesight.ts` and `src/shaders/**`.
+
+- [ ] **Step 4: `tsconfig.node.json` — drop the unknown option**
+
+Remove the `"erasableSyntaxOnly": true` line (TS 5.8+ only; this repo pins `typescript@5.6.3`). That's the `TS5023` error.
+
+- [ ] **Step 5: Delete dead generator scaffold**
+
+`grep -rn` confirmed zero importers for each:
+```bash
+git -c gc.auto=0 rm frontend/src/components/Map.tsx frontend/src/const.ts frontend/src/components/ManusDialog.tsx frontend/src/pages/NotFound.tsx
+```
+(`App.tsx` has its own local `NotFound` function — the `src/pages/NotFound.tsx` file is unrelated and unused.) This removes the `@types/google.maps` / `google` namespace / `@shared/const` errors and 2 of the casing-collision importers.
+
+- [ ] **Step 6: Normalise the `ui/` filename casing**
+
+`src/components/ui/` has `Button.tsx` / `Card.tsx` / `Badge.tsx` (capitalised) while 6 live sibling files import them lowercase (`@/components/ui/button` etc.), which trips `TS1149` / `TS1261` on the case-insensitive filesystem. Rename the three files to lowercase and fix any capital-case importer:
+```bash
+cd frontend
+git -c gc.auto=0 mv src/components/ui/Button.tsx src/components/ui/button.tsx.tmp && git -c gc.auto=0 mv src/components/ui/button.tsx.tmp src/components/ui/button.tsx
+git -c gc.auto=0 mv src/components/ui/Card.tsx src/components/ui/card.tsx.tmp && git -c gc.auto=0 mv src/components/ui/card.tsx.tmp src/components/ui/card.tsx
+git -c gc.auto=0 mv src/components/ui/Badge.tsx src/components/ui/badge.tsx.tmp && git -c gc.auto=0 mv src/components/ui/badge.tsx.tmp src/components/ui/badge.tsx
+```
+Then `grep -rn "components/ui/Button\|components/ui/Card\|components/ui/Badge" src/` and lowercase any hits. (The known live importers already use lowercase; the two files that imported them and are being deleted in Step 5 don't matter.)
+
+- [ ] **Step 7: Verify**
+
+From `frontend/`:
+- `npx tsc -b` → the ONLY remaining errors are `src/components/AuthModal.tsx` + `src/pages/AuthLandingPage.tsx` `TS2554: Expected 2 arguments, but got 1` (the `login()` calls — Tasks 5–6 fix). If any other error remains, fix it (it's in scope for "fix everything") or, if it's a genuine rabbit hole, report it as `DONE_WITH_CONCERNS` with the specifics.
+- `npx vite build` → `✓ built`.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git -c gc.auto=0 add -A frontend
+git -c gc.auto=0 commit -m "$(cat <<'EOF'
+fix(fe-a): repair the frontend build + clear the pre-existing TS wall
+
+Tailwind v3->v4 (CSS was already v4; align toolchain: @tailwindcss/vite
+plugin, drop postcss.config.js + tailwind.config.js + autoprefixer +
+tailwindcss-animate). Add src/vite-env.d.ts for import.meta.env types.
+tsconfig.app lib/target ES2020->ES2022 (replaceAll). Drop
+erasableSyntaxOnly from tsconfig.node. Delete dead generator scaffold
+(Map.tsx, const.ts, ManusDialog.tsx, pages/NotFound.tsx). Lowercase
+ui/Button|Card|Badge to match their importers. `vite build` green;
+`tsc -b` down to the 2 transient login() errors Tasks 5-6 resolve.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_012181wrtyfEbJnMnUFrsZEn
+EOF
+)"
+```
+
+- [ ] **Step 9: Report** — `npx tsc -b` final error list, `npx vite build` result, every config change, every deleted/renamed file, any `@theme`/`@apply` line the v4 migration needed, concerns.
 
 ---
 
