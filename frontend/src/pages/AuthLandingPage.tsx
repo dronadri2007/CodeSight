@@ -10,7 +10,8 @@ import { ArrowRight, Key } from 'lucide-react';
 
 export default function AuthLandingPage() {
   const [, setLocation] = useLocation();
-  const { login } = useAuth();
+  const { login, signup, loginWithProvider, error, pending } = useAuth();
+  const [localError, setLocalError] = useState<string | null>(null);
 
   // Auth Mode State (login | signup)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>(() => {
@@ -40,11 +41,44 @@ export default function AuthLandingPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [activeDefectClass, setActiveDefectClass] = useState<string | null>(null);
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const redirectAfterAuth = () => {
+    let next = '/home';
+    try {
+      next = sessionStorage.getItem('codesight_next') || '/home';
+      sessionStorage.removeItem('codesight_next');
+    } catch {
+      /* storage disabled — fall through to /home */
+    }
+    setLocation(next);
+  };
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const displayName = name || (email ? email.split('@')[0] : 'Alex Morgan');
-    login(displayName);
-    setLocation('/dashboard');
+    setLocalError(null);
+    try {
+      if (authMode === 'signup') {
+        if (password !== confirmPassword) {
+          setLocalError('Passwords do not match.');
+          return;
+        }
+        await signup(email, password, name || email.split('@')[0]);
+      } else {
+        await login(email, password);
+      }
+      redirectAfterAuth();
+    } catch {
+      /* context `error` is rendered inline */
+    }
+  };
+
+  const handleProvider = async (provider: 'google' | 'github') => {
+    setLocalError(null);
+    try {
+      await loginWithProvider(provider);
+      redirectAfterAuth();
+    } catch {
+      /* context `error` is rendered inline */
+    }
   };
 
   const defectClassesList = [
@@ -187,15 +221,48 @@ export default function AuthLandingPage() {
                   </div>
                 )}
 
+                {(localError || error) ? (
+                  <p className="text-[#FCA5A5] text-xs font-bold">{localError || error}</p>
+                ) : null}
+
                 <div className="pt-2">
                   <LiquidMetalCTA
-                    text={authMode === 'login' ? 'LOG IN →' : 'CREATE ACCOUNT →'}
+                    text={
+                      pending
+                        ? (authMode === 'login' ? 'SIGNING IN…' : 'CREATING ACCOUNT…')
+                        : (authMode === 'login' ? 'LOG IN →' : 'CREATE ACCOUNT →')
+                    }
                     icon="arrow"
                     size="md"
                     className="w-full justify-center"
                   />
                 </div>
               </form>
+
+              <div className="mt-4 flex items-center gap-3 font-mono text-[10px] uppercase text-[#746D61]">
+                <span className="h-px flex-1 bg-[#D8D0C0]" />
+                or
+                <span className="h-px flex-1 bg-[#D8D0C0]" />
+              </div>
+
+              <div className="mt-4 grid gap-2 font-mono text-xs">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => handleProvider('google')}
+                  className="w-full rounded-lg border border-[#D8D0C0] bg-[#F8F5EC] py-2.5 px-3 font-bold text-[#17130F] transition-colors hover:border-[#17130F] disabled:opacity-60"
+                >
+                  Continue with Google
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => handleProvider('github')}
+                  className="w-full rounded-lg border border-[#D8D0C0] bg-[#F8F5EC] py-2.5 px-3 font-bold text-[#17130F] transition-colors hover:border-[#17130F] disabled:opacity-60"
+                >
+                  Continue with GitHub
+                </button>
+              </div>
 
               <div className="mt-6 text-center font-mono text-xs text-[#746D61]">
                 {authMode === 'login' ? (
