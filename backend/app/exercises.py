@@ -89,7 +89,7 @@ def _load_overrides() -> list:
                     "data": o.data or {},
                     "review_status": o.review_status or "",
                 }
-                for o in db.query(ExerciseOverride).all()
+                for o in db.query(ExerciseOverride).order_by(ExerciseOverride.id).all()
             ]
     except Exception:  # DB not ready / table absent — no overrides
         return []
@@ -159,7 +159,9 @@ def _summaries_for(
 ) -> list[ExerciseSummary]:
     """Memoised ExerciseSummary list for a (tier, source, reviewed_only) key.
     Cache lookup happens before validation, so an invalid key re-validates (and
-    raises) every call rather than being cached. Never mutate the returned list."""
+    raises) every call rather than being cached. Never mutate the returned list
+    or its elements — the ExerciseSummary objects are shared across requests via
+    the memo."""
     key = (tier, source, reviewed_only)
     cached = _SUMMARY_CACHE.get(key)
     if cached is not None:
@@ -195,6 +197,7 @@ def list_summaries(
 ) -> tuple[list[ExerciseSummary], int]:
     """Returns (page, total). `total` is the count after tier/source/hidden/
     reviewed filters, before the limit/offset slice. `limit=None` -> no slice.
+    A negative `offset` is clamped to 0.
 
     `tier` is cumulative — tier="intermediate" returns beginner + intermediate.
     `source` filters to exactly that pool. `hidden_ids` are excluded (reported).
@@ -206,6 +209,7 @@ def list_summaries(
     total = len(filtered)
     if limit is None:
         return list(filtered), total
+    offset = max(0, offset)
     return filtered[offset : offset + limit], total
 
 

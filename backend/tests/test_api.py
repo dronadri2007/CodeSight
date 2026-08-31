@@ -34,9 +34,8 @@ def test_debug_shape(client, admin_headers):
 
 # --- /exercises ---------------------------------------------------------
 def test_exercise_list_has_no_answer_fields(client):
-    body = client.get("/exercises?limit=500").json()
-    items = body["items"]
-    assert body["total"] >= 3
+    assert client.get("/exercises?limit=1").json()["total"] >= 3
+    items = _all_exercise_items(client)
     assert len(items) >= 3
     for it in items:
         assert set(it) == {
@@ -84,6 +83,9 @@ def test_exercises_pagination_walks_the_set(client):
     p2 = client.get("/exercises?limit=10&offset=10").json()
     assert [e["id"] for e in p1["items"]] != [e["id"] for e in p2["items"]]
     assert {e["id"] for e in p1["items"]}.isdisjoint({e["id"] for e in p2["items"]})
+    # pages are the actual contiguous slices of the ordered set
+    assert p1["items"] == full["items"][0:10]
+    assert p2["items"] == full["items"][10:20]
 
 
 def test_exercises_default_limit_is_100(client):

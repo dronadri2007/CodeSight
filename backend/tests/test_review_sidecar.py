@@ -4,7 +4,21 @@ so the on-disk review file and the module global are untouched.
 """
 import json
 
+import pytest
+
 from app import exercises as ex
+
+
+@pytest.fixture(autouse=True)
+def _clear_summary_memo():
+    """Symmetric bookend: a summary list built from the monkeypatched
+    _EXERCISES here must not survive into the real-set world (entry) or leak
+    into the next test (exit)."""
+    ex._SUMMARY_CACHE.clear()
+    try:
+        yield
+    finally:
+        ex._SUMMARY_CACHE.clear()
 
 
 def _reload_with_sidecar(tmp_path, monkeypatch, mapping):

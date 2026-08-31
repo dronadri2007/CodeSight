@@ -27,7 +27,7 @@ Paginated list of exercises, metadata only — no answer data.
       limit   : 1..500, default 100                      optional
       offset  : >=0, default 0                           optional
       -> 200 { "items": [ExerciseSummary], "total": int, "limit": int, "offset": int }
-         422 on unknown tier/source or out-of-range limit
+         422 on unknown tier/source or out-of-range limit/offset
 
 - `tier` is a **cumulative** gate: `tier=intermediate` returns beginner +
   intermediate.
@@ -35,6 +35,9 @@ Paginated list of exercises, metadata only — no answer data.
   `generated` (LLM, unvalidated).
 - `total` is the count after all filters (tier/source/hidden), before the
   `limit`/`offset` slice.
+- Items are returned in a **stable order** — JSON-base insertion order, then
+  admin-created exercises by id — so successive `offset` pages compose without
+  gaps or duplicates.
 
 Exercises reported by 3+ distinct sessions are omitted (see
 `POST /exercises/{id}/report`).
@@ -53,7 +56,7 @@ Response 200:
           "source": "curated"
         }
       ],
-      "total": 1018,
+      "total": <n>,
       "limit": 100,
       "offset": 0
     }
