@@ -124,7 +124,10 @@ app.state.limiter = limiter
 
 
 @app.exception_handler(RateLimitExceeded)
-async def _rate_limited(request: Request, exc: RateLimitExceeded):
+def _rate_limited(request: Request, exc: RateLimitExceeded):
+    # Sync on purpose: slowapi's SlowAPIMiddleware.sync_check_limits discards a
+    # coroutine handler and falls back to its own default body. A plain
+    # JSONResponse awaits nothing, so sync is correct on both dispatch paths.
     return JSONResponse(status_code=429, content={"detail": "rate limit exceeded"})
 
 
