@@ -31,6 +31,8 @@ from app.config import (
     ALLOWED_ORIGIN_REGEX,
     ALLOWED_ORIGINS,
     DB_IS_SQLITE,
+    FIREBASE_SERVICE_ACCOUNT_JSON,
+    GEMINI_API_KEY,
     GRADER_MODEL,
 )
 from app.db import get_db, init_db
@@ -94,10 +96,22 @@ init_db()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
     init_db()
-    if DB_IS_SQLITE:
-        log.warning("sqlite_fallback", detail="DATABASE_URL unset — local SQLite file (dev only)")
-    log.info("grader_model", model=GRADER_MODEL)
+    from app import firebaseauth
+
+    log.info(
+        "startup",
+        db="sqlite" if DB_IS_SQLITE else "postgres",
+        grader_model=GRADER_MODEL,
+        gemini_key=bool(GEMINI_API_KEY),
+        firebase=bool(FIREBASE_SERVICE_ACCOUNT_JSON),
+        admin_api=adminauth.admin_enabled(),
+        cors_origins=ALLOWED_ORIGINS,
+        cors_regex=bool(ALLOWED_ORIGIN_REGEX),
+    )
+    log.info("grader_probe", **diagnostics(run_probe=False))
+    log.info("firebase_probe", **firebaseauth.status())
     yield
 
 

@@ -52,3 +52,12 @@ def test_grade_signed_in_writes_profile(client, monkeypatch):
         assert isinstance(kw["passed"], bool)
     finally:
         app.dependency_overrides.pop(maybe_user, None)
+
+
+def test_firebase_status_shape_when_unconfigured():
+    from app import firebaseauth
+
+    s = firebaseauth.status()
+    assert set(s) == {"configured", "initialised"}
+    assert s["configured"] is False
+    assert s["initialised"] is False

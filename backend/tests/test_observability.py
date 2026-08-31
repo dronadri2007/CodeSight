@@ -40,3 +40,15 @@ def test_unhandled_exception_returns_json_envelope(noraise_client):
         app.router.routes = [
             rt for rt in app.router.routes if getattr(rt, "path", None) != "/_boom"
         ]
+
+
+def test_startup_emits_config_summary(capsys):
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    with TestClient(app):
+        pass
+    out = capsys.readouterr().out
+    assert "startup" in out
+    assert "grader_probe" in out
+    assert "firebase_probe" in out

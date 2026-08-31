@@ -11,14 +11,14 @@ may raise a user's XP, rank or catch-rate.
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
 
+import structlog
 from fastapi import Header
 
 from app.config import FIREBASE_SERVICE_ACCOUNT_JSON
 
-log = logging.getLogger("codesight.firebase")
+log = structlog.get_logger("codesight.firebase")
 
 _app = None
 _db = None
@@ -49,6 +49,16 @@ def _init() -> None:
 def firebase_enabled() -> bool:
     _init()
     return _db is not None
+
+
+def status() -> dict:
+    """Boot-time visibility. `configured` = env var present; `initialised` =
+    the Admin SDK actually came up. Never raises."""
+    try:
+        initialised = firebase_enabled()
+    except Exception:
+        initialised = False
+    return {"configured": bool(FIREBASE_SERVICE_ACCOUNT_JSON), "initialised": initialised}
 
 
 def verify_id_token(token: str) -> dict | None:
@@ -131,7 +141,7 @@ def record_graded_submission(
             merge=True,
         )
     except Exception:
-        log.exception("record_graded_submission failed for uid=%s", uid)
+        log.exception("record_graded_submission_failed", uid=uid)
 
 
 def record_promotion(uid: str, *, new_level: str, new_level_index: int) -> None:
@@ -151,4 +161,4 @@ def record_promotion(uid: str, *, new_level: str, new_level_index: int) -> None:
             merge=True,
         )
     except Exception:
-        log.exception("record_promotion failed for uid=%s", uid)
+        log.exception("record_promotion_failed", uid=uid)
