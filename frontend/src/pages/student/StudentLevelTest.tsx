@@ -53,7 +53,7 @@ const QUESTIONS = [
 
 export default function StudentLevelTest() {
   const navigate = useNavigate()
-  const { setStudentLevel, setSelectedTrack } = useAuthStore()
+  const { setStudentLevel, setSelectedTrack, setOnboarded } = useAuthStore()
   const { setFilters } = useProblemStore()
 
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -105,7 +105,8 @@ export default function StudentLevelTest() {
       mode: 'student',
       difficulty: recommendedLevel === 'Beginner' ? 'Easy' : recommendedLevel === 'Intermediate' ? 'Medium' : 'Hard',
     })
-    navigate('/student/problems')
+    setOnboarded(true)
+    navigate('/home')
   }
 
   return (

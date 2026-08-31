@@ -51,7 +51,7 @@ export default function ProDebugWorkspace() {
   }, [])
 
   useEffect(() => {
-    if (!hasPassedPromotionalTest) navigate('/pro/promotional-test')
+    if (!hasPassedPromotionalTest) navigate('/pro/entrance-test')
   }, [hasPassedPromotionalTest, navigate])
 
   useEffect(() => {

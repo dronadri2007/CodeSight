@@ -61,7 +61,7 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
     if (hasPassedPromotionalTest) {
       navigate('/pro/problems')
     } else {
-      navigate('/pro/promotional-test')
+      navigate('/pro/entrance-test')
     }
   }
 
@@ -75,7 +75,7 @@ export function Navbar({ variant = 'app' }: NavbarProps) {
       if (hasPassedPromotionalTest) {
         navigate('/pro/problems')
       } else {
-        navigate('/pro/promotional-test')
+        navigate('/pro/entrance-test')
       }
     } else {
       navigate('/problems')
