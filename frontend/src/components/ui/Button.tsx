@@ -1,55 +1,60 @@
-import { forwardRef } from 'react'
-import { clsx } from 'clsx'
-import { Loader2 } from 'lucide-react'
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-type ButtonVariant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger' | 'success' | 'outline' | 'gold'
-type ButtonSize = 'sm' | 'md' | 'lg'
+import { cn } from "@/lib/utils";
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: ButtonVariant
-  size?: ButtonSize
-  loading?: boolean
-  icon?: React.ReactNode
-  iconRight?: React.ReactNode
-  fullWidth?: boolean
-}
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-transparent shadow-xs hover:bg-accent dark:bg-transparent dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+        "icon-sm": "size-8",
+        "icon-lg": "size-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
 
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-[#E5DFC9] text-[#000000] font-bold hover:bg-[#F2EDDE] shadow-[0_2px_12px_rgba(0,0,0,0.5)] active:scale-[0.98] border border-[#E5DFC9]',
-  secondary: 'bg-[#3A2F1D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#4A3D27] hover:border-[#E5DFC9]/30 active:scale-[0.98]',
-  dark: 'bg-[#1A130D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#3A2F1D] active:scale-[0.98]',
-  outline: 'bg-transparent border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#1A130D] hover:border-[#E5DFC9]/30 active:scale-[0.98]',
-  ghost: 'text-[#E5DFC9]/75 hover:text-[#E5DFC9] hover:bg-[#1A130D] active:scale-[0.98]',
-  gold: 'bg-[#E5DFC9] text-[#000000] font-bold hover:bg-[#F2EDDE] shadow-[0_2px_12px_rgba(0,0,0,0.5)] active:scale-[0.98]',
-  danger: 'bg-[#3A2F1D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#4A3D27] active:scale-[0.98]',
-  success: 'bg-[#3A2F1D] border border-[#3A2F1D] text-[#E5DFC9] hover:bg-[#4A3D27] active:scale-[0.98]',
-}
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? Slot : "button";
 
-const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-xs gap-1.5 rounded-lg font-medium',
-  md: 'h-10 px-4 text-sm gap-2 rounded-xl font-medium',
-  lg: 'h-12 px-6 text-sm gap-2.5 rounded-xl font-semibold',
-}
-
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', loading, icon, iconRight, fullWidth, className, children, disabled, ...props }, ref) => (
-    <button
-      ref={ref}
-      disabled={disabled || loading}
-      className={clsx(
-        'inline-flex items-center justify-center transition-all duration-150 select-none cursor-pointer',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100',
-        variantStyles[variant],
-        sizeStyles[size],
-        fullWidth && 'w-full',
-        className
-      )}
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    >
-      {loading ? <Loader2 className="animate-spin" size={size === 'sm' ? 12 : 14} /> : icon}
-      {children}
-      {!loading && iconRight}
-    </button>
-  )
-)
-Button.displayName = 'Button'
+    />
+  );
+}
+
+export { Button, buttonVariants };

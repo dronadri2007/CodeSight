@@ -1,322 +1,357 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import {
-  GraduationCap, Bot, ArrowRight, Shield, Award, Flame,
-  TrendingUp, Lock, CheckCircle2, ChevronRight, Zap, Target,
-  Sparkles, Code2, AlertTriangle
-} from 'lucide-react'
-import { Navbar } from '../components/navigation/Navbar'
-import { Button } from '../components/ui/Button'
-import { Card } from '../components/ui/Card'
-import { Badge } from '../components/ui/Badge'
-import { WeaknessChart } from '../components/profile/WeaknessChart'
-import { useAuthStore } from '../store/authStore'
-import { useProblemStore } from '../store/problemStore'
-import { mockProblems } from '../mock/problems'
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'wouter';
+import { BestsellersBookShowcase } from '@/shaders/landing-pages/LandingPages';
+import { PromotionExamModal } from '@/components/PromotionExamModal';
+import { 
+  Shuffle,
+  ArrowRight,
+  GraduationCap,
+  Bot,
+  LockKeyhole,
+  CheckCircle2, 
+  Flame, 
+  Trophy, 
+  Award, 
+  Zap, 
+  Bug 
+} from 'lucide-react';
+import { phaseOneProblems, PhaseOneProblem } from '@/data/codesight';
 
-export default function HomeDashboard() {
-  const navigate = useNavigate()
-  const { user, hasPassedPromotionalTest, studentLevel, proLevel, setSelectedTrack } = useAuthStore()
-  const { setFilters } = useProblemStore()
+interface HomeDashboardProps {
+  onSelectProblem?: (problem: PhaseOneProblem, mode: 'student' | 'engineer') => void;
+}
 
-  // Find recommended problem based on lowest catch rate
-  const catchRates = user?.weaknessCatchRates || {}
-  const sortedWeaknesses = Object.entries(catchRates).sort(([, a], [, b]) => a - b)
-  const weakestClassId = sortedWeaknesses[0] ? sortedWeaknesses[0][0] : 'error-handling'
-  const recommendedProblem = mockProblems.find((p) => p.defectClassId === weakestClassId) || mockProblems[0]
+export default function HomeDashboard({ onSelectProblem }: HomeDashboardProps = {}) {
+  const [, setLocation] = useLocation();
+  const [showExam, setShowExam] = useState(false);
 
-  const handleStartStudent = () => {
-    setSelectedTrack('student')
-    setFilters({ mode: 'student' })
-    navigate('/student/problems')
-  }
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'CODESIGHT_BOOK_CLICK') {
+        const book = event.data.book;
+        if (book === 'codex') {
+          setLocation('/student/beginner');
+        } else if (book === 'claude') {
+          setLocation('/student/intermediate');
+        } else if (book === 'cursor') {
+          setLocation('/student/pro');
+        }
+      }
+    };
 
-  const handleStartPro = () => {
-    setSelectedTrack('pro')
-    setFilters({ mode: 'ai_engineer' })
-    if (hasPassedPromotionalTest) {
-      navigate('/pro/problems')
-    } else {
-      navigate('/pro/promotional-entry')
-    }
-  }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [setLocation]);
+
+  const defectClasses = [
+    {
+      title: 'Logic & Boundary Conditions',
+      detail: '(Loop invariants, off-by-one, quadratic searches)',
+      rate: '58%',
+      progress: 58,
+    },
+    {
+      title: 'Injection & Input Validation',
+      detail: '(SQL injection, command injection, unescaped params)',
+      rate: '58%',
+      progress: 58,
+    },
+    {
+      title: 'Auth & Access Control',
+      detail: '(Timing attacks, session hijacking, broken ACLs)',
+      rate: '50%',
+      progress: 50,
+    },
+    {
+      title: 'Concurrency & Race Conditions',
+      detail: '(Deadlocks, non-deterministic lock ordering)',
+      rate: '50%',
+      progress: 50,
+    },
+    {
+      title: 'Error & Exception Handling',
+      detail: '(NoneType subscript errors, swallowed exceptions)',
+      rate: '50%',
+      progress: 50,
+    },
+    {
+      title: 'Resource Leaks & Performance',
+      detail: '(Unbounded memory loads, unclosed descriptors)',
+      rate: '50%',
+      progress: 50,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#000000] text-[#E5DFC9] flex flex-col selection:bg-[#E5DFC9]/25 selection:text-[#E5DFC9]">
-      <Navbar variant="app" />
+    <div className="w-full space-y-10 pb-20 text-[#17130F]">
+      {showExam && <PromotionExamModal onClose={() => setShowExam(false)} />}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* Welcome Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#3A2F1D]">
+      {/* 1. CENTRAL DASHBOARD HEADER WITH TOP RIGHT ACTION BUTTONS */}
+      <div className="space-y-6 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span className="text-2xs font-mono uppercase tracking-widest text-[#E5DFC9]/60 block font-bold">
+            <div className="mono text-[11px] font-bold tracking-widest text-[#786F65] uppercase">
               CENTRAL DASHBOARD
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#E5DFC9] tracking-tight">
-              Welcome back, {user?.name?.split(' ')[0] || 'Afrid'}
+            </div>
+            <h1 className="display mt-1 text-3xl font-bold text-[#17130F] tracking-tight">
+              Welcome back, Prapul
             </h1>
-            <p className="text-xs text-[#E5DFC9]/70 mt-1">
+            <p className="mt-1 text-sm text-[#786F65]">
               Select your track or resume your adaptive practice recommendations.
             </p>
           </div>
 
+          {/* Top Right Action Buttons (Switch Track & View All Problems) */}
           <div className="flex items-center gap-3">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => navigate('/role-select')}
-              className="text-xs"
-              icon={<Sparkles size={13} />}
+            <button
+              onClick={() => setLocation('/ai-engineer')}
+              className="flex items-center gap-2 rounded-xl border border-[#D8D0C0] bg-[#E2DCCF] px-4 py-2.5 text-xs font-bold text-[#17130F] transition-all hover:bg-[#D8D0C0] shadow-sm"
             >
-              Switch Track
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => navigate('/problems')}
-              className="text-xs font-bold"
-              iconRight={<ArrowRight size={13} />}
+              <Shuffle size={14} />
+              <span>Switch Track</span>
+            </button>
+
+            <button
+              onClick={() => setLocation('/problems')}
+              className="flex items-center gap-2 rounded-xl bg-[#17130F] px-4 py-2.5 text-xs font-bold text-[#FFF7ED] transition-all hover:bg-[#2C241D] shadow-sm"
             >
-              View All Problems
-            </Button>
+              <span>View All Problems</span>
+              <ArrowRight size={14} />
+            </button>
           </div>
         </div>
 
-        {/* 2 Primary Track Cards: Student & AI-Assisted Professional */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Card 1: Student Track */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col"
-          >
-            <Card className="p-6 bg-[#1A130D] border-[#3A2F1D] flex-1 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-[#E5DFC9]/50 transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#000000] border border-[#3A2F1D] text-[#E5DFC9] flex items-center justify-center">
-                    <GraduationCap size={20} />
-                  </div>
-                  <Badge variant="navy" size="sm">
-                    LEVEL: {studentLevel?.toUpperCase() || 'INTERMEDIATE'}
-                  </Badge>
-                </div>
-
-                <h2 className="text-xl font-bold text-[#E5DFC9] mb-1">
-                  Student Track
-                </h2>
-                <p className="text-xs text-[#E5DFC9]/70 leading-relaxed mb-4">
-                  Build algorithmic instincts from scratch. Graded on Time Complexity ($TC$) &amp; Space Complexity ($SC$) relative to optimal bounds.
-                </p>
-
-                <div className="space-y-2 mb-6 bg-[#000000] p-3 rounded-xl border border-[#3A2F1D] text-2xs text-[#E5DFC9]/80 font-mono">
-                  <div className="flex items-center justify-between">
-                    <span>Primary Action:</span>
-                    <span className="font-bold text-[#E5DFC9] bg-[#1A130D] px-2 py-0.5 rounded border border-[#3A2F1D]">SOLVE</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Evaluator:</span>
-                    <span className="text-[#E5DFC9]">TC &amp; SC Relative Grading (50/50)</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  fullWidth
-                  size="md"
-                  variant="primary"
-                  onClick={handleStartStudent}
-                  iconRight={<ArrowRight size={14} />}
-                  className="font-bold text-xs"
-                >
-                  Continue Student Track
-                </Button>
-                <Button
-                  size="md"
-                  variant="secondary"
-                  onClick={() => navigate('/student/level-select')}
-                  className="text-xs text-[#E5DFC9]/70 hover:text-[#E5DFC9]"
-                >
-                  Level
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-
-          {/* Card 2: AI-Assisted Professional */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="flex flex-col"
-          >
-            <Card className="p-6 bg-[#1A130D] border-[#3A2F1D] flex-1 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-[#E5DFC9]/50 transition-all">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#000000] border border-[#3A2F1D] text-[#E5DFC9] flex items-center justify-center">
-                    <Bot size={20} />
-                  </div>
-                  {hasPassedPromotionalTest ? (
-                    <Badge variant="gold" size="sm">
-                      LEVEL: {proLevel?.toUpperCase() || 'BEGINNER'}
-                    </Badge>
-                  ) : (
-                    <Badge variant="danger" size="sm">
-                      PROMOTIONAL TEST REQUIRED
-                    </Badge>
-                  )}
-                </div>
-
-                <h2 className="text-xl font-bold text-[#E5DFC9] mb-1">
-                  AI-Assisted Professional
-                </h2>
-                <p className="text-xs text-[#E5DFC9]/70 leading-relaxed mb-4">
-                  Train to review, inspect, and debug AI-generated code. Graded on bug localization, explanation clarity, and false-positive avoidance.
-                </p>
-
-                {hasPassedPromotionalTest ? (
-                  <div className="space-y-2 mb-6 bg-[#000000] p-3 rounded-xl border border-[#3A2F1D] text-2xs text-[#E5DFC9]/80 font-mono">
-                    <div className="flex items-center justify-between">
-                      <span>Primary Action:</span>
-                      <span className="font-bold text-[#E5DFC9] bg-[#1A130D] px-2 py-0.5 rounded border border-[#3A2F1D]">DEBUG</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Status:</span>
-                      <span className="text-emerald-400 font-bold">Qualified Practitioner</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 mb-6 rounded-xl bg-[#000000] border border-amber-900/40 text-2xs text-amber-300/80 flex items-start gap-2">
-                    <Lock size={14} className="flex-shrink-0 mt-0.5 text-amber-400" />
-                    <span>Locked until promotional code-review assessment is cleared.</span>
-                  </div>
-                )}
-              </div>
-
-              {hasPassedPromotionalTest ? (
-                <div className="flex items-center gap-3">
-                  <Button
-                    fullWidth
-                    size="md"
-                    variant="primary"
-                    onClick={handleStartPro}
-                    iconRight={<ArrowRight size={14} />}
-                    className="font-bold text-xs"
-                  >
-                    Continue Professional Reviews
-                  </Button>
-                  <Button
-                    size="md"
-                    variant="secondary"
-                    onClick={() => navigate('/pro/level-select')}
-                    className="text-xs text-[#E5DFC9]/70 hover:text-[#E5DFC9]"
-                  >
-                    Level
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  fullWidth
-                  size="md"
-                  variant="gold"
-                  onClick={() => navigate('/pro/promotional-test')}
-                  iconRight={<ArrowRight size={14} />}
-                  className="font-bold text-xs shadow-md uppercase tracking-wider"
-                >
-                  Take Promotional Test →
-                </Button>
-              )}
-            </Card>
-          </motion.div>
+        {/* 2. 3D LEVEL SELECTION SHOWCASE (2ND PHOTO) */}
+        <div className="w-full h-[calc(100vh-140px)] min-h-[620px] overflow-hidden rounded-2xl border border-[#D8D0C0] shadow-xl">
+          <BestsellersBookShowcase
+            headingFont="iowan-old-style"
+            bodyFont="iowan-old-style"
+            headingWeight="500"
+            bodyWeight="400"
+            primaryColor="#c3a47b"
+            headingSize={325}
+            bodySize={17}
+            headingLetterSpacing={-0.085}
+            className="w-full h-full"
+          />
         </div>
 
-        {/* 3 Overview Metrics & Weakness Profile Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Stats Column */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-mono uppercase tracking-wider text-[#E5DFC9]/60 font-bold">
-              Performance Snapshot
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Card className="p-4 bg-[#1A130D] border-[#3A2F1D]">
-                <div className="flex items-center gap-2 text-2xs text-[#E5DFC9]/60 font-mono mb-1">
-                  <CheckCircle2 size={13} className="text-[#E5DFC9]" />
-                  <span>Solved</span>
-                </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.problemsSolved || 18}</p>
-                <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Exercises cleared</p>
-              </Card>
-
-              <Card className="p-4 bg-[#1A130D] border-[#3A2F1D]">
-                <div className="flex items-center gap-2 text-2xs text-[#E5DFC9]/60 font-mono mb-1">
-                  <Flame size={13} className="text-amber-400" />
-                  <span>Streak</span>
-                </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.currentStreak || 4} <span className="text-xs font-normal">days</span></p>
-                <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Consistent review</p>
-              </Card>
-
-              <Card className="p-4 bg-[#1A130D] border-[#3A2F1D]">
-                <div className="flex items-center gap-2 text-2xs text-[#E5DFC9]/60 font-mono mb-1">
-                  <Award size={13} className="text-[#E5DFC9]" />
-                  <span>Total XP</span>
-                </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">{user?.totalXP || 2847}</p>
-                <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Score accumulated</p>
-              </Card>
-
-              <Card className="p-4 bg-[#1A130D] border-[#3A2F1D]">
-                <div className="flex items-center gap-2 text-2xs text-[#E5DFC9]/60 font-mono mb-1">
-                  <TrendingUp size={13} className="text-[#E5DFC9]" />
-                  <span>Global Rank</span>
-                </div>
-                <p className="text-2xl font-extrabold text-[#E5DFC9]">#{user?.globalRank || 1}</p>
-                <p className="text-3xs text-[#E5DFC9]/40 mt-0.5">Top percentile</p>
-              </Card>
-            </div>
-
-            {/* Adaptive Learning Callout */}
-            <Card className="p-4 bg-[#1A130D] border-[#3A2F1D] space-y-3">
+        {/* 3. TRACK CARDS GRID (BELOW THE 2ND PHOTO SHOWCASE - FULLY WORKING) */}
+        <div className="grid gap-6 md:grid-cols-2 pt-4">
+          {/* Student Track Card */}
+          <div className="flex flex-col justify-between rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-6 shadow-md transition-all hover:border-[#17130F]/40">
+            <div>
               <div className="flex items-center justify-between">
-                <span className="text-2xs font-mono uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1.5">
-                  <Zap size={12} /> ADAPTIVE RECOMMENDATION
+                <div className="grid h-9 w-9 place-items-center rounded-full border border-[#D8D0C0] bg-[#F7F4EC] text-[#17130F]">
+                  <GraduationCap size={18} />
+                </div>
+                <span className="mono rounded-md border border-[#D8D0C0] bg-[#F7F4EC] px-3 py-1 text-[10px] font-bold tracking-wider text-[#17130F] uppercase">
+                  LEVEL: BEGINNER
                 </span>
               </div>
-              <p className="text-xs font-bold text-[#E5DFC9]">
-                {recommendedProblem.title}
-              </p>
-              <p className="text-2xs text-[#E5DFC9]/70">
-                Targeting your lowest catch rate in <span className="font-bold text-[#E5DFC9]">{recommendedProblem.defectClassName}</span>.
-              </p>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => navigate(`/practice/${recommendedProblem.id}`)}
-                className="w-full text-xs font-bold"
-              >
-                Practice This Weakness
-              </Button>
-            </Card>
-          </div>
 
-          {/* Weakness Profile Column (2 Cols wide) */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono uppercase tracking-wider text-[#E5DFC9]/60 font-bold">
-                Defect Class Catch Rates
-              </h3>
-              <Link to="/profile" className="text-2xs text-[#E5DFC9] hover:underline font-mono">
-                View Full Mastery →
-              </Link>
+              <h2 className="mt-4 text-xl font-bold text-[#17130F]">Student Track</h2>
+              <p className="mt-2 text-xs leading-5 text-[#655D54]">
+                Build algorithmic instincts from scratch. Graded on Time Complexity ($TC$) & Space Complexity ($SC$) relative to optimal bounds.
+              </p>
+
+              <div className="mt-5 rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-4 text-xs font-mono text-[#17130F]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#786F65]">Primary Action:</span>
+                  <span className="rounded bg-[#E2DCCF] px-2.5 py-0.5 font-bold">SOLVE</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between pt-2 border-t border-[#E2DCCF]">
+                  <span className="text-[#786F65]">Evaluator:</span>
+                  <span className="font-semibold">TC & SC Relative Grading (50/50)</span>
+                </div>
+              </div>
             </div>
 
-            <Card className="p-6 bg-[#1A130D] border-[#3A2F1D]">
-              <WeaknessChart catchRates={user?.weaknessCatchRates || {}} />
-            </Card>
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                onClick={() => setLocation('/student/beginner')}
+                className="flex-1 rounded-xl bg-[#17130F] py-3 text-xs font-bold text-[#FFF7ED] transition-all hover:bg-[#2C241D] inline-flex items-center justify-center gap-2 shadow-sm"
+              >
+                Continue Student Track <ArrowRight size={14} />
+              </button>
+              <button
+                onClick={() => setLocation('/student/beginner')}
+                className="rounded-xl border border-[#D8D0C0] bg-[#E2DCCF] px-4 py-3 text-xs font-bold text-[#17130F] hover:bg-[#D8D0C0]"
+              >
+                Level
+              </button>
+            </div>
+          </div>
+
+          {/* AI-Assisted Professional Card */}
+          <div className="flex flex-col justify-between rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-6 shadow-md transition-all hover:border-[#17130F]/40">
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="grid h-9 w-9 place-items-center rounded-full border border-[#D8D0C0] bg-[#F7F4EC] text-[#17130F]">
+                  <Bot size={18} />
+                </div>
+                <span className="mono rounded-md border border-[#C99700]/40 bg-[#F5E8C7] px-3 py-1 text-[10px] font-bold tracking-wider text-[#8A6300] uppercase">
+                  PROMOTIONAL TEST REQUIRED
+                </span>
+              </div>
+
+              <h2 className="mt-4 text-xl font-bold text-[#17130F]">AI-Assisted Professional</h2>
+              <p className="mt-2 text-xs leading-5 text-[#655D54]">
+                Train to review, inspect, and debug AI-generated code. Graded on bug localization, explanation clarity, and false-positive avoidance.
+              </p>
+
+              <div className="mt-5 rounded-xl border border-[#E8D49E] bg-[#F7EFC9]/60 p-4 text-xs font-semibold text-[#8A6300] flex items-center gap-2">
+                <LockKeyhole size={16} className="shrink-0 text-[#C99700]" />
+                <span>Locked until promotional code-review assessment is cleared.</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowExam(true)}
+                className="w-full rounded-xl bg-[#17130F] py-3 text-xs font-bold text-[#FFF7ED] transition-all hover:bg-[#2C241D] inline-flex items-center justify-center gap-2 shadow-sm"
+              >
+                TAKE PROMOTIONAL TEST →
+              </button>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* 3. PERFORMANCE SNAPSHOT & DEFECT CLASS CATCH RATES */}
+      <div className="space-y-6 pt-4">
+        <div className="flex items-center justify-between border-b border-[#D8D0C0] pb-3">
+          <span className="mono text-[11px] font-bold tracking-widest text-[#786F65] uppercase">
+            PERFORMANCE SNAPSHOT
+          </span>
+          <div className="flex items-center gap-6 mono text-[11px] text-[#786F65]">
+            <span className="uppercase tracking-widest font-bold">DEFECT CLASS CATCH RATES</span>
+            <button 
+              onClick={() => setLocation('/learn')}
+              className="font-bold text-[#17130F] hover:underline inline-flex items-center gap-1"
+            >
+              View Full Mastery →
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-12">
+          {/* Left Column: 4 Stat Boxes + Adaptive Recommendation */}
+          <div className="space-y-6 lg:col-span-5">
+            {/* 4 Stat Boxes (2x2 Grid) */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs text-[#786F65]">
+                  <CheckCircle2 size={15} className="text-[#17130F]" />
+                  <span>Solved</span>
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-[#17130F]">18</div>
+                <div className="mt-1 text-[11px] text-[#786F65]">Exercises cleared</div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs text-[#786F65]">
+                  <Flame size={15} className="text-[#D97706]" />
+                  <span>Streak</span>
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-[#17130F]">4 <span className="text-sm font-normal text-[#786F65]">days</span></div>
+                <div className="mt-1 text-[11px] text-[#786F65]">Consistent review</div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs text-[#786F65]">
+                  <Award size={15} className="text-[#17130F]" />
+                  <span>Total XP</span>
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-[#17130F]">2847</div>
+                <div className="mt-1 text-[11px] text-[#786F65]">Score accumulated</div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs text-[#786F65]">
+                  <Trophy size={15} className="text-[#17130F]" />
+                  <span>Global Rank</span>
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-[#17130F]">#1</div>
+                <div className="mt-1 text-[11px] text-[#786F65]">Top percentile</div>
+              </div>
+            </div>
+
+            {/* ADAPTIVE RECOMMENDATION CARD */}
+            <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-6 shadow-sm">
+              <div className="mono text-[10px] font-bold tracking-widest text-[#D97706] uppercase flex items-center gap-1.5">
+                <Zap size={14} className="fill-[#D97706]" />
+                ADAPTIVE RECOMMENDATION
+              </div>
+              <h3 className="mt-3 text-sm font-bold text-[#17130F]">
+                Safe User Profile Lookup with Error Boundaries
+              </h3>
+              <p className="mt-2 text-xs leading-5 text-[#655D54]">
+                Targeting your lowest catch rate in <strong className="text-[#17130F]">Error & Exception Handling</strong>.
+              </p>
+              <button
+                onClick={() => {
+                  const prob = phaseOneProblems.find(p => p.title.includes('Safe User Profile Lookup')) || phaseOneProblems[0];
+                  if (onSelectProblem) {
+                    onSelectProblem(prob, 'student');
+                  }
+                  setLocation('/practice');
+                }}
+                className="mt-5 w-full rounded-xl bg-[#17130F] py-3 text-xs font-bold text-[#FFF7ED] transition-all hover:bg-[#2C241D] shadow-sm"
+              >
+                Practice This Weakness
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Defect Class Catch Rates */}
+          <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-6 shadow-sm lg:col-span-7">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D8D0C0] pb-4">
+              <div>
+                <h3 className="text-base font-bold text-[#17130F]">Concept Mastery & Weakness Profile</h3>
+                <p className="mt-1 text-xs text-[#786F65]">
+                  Real-time catch rate tracking across the 6 defect classes based on test suite execution.
+                </p>
+              </div>
+              <span className="mono text-[11px] font-bold text-[#786F65]">6 Defect Classes</span>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              {defectClasses.map((item) => (
+                <div key={item.title} className="rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ECE7DA] text-[#17130F]">
+                        <Bug size={13} />
+                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-[#17130F]">{item.title}</span>
+                        <span className="ml-1 text-[11px] text-[#786F65]">{item.detail}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="mono text-xs font-bold text-[#17130F]">{item.rate}</span>
+                      <button
+                        onClick={() => setLocation('/learn')}
+                        className="text-xs font-semibold text-[#17130F] hover:underline"
+                      >
+                        Deep Dive →
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#E2DCCF]">
+                    <div
+                      style={{ width: `${item.progress}%` }}
+                      className="h-full rounded-full bg-[#17130F] transition-all duration-500"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  )
+  );
 }
