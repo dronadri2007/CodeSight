@@ -42,6 +42,37 @@ def test_unhandled_exception_returns_json_envelope(noraise_client):
         ]
 
 
+def test_500_envelope_carries_cors_headers_cross_origin(noraise_client):
+    # Starlette renders the 500 envelope outside CORSMiddleware, so the handler
+    # stamps the CORS headers itself when the request has an allowed Origin.
+    from app.main import app
+
+    @app.get("/_boom_cors")
+    def _boom_cors():
+        raise RuntimeError("kaboom")
+
+    try:
+        r = noraise_client.get(
+            "/_boom_cors", headers={"Origin": "http://localhost:5173"}
+        )
+        assert r.status_code == 500
+        assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
+        rid = r.headers.get("x-request-id")
+        assert rid
+        assert r.json() == {"detail": "internal error", "request_id": rid}
+    finally:
+        app.router.routes = [
+            rt for rt in app.router.routes if getattr(rt, "path", None) != "/_boom_cors"
+        ]
+
+
+def test_200_response_exposes_request_id_header_cross_origin(client):
+    r = client.get("/health", headers={"Origin": "http://localhost:5173"})
+    assert r.status_code == 200
+    exposed = r.headers.get("access-control-expose-headers", "")
+    assert "X-Request-ID" in exposed
+
+
 def test_startup_emits_config_summary(capsys):
     from fastapi.testclient import TestClient
     from app.main import app

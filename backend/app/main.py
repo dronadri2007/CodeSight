@@ -139,7 +139,33 @@ app.add_middleware(
     allow_origin_regex=ALLOWED_ORIGIN_REGEX or None,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+
+
+import re as _re
+
+_origin_re = _re.compile(ALLOWED_ORIGIN_REGEX) if ALLOWED_ORIGIN_REGEX else None
+
+
+def _cors_headers_for(request: Request) -> dict:
+    """CORS headers for a response Starlette's CORSMiddleware never sees.
+
+    Starlette's ``ServerErrorMiddleware`` renders the 500 envelope outside
+    ``CORSMiddleware``, so a cross-origin ``fetch()`` hitting a 500 would see an
+    opaque error instead of the JSON body. Mirror the allow-list check here and
+    stamp the headers directly when the request carries an allowed ``Origin``.
+    """
+    origin = request.headers.get("origin")
+    if not origin:
+        return {}
+    if origin in ALLOWED_ORIGINS or (_origin_re and _origin_re.fullmatch(origin)):
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Expose-Headers": "X-Request-ID",
+            "Vary": "Origin",
+        }
+    return {}
 
 
 @app.middleware("http")
@@ -153,7 +179,10 @@ async def request_context(request: Request, call_next):
         response = await call_next(request)
     except Exception:
         dur_ms = round((time.perf_counter() - start) * 1000, 1)
-        log.exception(
+        # No exc_info here: the unhandled-exception handler logs the single
+        # traceback for this request. Logging it in both places put two full
+        # stacks per 500 in the prod JSON logs.
+        log.error(
             "request_error",
             method=request.method,
             path=request.url.path,
@@ -176,10 +205,11 @@ async def request_context(request: Request, call_next):
 async def unhandled_exception_handler(request: Request, exc: Exception):
     rid = getattr(request.state, "request_id", None) or request.headers.get("x-request-id", "")
     log.exception("unhandled_error", request_id=rid, path=request.url.path)
+    headers = {"X-Request-ID": rid, **_cors_headers_for(request)}
     return JSONResponse(
         status_code=500,
         content={"detail": "internal error", "request_id": rid},
-        headers={"X-Request-ID": rid},
+        headers=headers,
     )
 
 

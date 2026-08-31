@@ -35,7 +35,7 @@ def test_health_is_exempt_from_rate_limit(client):
 
 def test_global_default_limit_body(client):
     """A route with neither @limiter.exempt nor an explicit @limiter.limit is
-    covered by the 200/minute default enforced by SlowAPIMiddleware. That path
+    covered by the 1000/minute default enforced by SlowAPIMiddleware. That path
     runs through sync_check_limits, which only uses our handler if it is sync —
     this proves the 429 body is {"detail": "rate limit exceeded"} there too."""
     from app.ratelimit import limiter
@@ -44,7 +44,7 @@ def test_global_default_limit_body(client):
     limiter.reset()
     try:
         resp_429 = None
-        for _ in range(210):
+        for _ in range(1100):  # comfortably past the 1000/minute default
             r = client.get("/concepts")
             if r.status_code == 429:
                 resp_429 = r
