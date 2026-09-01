@@ -1,9 +1,9 @@
 /**
  * Thin fetch wrapper for the CodeSight API.
  *
- * Base URL comes from VITE_API_BASE_URL. When it is unset, USE_MOCK is true and
- * the domain modules fall back to local fixtures / stubs so the app still runs
- * offline. Point it at the deployed backend to go live:
+ * Base URL comes from VITE_API_BASE_URL and MUST be set — there is no offline
+ * mode. When it is unset, USE_MOCK is true and the domain modules throw via
+ * mockUnavailable(). Point it at the deployed backend:
  *   VITE_API_BASE_URL=https://codesight-code-review-production.up.railway.app
  */
 import { getIdToken } from '@/lib/authToken'

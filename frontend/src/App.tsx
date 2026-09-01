@@ -1105,7 +1105,7 @@ function NotFound() {
 
 function MainContent() {
   const [location, setLocation] = useLocation();
-  const { configured } = useAuth();
+  const { configured, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
 
   useEffect(() => {
@@ -1122,6 +1122,13 @@ function MainContent() {
         <AuthModal
           onClose={() => {
             setShowAuthModal(false);
+            // Plan §6: the post-auth redirect only fires after a successful
+            // login/signup/provider sign-in. A signed-out user dismissing the
+            // modal (X button) just returns to /, without consuming codesight_next.
+            if (!isAuthenticated) {
+              setLocation('/');
+              return;
+            }
             let next = '/home';
             try {
               next = sessionStorage.getItem('codesight_next') || '/home';

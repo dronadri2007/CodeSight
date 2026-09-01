@@ -80,6 +80,17 @@ async function ensureUserDoc(cred: UserCredential, provider: string, name?: stri
 // Cleared on sign-out / logout only so a fresh sign-in gets one more attempt.
 const bootstrappedUids = new Set<string>()
 
+// Spec §5: the streak patch is attempted at most once per uid per auth session.
+// Same failure mode as the bootstrap write above — with the STALE deployed rules
+// (no `streakDays`/`lastActiveDate` in editableFields()) `patchMyDoc` does an
+// optimistic local write → snapshot re-fires with lastActiveDate === today →
+// maybeBumpStreak early-returns → server rejects → rollback → snapshot re-fires
+// with the OLD lastActiveDate → maybeBumpStreak patches again → forever (~1/s).
+// Guarding to one attempt per session kills the loop; once the rules are
+// published the normal single daily patch works unchanged. Cleared in the same
+// two sign-out spots as bootstrappedUids.
+const streakPatchedUids = new Set<string>()
+
 async function patchMyDoc(uid: string, data: Record<string, unknown>) {
   if (!firebaseReady) return
   try {
@@ -95,6 +106,8 @@ function maybeBumpStreak(uid: string, d: Record<string, unknown>) {
   const last = String(d.lastActiveDate ?? '')
   const today = todayStr()
   if (last === today) return
+  if (streakPatchedUids.has(uid)) return
+  streakPatchedUids.add(uid)
   const y = fmtLocalDate(new Date(Date.now() - 864e5))
   patchMyDoc(
     uid,
@@ -180,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!fb) {
         bootstrappedUids.clear()
+        streakPatchedUids.clear()
         setFbUser(null)
         setUser(null)
         setAuthReady(true)
@@ -212,7 +226,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // per session — otherwise the rollback re-fires this branch forever.
             if (!bootstrappedUids.has(fb.uid)) {
               bootstrappedUids.add(fb.uid)
-              const provider = fb.providerData[0]?.providerId ?? 'password'
+              const rawPid = fb.providerData[0]?.providerId ?? 'password'
+              const provider =
+                rawPid === 'google.com' ? 'google' : rawPid === 'github.com' ? 'github' : 'password'
               setDoc(doc(requireDb(), 'users', fb.uid), newUserDoc(fb, provider)).catch((e) =>
                 console.error('[auth] users/{uid} bootstrap failed', e))
             }
@@ -303,6 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubDoc.current?.()
       unsubDoc.current = null
       bootstrappedUids.clear()
+      streakPatchedUids.clear()
       resetSessionId()
       setPending(false)
     }

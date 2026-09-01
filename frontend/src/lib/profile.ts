@@ -75,8 +75,12 @@ export function mapProfile(
   rank: number | null,
 ): UserProfile {
   const name = String(doc.displayName || doc.email || 'Reviewer')
-  const subs = (doc.recentSubmissions as Array<Record<string, unknown>> | undefined) ?? []
-  const rates = (doc.weaknessCatchRates as Record<string, number> | undefined) ?? {}
+  const subs = (Array.isArray(doc.recentSubmissions)
+    ? doc.recentSubmissions
+    : []) as Array<Record<string, unknown>>
+  const rates = (typeof doc.weaknessCatchRates === 'object' && doc.weaknessCatchRates !== null
+    ? doc.weaknessCatchRates
+    : {}) as Record<string, number>
 
   const history: SubmissionRecord[] = subs.map((s, i) => ({
     id: `sub-${i}`,
