@@ -73,6 +73,13 @@ async function ensureUserDoc(cred: UserCredential, provider: string, name?: stri
   if (!snap.exists()) await setDoc(ref, newUserDoc(cred.user, provider, name))
 }
 
+// Spec §3.1: the doc-less-user self-heal write is attempted at most once per uid
+// per auth session. Without this guard a permission-denied bootstrap `setDoc`
+// spins an infinite ~1/s retry loop (optimistic local write → snapshot re-fires
+// exists → server rejects → rollback → snapshot re-fires !exists → retry …).
+// Cleared on sign-out / logout only so a fresh sign-in gets one more attempt.
+const bootstrappedUids = new Set<string>()
+
 async function patchMyDoc(uid: string, data: Record<string, unknown>) {
   if (!firebaseReady) return
   try {
@@ -172,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return
 
       if (!fb) {
+        bootstrappedUids.clear()
         setFbUser(null)
         setUser(null)
         setAuthReady(true)
@@ -200,9 +208,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Spec §3.1: self-heal a doc-less signed-in user (redirect-fallback
             // sign-in, or any Auth user whose users/{uid} was never written).
             // The write triggers another snapshot that lands in the branch below.
-            const provider = fb.providerData[0]?.providerId ?? 'password'
-            setDoc(doc(requireDb(), 'users', fb.uid), newUserDoc(fb, provider)).catch((e) =>
-              console.error('[auth] users/{uid} bootstrap failed', e))
+            // Guarded so a denied/failing write is attempted at most once per uid
+            // per session — otherwise the rollback re-fires this branch forever.
+            if (!bootstrappedUids.has(fb.uid)) {
+              bootstrappedUids.add(fb.uid)
+              const provider = fb.providerData[0]?.providerId ?? 'password'
+              setDoc(doc(requireDb(), 'users', fb.uid), newUserDoc(fb, provider)).catch((e) =>
+                console.error('[auth] users/{uid} bootstrap failed', e))
+            }
             setUser(mapProfile(fb.uid, {}, rank))
             setProfileReady(true)
             return
@@ -289,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       unsubDoc.current?.()
       unsubDoc.current = null
+      bootstrappedUids.clear()
       resetSessionId()
       setPending(false)
     }
