@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
  * AuthModal flow can send them back after login.
  */
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { authReady, isAuthenticated } = useAuth();
+  const { authReady, isAuthenticated, profileReady } = useAuth();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [authReady, isAuthenticated, location, setLocation]);
 
-  if (!authReady) {
+  if (!authReady || (isAuthenticated && !profileReady)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0B0A0F] text-[#AAA2B5] text-xs">
         Loading…
