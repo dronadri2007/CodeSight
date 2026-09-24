@@ -1,13 +1,34 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+  updateProfile,
+  onAuthStateChanged,
+  getAdditionalUserInfo,
+  signOut,
+  type User as FbUser,
+  type UserCredential,
+} from 'firebase/auth'
+import { doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore'
+import { firebaseReady, requireAuth, requireDb, googleProvider, githubProvider } from '@/lib/firebase'
+import { setSessionId, resetSessionId } from '@/lib/session'
+import {
+  mapProfile,
+  type UserProfile,
+  type UserLevel,
+  type DefectClass,
+  type SubmissionRecord,
+} from '@/lib/profile'
+import { getLeaderboard } from '@/api'
 
-export type UserLevel = 
-  | 'Student Beginner'
-  | 'Student Intermediate'
-  | 'Student Pro'
-  | 'AI Engineer Beginner'
-  | 'AI Engineer Intermediate'
-  | 'AI Engineer Pro';
+// Re-export the shared profile types so `@/contexts/AuthContext` keeps working
+// as an import site for them (PracticeWorkspace, ConceptLearnPage, ResultsPage,
+// ProfilePage all import from here).
+export type { UserProfile, UserLevel, DefectClass, SubmissionRecord }
 
+// Kept for compat: PromotionExamModal.tsx and ProfilePage.tsx import this.
 export const LEVEL_TIERS: UserLevel[] = [
   'Student Beginner',
   'Student Intermediate',
@@ -15,199 +36,324 @@ export const LEVEL_TIERS: UserLevel[] = [
   'AI Engineer Beginner',
   'AI Engineer Intermediate',
   'AI Engineer Pro'
-];
+]
 
-export type DefectClass = 
-  | 'SQL Injection'
-  | 'Unchecked Returns'
-  | 'Race Conditions'
-  | 'Infinite Loops'
-  | 'Resource Leaks'
-  | 'Type Mismatches';
+// Spec §5: streak comparison is against the user's LOCAL calendar date, not UTC.
+const fmtLocalDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const todayStr = () => fmtLocalDate(new Date())
 
-export interface SubmissionRecord {
-  id: string;
-  problemId: string;
-  title: string;
-  score: number;
-  date: string;
-  mode: 'student' | 'engineer';
-  userTimeComplexity: string;
-  userSpaceComplexity: string;
-  optimalTimeComplexity: string;
-  optimalSpaceComplexity: string;
-  feedback: string;
-  defectClass: DefectClass;
-}
-
-export interface UserProfile {
-  name: string;
-  handle: string;
-  avatar: string;
-  level: UserLevel;
-  levelIndex: number;
-  xp: number;
-  globalRank: number;
-  streakDays: number;
-  solvedCount: number;
-  history: SubmissionRecord[];
-  defectStats: Record<DefectClass, { successful: number; total: number }>;
-}
-
-const DEFAULT_PROFILE: UserProfile = {
-  name: 'Alex Morgan',
-  handle: '@alexm',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop',
-  level: 'Student Beginner',
-  levelIndex: 0,
-  xp: 2450,
-  globalRank: 3,
-  streakDays: 3,
-  solvedCount: 12,
-  history: [
-    {
-      id: 'sub-1',
-      problemId: 'python-loops-medium',
-      title: 'Normalize the readings',
-      score: 100,
-      date: '2026-08-28',
-      mode: 'student',
-      userTimeComplexity: 'O(N)',
-      userSpaceComplexity: 'O(1)',
-      optimalTimeComplexity: 'O(N)',
-      optimalSpaceComplexity: 'O(1)',
-      feedback: 'Excellent optimal solution! No unnecessary allocations made.',
-      defectClass: 'Infinite Loops'
-    },
-    {
-      id: 'sub-2',
-      problemId: 'javascript-conditions-easy',
-      title: 'Guard the threshold',
-      score: 75,
-      date: '2026-08-27',
-      mode: 'student',
-      userTimeComplexity: 'O(N²)',
-      userSpaceComplexity: 'O(1)',
-      optimalTimeComplexity: 'O(N)',
-      optimalSpaceComplexity: 'O(1)',
-      feedback: 'Correct output, but quadratic loop penalizes time complexity score.',
-      defectClass: 'Unchecked Returns'
-    }
-  ],
-  defectStats: {
-    'SQL Injection': { successful: 4, total: 5 },
-    'Unchecked Returns': { successful: 6, total: 8 },
-    'Race Conditions': { successful: 2, total: 4 },
-    'Infinite Loops': { successful: 7, total: 8 },
-    'Resource Leaks': { successful: 3, total: 5 },
-    'Type Mismatches': { successful: 5, total: 6 }
+// §5 schema — client-owned create fields only. Matches Task 8's Firestore rules
+// exactly: no stats fields (backend-owned), no `updatedAt` on create.
+function newUserDoc(u: FbUser, provider: string, name?: string) {
+  const displayName = (name && name.trim()) || u.displayName || u.email?.split('@')[0] || 'Reviewer'
+  return {
+    uid: u.uid,
+    email: u.email ?? '',
+    displayName,
+    photoURL: u.photoURL ?? null,
+    provider,
+    createdAt: serverTimestamp(),
+    track: 'student',
+    level: 'beginner',
+    levelIndex: 0,
+    streakDays: 0,
+    lastActiveDate: todayStr(),
   }
-};
-
-interface AuthContextType {
-  user: UserProfile;
-  isAuthenticated: boolean;
-  login: (name: string) => void;
-  logout: () => void;
-  addSubmission: (sub: Omit<SubmissionRecord, 'id' | 'date'>) => void;
-  promoteUserLevel: () => boolean;
-  updateWeakness: (defect: DefectClass, success: boolean) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+async function ensureUserDoc(cred: UserCredential, provider: string, name?: string) {
+  const ref = doc(requireDb(), 'users', cred.user.uid)
+  const isNew = getAdditionalUserInfo(cred)?.isNewUser
+  if (isNew) {
+    await setDoc(ref, newUserDoc(cred.user, provider, name))
+    return
+  }
+  const snap = await getDoc(ref)
+  if (!snap.exists()) await setDoc(ref, newUserDoc(cred.user, provider, name))
+}
+
+// Spec §3.1: the doc-less-user self-heal write is attempted at most once per uid
+// per auth session. Without this guard a permission-denied bootstrap `setDoc`
+// spins an infinite ~1/s retry loop (optimistic local write → snapshot re-fires
+// exists → server rejects → rollback → snapshot re-fires !exists → retry …).
+// Cleared on sign-out / logout only so a fresh sign-in gets one more attempt.
+const bootstrappedUids = new Set<string>()
+
+// Spec §5: the streak patch is attempted at most once per uid per auth session.
+// Same failure mode as the bootstrap write above — with the STALE deployed rules
+// (no `streakDays`/`lastActiveDate` in editableFields()) `patchMyDoc` does an
+// optimistic local write → snapshot re-fires with lastActiveDate === today →
+// maybeBumpStreak early-returns → server rejects → rollback → snapshot re-fires
+// with the OLD lastActiveDate → maybeBumpStreak patches again → forever (~1/s).
+// Guarding to one attempt per session kills the loop; once the rules are
+// published the normal single daily patch works unchanged. Cleared in the same
+// two sign-out spots as bootstrappedUids.
+const streakPatchedUids = new Set<string>()
+
+async function patchMyDoc(uid: string, data: Record<string, unknown>) {
+  if (!firebaseReady) return
+  try {
+    await updateDoc(doc(requireDb(), 'users', uid), { ...data, updatedAt: serverTimestamp() })
+  } catch (e) {
+    console.error('[auth] profile update failed', e)
+  }
+}
+
+// Spec §5: bump the streak at most once per local-day rollover. Called only from
+// the snapshot handler when the doc exists.
+function maybeBumpStreak(uid: string, d: Record<string, unknown>) {
+  const last = String(d.lastActiveDate ?? '')
+  const today = todayStr()
+  if (last === today) return
+  if (streakPatchedUids.has(uid)) return
+  streakPatchedUids.add(uid)
+  const y = fmtLocalDate(new Date(Date.now() - 864e5))
+  patchMyDoc(
+    uid,
+    last === y
+      ? { streakDays: Number(d.streakDays ?? 0) + 1, lastActiveDate: today }
+      : { streakDays: 1, lastActiveDate: today },
+  )
+}
+
+function authErrorMessage(e: unknown): string {
+  const code = (e as { code?: string }).code ?? ''
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found')
+    return 'Email or password is incorrect.'
+  if (code === 'auth/email-already-in-use') return 'That email is already registered.'
+  if (code === 'auth/weak-password') return 'Password must be at least 6 characters.'
+  if (code === 'auth/too-many-requests') return 'Too many attempts — try again shortly.'
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') return ''
+  if (code === 'auth/account-exists-with-different-credential')
+    return 'An account with this email already exists via a different sign-in method.'
+  if (code === 'auth/unauthorized-domain')
+    return "This domain isn't authorised in Firebase (Authentication → Settings → Authorized domains)."
+  return (e as Error).message || 'Something went wrong.'
+}
+
+// Spec §3.4: score-mutating writes are server-authoritative now. These stay as
+// no-ops so existing callers compile; each logs once so a stray client write is
+// visible in dev without spamming the console.
+const noopWarned: Record<string, boolean> = {}
+function noteNoop(key: string, msg: string) {
+  if (noopWarned[key]) return
+  noopWarned[key] = true
+  console.debug(msg)
+}
+const noopMutators = {
+  addSubmission: (..._a: unknown[]) =>
+    noteNoop('addSubmission', 'addSubmission is server-authoritative; ignoring client write'),
+  promoteUserLevel: () => {
+    noteNoop('promoteUserLevel', 'promoteUserLevel is server-authoritative; ignoring client write')
+    return false
+  },
+  updateWeakness: (..._a: unknown[]) =>
+    noteNoop('updateWeakness', 'updateWeakness is server-authoritative; ignoring client write'),
+}
+
+interface Ctx {
+  user: UserProfile | null
+  firebaseUser: FbUser | null
+  isAuthenticated: boolean
+  authReady: boolean
+  profileReady: boolean
+  configured: boolean
+  error: string | null
+  pending: boolean
+  signup: (email: string, password: string, name: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  loginWithProvider: (p: 'google' | 'github') => Promise<void>
+  logout: () => Promise<void>
+  clearError: () => void
+  // kept-for-compat no-ops (backend is server-authoritative):
+  addSubmission: (...a: unknown[]) => void
+  promoteUserLevel: () => boolean
+  updateWeakness: (...a: unknown[]) => void
+}
+
+const AuthContext = createContext<Ctx | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('codesight_user_profile');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
-    }
-    return DEFAULT_PROFILE;
-  });
-
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('codesight_authed') === 'true';
-  });
+  const [firebaseUser, setFbUser] = useState<FbUser | null>(null)
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [authReady, setAuthReady] = useState(!firebaseReady)
+  const [profileReady, setProfileReady] = useState(!firebaseReady)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
+  const unsubDoc = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    localStorage.setItem('codesight_user_profile', JSON.stringify(user));
-  }, [user]);
+    if (!firebaseReady) return
+    let cancelled = false
+    const unsub = onAuthStateChanged(requireAuth(), async (fb) => {
+      unsubDoc.current?.()
+      unsubDoc.current = null
+      if (cancelled) return
 
-  const login = (name: string) => {
-    setUser(prev => ({ ...prev, name }));
-    setIsAuthenticated(true);
-    localStorage.setItem('codesight_authed', 'true');
-  };
+      if (!fb) {
+        bootstrappedUids.clear()
+        streakPatchedUids.clear()
+        setFbUser(null)
+        setUser(null)
+        setAuthReady(true)
+        setProfileReady(true)
+        return
+      }
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('codesight_authed');
-  };
+      setFbUser(fb)
+      setAuthReady(true)
+      setProfileReady(false)
+      setSessionId('web-' + fb.uid)
 
-  const addSubmission = (sub: Omit<SubmissionRecord, 'id' | 'date'>) => {
-    const record: SubmissionRecord = {
-      ...sub,
-      id: `sub-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0]
-    };
+      let rank: number | null = null
+      try {
+        const lb = await getLeaderboard({ session_id: 'web-' + fb.uid })
+        rank = lb.you?.rank ?? null
+      } catch {
+        /* rank stays null */
+      }
+      if (cancelled) return
 
-    setUser(prev => {
-      const updatedHistory = [record, ...prev.history].slice(0, 20);
-      const updatedStats = { ...prev.defectStats };
-      const current = updatedStats[sub.defectClass] || { successful: 0, total: 0 };
-      updatedStats[sub.defectClass] = {
-        successful: current.successful + (sub.score >= 70 ? 1 : 0),
-        total: current.total + 1
-      };
-
-      return {
-        ...prev,
-        xp: prev.xp + sub.score,
-        solvedCount: prev.solvedCount + (sub.score >= 50 ? 1 : 0),
-        history: updatedHistory,
-        defectStats: updatedStats
-      };
-    });
-  };
-
-  const promoteUserLevel = (): boolean => {
-    if (user.levelIndex < LEVEL_TIERS.length - 1) {
-      const nextIndex = user.levelIndex + 1;
-      setUser(prev => ({
-        ...prev,
-        levelIndex: nextIndex,
-        level: LEVEL_TIERS[nextIndex]
-      }));
-      return true;
-    }
-    return false;
-  };
-
-  const updateWeakness = (defect: DefectClass, success: boolean) => {
-    setUser(prev => {
-      const current = prev.defectStats[defect] || { successful: 0, total: 0 };
-      return {
-        ...prev,
-        defectStats: {
-          ...prev.defectStats,
-          [defect]: {
-            successful: current.successful + (success ? 1 : 0),
-            total: current.total + 1
+      unsubDoc.current = onSnapshot(
+        doc(requireDb(), 'users', fb.uid),
+        (snap) => {
+          if (!snap.exists()) {
+            // Spec §3.1: self-heal a doc-less signed-in user (redirect-fallback
+            // sign-in, or any Auth user whose users/{uid} was never written).
+            // The write triggers another snapshot that lands in the branch below.
+            // Guarded so a denied/failing write is attempted at most once per uid
+            // per session — otherwise the rollback re-fires this branch forever.
+            if (!bootstrappedUids.has(fb.uid)) {
+              bootstrappedUids.add(fb.uid)
+              const rawPid = fb.providerData[0]?.providerId ?? 'password'
+              const provider =
+                rawPid === 'google.com' ? 'google' : rawPid === 'github.com' ? 'github' : 'password'
+              setDoc(doc(requireDb(), 'users', fb.uid), newUserDoc(fb, provider)).catch((e) =>
+                console.error('[auth] users/{uid} bootstrap failed', e))
+            }
+            setUser(mapProfile(fb.uid, {}, rank))
+            setProfileReady(true)
+            return
           }
-        }
-      };
-    });
-  };
+          const d = snap.data() as Record<string, unknown>
+          setUser(mapProfile(fb.uid, d, rank))
+          setProfileReady(true)
+          maybeBumpStreak(fb.uid, d)
+        },
+        (err) => {
+          console.error('[auth] profile listener', err)
+          setUser(mapProfile(fb.uid, {}, rank))
+          setProfileReady(true)
+        },
+      )
+    })
+    return () => {
+      cancelled = true
+      unsub()
+      unsubDoc.current?.()
+      unsubDoc.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, logout, addSubmission, promoteUserLevel, updateWeakness }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const wrap = useCallback(
+    (fn: () => Promise<void>) => async () => {
+      setPending(true)
+      setError(null)
+      try {
+        await fn()
+      } catch (e) {
+        const m = authErrorMessage(e)
+        if (m) setError(m)
+        throw e
+      } finally {
+        setPending(false)
+      }
+    },
+    [],
+  )
+
+  const signup = useCallback(
+    (email: string, password: string, name: string) =>
+      wrap(async () => {
+        const cred = await createUserWithEmailAndPassword(requireAuth(), email, password)
+        if (name.trim()) await updateProfile(cred.user, { displayName: name.trim() })
+        await setDoc(doc(requireDb(), 'users', cred.user.uid), newUserDoc(cred.user, 'password', name))
+      })(),
+    [wrap],
+  )
+
+  const login = useCallback(
+    (email: string, password: string) =>
+      wrap(async () => {
+        await signInWithEmailAndPassword(requireAuth(), email, password)
+      })(),
+    [wrap],
+  )
+
+  const loginWithProvider = useCallback(
+    (p: 'google' | 'github') =>
+      wrap(async () => {
+        const prov = p === 'google' ? googleProvider : githubProvider
+        try {
+          const cred = await signInWithPopup(requireAuth(), prov)
+          await ensureUserDoc(cred, p)
+        } catch (e) {
+          const code = (e as { code?: string }).code
+          if (code === 'auth/popup-blocked') {
+            await signInWithRedirect(requireAuth(), prov)
+            return
+          }
+          throw e
+        }
+      })(),
+    [wrap],
+  )
+
+  const logout = useCallback(async () => {
+    setPending(true)
+    try {
+      if (firebaseReady) await signOut(requireAuth())
+    } finally {
+      unsubDoc.current?.()
+      unsubDoc.current = null
+      bootstrappedUids.clear()
+      streakPatchedUids.clear()
+      resetSessionId()
+      setPending(false)
+    }
+  }, [])
+
+  const clearError = useCallback(() => setError(null), [])
+
+  // Memo keys are the six state values below; the action fns are all stable
+  // (useCallback), so `value` only changes when auth/profile state changes.
+  const value = useMemo<Ctx>(
+    () => ({
+      user,
+      firebaseUser,
+      isAuthenticated: !!firebaseUser,
+      authReady,
+      profileReady,
+      configured: firebaseReady,
+      error,
+      pending,
+      signup,
+      login,
+      loginWithProvider,
+      logout,
+      clearError,
+      ...noopMutators,
+    }),
+    [user, firebaseUser, authReady, profileReady, error, pending, signup, login, loginWithProvider, logout, clearError],
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
+  const c = useContext(AuthContext)
+  if (!c) throw new Error('useAuth must be used within AuthProvider')
+  return c
 }

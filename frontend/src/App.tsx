@@ -16,7 +16,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import DebugArenaPage from './pages/DebugArena';
 import { PremiumActivityChart, TodayGoalCard, XpProgressionChart } from '@/components/dashboard/DashboardWidgets';
 import { CodeEditor, AnalysisPanel } from '@/components/code/CodeEditor';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { FirebaseNotConfigured } from '@/components/auth/FirebaseNotConfigured';
 import { TrackProvider, useTrack } from './contexts/TrackContext';
 import Home from './pages/Home';
 import HomeDashboard from './pages/HomeDashboard';
@@ -1004,37 +1006,39 @@ function Router({ onOpenAuth }: { onOpenAuth: () => void }) {
       <Route path="/auth" component={Home}/>
       <Route path="/login" component={Home}/>
       <Route path="/register" component={Home}/>
-      <Route path="/home">{() => <HomeDashboard onSelectProblem={handleSelectProblem} />}</Route>
-      <Route path="/dashboard">{() => <HomeDashboard onSelectProblem={handleSelectProblem} />}</Route>
-      <Route path="/student">{() => <BestsellersBookShowcase />}</Route>
-      <Route path="/levels">{() => <BestsellersBookShowcase />}</Route>
-      <Route path="/student/level-select">{() => <BestsellersBookShowcase />}</Route>
-      <Route path="/pro/level-select">{() => <BestsellersBookShowcase />}</Route>
+      <Route path="/home">{() => <ProtectedRoute><HomeDashboard onSelectProblem={handleSelectProblem} /></ProtectedRoute>}</Route>
+      <Route path="/dashboard">{() => <ProtectedRoute><HomeDashboard onSelectProblem={handleSelectProblem} /></ProtectedRoute>}</Route>
+      <Route path="/student">{() => <ProtectedRoute><BestsellersBookShowcase /></ProtectedRoute>}</Route>
+      <Route path="/levels">{() => <ProtectedRoute><BestsellersBookShowcase /></ProtectedRoute>}</Route>
+      <Route path="/student/level-select">{() => <ProtectedRoute><BestsellersBookShowcase /></ProtectedRoute>}</Route>
+      <Route path="/pro/level-select">{() => <ProtectedRoute><BestsellersBookShowcase /></ProtectedRoute>}</Route>
       <Route path="/student/beginner">
-        <ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="BEGINNER" />
+        {() => <ProtectedRoute><ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="BEGINNER" /></ProtectedRoute>}
       </Route>
       <Route path="/student/intermediate">
-        <ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="INTERMEDIATE" />
+        {() => <ProtectedRoute><ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="INTERMEDIATE" /></ProtectedRoute>}
       </Route>
       <Route path="/student/pro">
-        <ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="PRO" />
+        {() => <ProtectedRoute><ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="PRO" /></ProtectedRoute>}
       </Route>
       <Route path="/problems">
-        <ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="BEGINNER" />
+        {() => <ProtectedRoute><ProblemsPage onSelectProblem={handleSelectProblem} levelTitle="BEGINNER" /></ProtectedRoute>}
       </Route>
       <Route path="/practice">
         {() => {
           const prob = activeProblem || phaseOneProblems.find(p => p.title.includes('Safe User Profile Lookup')) || phaseOneProblems[0];
           return (
-            <PracticeWorkspace
-              problem={prob}
-              mode={activeMode}
-              onBack={() => {
-                setActiveProblem(null);
-                setLocation('/home');
-              }}
-              onViewResults={(res) => setActiveResults(res)}
-            />
+            <ProtectedRoute>
+              <PracticeWorkspace
+                problem={prob}
+                mode={activeMode}
+                onBack={() => {
+                  setActiveProblem(null);
+                  setLocation('/home');
+                }}
+                onViewResults={(res) => setActiveResults(res)}
+              />
+            </ProtectedRoute>
           );
         }}
       </Route>
@@ -1042,37 +1046,43 @@ function Router({ onOpenAuth }: { onOpenAuth: () => void }) {
         {() => {
           const prob = activeProblem || phaseOneProblems.find(p => p.title.includes('Safe User Profile Lookup')) || phaseOneProblems[0];
           return (
-            <PracticeWorkspace
-              problem={prob}
-              mode={activeMode}
-              onBack={() => {
-                setActiveProblem(null);
-                setLocation('/home');
-              }}
-              onViewResults={(res) => setActiveResults(res)}
-            />
+            <ProtectedRoute>
+              <PracticeWorkspace
+                problem={prob}
+                mode={activeMode}
+                onBack={() => {
+                  setActiveProblem(null);
+                  setLocation('/home');
+                }}
+                onViewResults={(res) => setActiveResults(res)}
+              />
+            </ProtectedRoute>
           );
         }}
       </Route>
-      <Route path="/contest" component={BattlePage}/>
-      <Route path="/arena" component={BattlePage}/>
-      <Route path="/ai-engineer" component={CodeReviewPage}/>
-      <Route path="/code-review" component={CodeReviewPage}/>
-      <Route path="/code-xray" component={CodeXRayPage}/>
-      <Route path="/false-positive" component={FalsePositivePage}/>
-      <Route path="/admin" component={AdminPage}/>
-      <Route path="/write" component={WriteLab}/>
-      <Route path="/challenges" component={ChallengesPage}/>
+      <Route path="/contest">{() => <ProtectedRoute><BattlePage /></ProtectedRoute>}</Route>
+      <Route path="/arena">{() => <ProtectedRoute><BattlePage /></ProtectedRoute>}</Route>
+      <Route path="/ai-engineer">{() => <ProtectedRoute><CodeReviewPage /></ProtectedRoute>}</Route>
+      <Route path="/code-review">{() => <ProtectedRoute><CodeReviewPage /></ProtectedRoute>}</Route>
+      <Route path="/code-xray">{() => <ProtectedRoute><CodeXRayPage /></ProtectedRoute>}</Route>
+      <Route path="/false-positive">{() => <ProtectedRoute><FalsePositivePage /></ProtectedRoute>}</Route>
+      <Route path="/admin">{() => <ProtectedRoute><AdminPage /></ProtectedRoute>}</Route>
+      <Route path="/write">{() => <ProtectedRoute><WriteLab /></ProtectedRoute>}</Route>
+      <Route path="/challenges">{() => <ProtectedRoute><ChallengesPage /></ProtectedRoute>}</Route>
       <Route path="/learn">
-        <ConceptLearnPage initialDefect={learnDefect} />
+        {() => <ProtectedRoute><ConceptLearnPage initialDefect={learnDefect} /></ProtectedRoute>}
       </Route>
-      <Route path="/progress" component={ProgressPage}/>
-      <Route path="/leaderboard" component={LeaderboardPage}/>
+      <Route path="/progress">{() => <ProtectedRoute><ProgressPage /></ProtectedRoute>}</Route>
+      <Route path="/leaderboard">{() => <ProtectedRoute><LeaderboardPage /></ProtectedRoute>}</Route>
       <Route path="/profile">
-        <EnhancedProfilePage
-          onTakeExam={() => setShowExam(true)}
-          onViewSubmissionResult={(sub) => setActiveResults(sub)}
-        />
+        {() => (
+          <ProtectedRoute>
+            <EnhancedProfilePage
+              onTakeExam={() => setShowExam(true)}
+              onViewSubmissionResult={(sub) => setActiveResults(sub)}
+            />
+          </ProtectedRoute>
+        )}
       </Route>
       <Route><NotFound/></Route>
     </Switch>
@@ -1095,6 +1105,7 @@ function NotFound() {
 
 function MainContent() {
   const [location, setLocation] = useLocation();
+  const { configured, isAuthenticated } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
 
   useEffect(() => {
@@ -1103,13 +1114,29 @@ function MainContent() {
     }
   }, [location]);
 
+  if (!configured) return <FirebaseNotConfigured />;
+
   return (
     <>
       {showAuthModal && (
         <AuthModal
           onClose={() => {
             setShowAuthModal(false);
-            setLocation('/dashboard');
+            // Plan §6: the post-auth redirect only fires after a successful
+            // login/signup/provider sign-in. A signed-out user dismissing the
+            // modal (X button) just returns to /, without consuming codesight_next.
+            if (!isAuthenticated) {
+              setLocation('/');
+              return;
+            }
+            let next = '/home';
+            try {
+              next = sessionStorage.getItem('codesight_next') || '/home';
+              sessionStorage.removeItem('codesight_next');
+            } catch {
+              /* storage disabled — fall through to /home */
+            }
+            setLocation(next);
           }}
         />
       )}

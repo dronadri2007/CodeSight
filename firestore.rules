@@ -4,13 +4,13 @@ rules_version = '2';
 //
 // One document per user at users/{uid}. A signed-in user may:
 //   - read only their own doc
-//   - create their own doc on sign-up, with the safe fields + zeroed stats
-//   - update only the "profile choice" fields (track, level tier, promo flag)
+//   - create their own doc on sign-up, with identity + track/level/streak fields
+//   - update profile fields (displayName, photoURL, track, level, streak)
 //
-// Score fields (totalXP, eloRating, globalRank, problemsSolved, currentStreak,
-// weaknessCatchRates, recentSubmissions, level, levelIndex) are written ONLY by
-// the backend via the Admin SDK, which bypasses these rules. The client can
-// never raise its own XP or rank.
+// Score fields (totalXP, eloRating, problemsSolved, weaknessCatchRates, recentSubmissions)
+// are owned by the backend and written ONLY via the Admin SDK, which bypasses these
+// rules. The client can never write stats directly. Stats are populated on user signup
+// via backend service, with client writes limited to identity + learning progress fields.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -24,21 +24,16 @@ service cloud.firestore {
       // fields the client is allowed to set when first creating its doc
       function createFields() {
         return [
-          'uid', 'email', 'displayName', 'photoURL', 'provider',
-          'createdAt', 'updatedAt',
-          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest',
-          'level', 'levelIndex',
-          'totalXP', 'eloRating', 'globalRank', 'currentStreak', 'problemsSolved',
-          'weaknessCatchRates', 'recentSubmissions'
+          'uid', 'email', 'displayName', 'photoURL', 'provider', 'createdAt',
+          'track', 'level', 'levelIndex', 'streakDays', 'lastActiveDate'
         ];
       }
 
       // fields the client may change after creation
       function editableFields() {
         return [
-          'displayName', 'photoURL',
-          'selectedTrack', 'studentLevel', 'proLevel', 'hasPassedPromotionalTest',
-          'updatedAt'
+          'displayName', 'photoURL', 'track', 'level', 'levelIndex',
+          'streakDays', 'lastActiveDate', 'updatedAt'
         ];
       }
 
@@ -46,11 +41,7 @@ service cloud.firestore {
 
       allow create: if isOwner()
         && request.resource.data.uid == uid
-        && request.resource.data.keys().hasOnly(createFields())
-        && request.resource.data.totalXP == 0
-        && request.resource.data.eloRating == 1000
-        && request.resource.data.problemsSolved == 0
-        && request.resource.data.recentSubmissions.size() == 0;
+        && request.resource.data.keys().hasOnly(createFields());
 
       allow update: if isOwner()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(editableFields());

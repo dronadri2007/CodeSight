@@ -77,7 +77,7 @@ export function PromotionExamModal({ onClose }: PromotionExamModalProps) {
             <ShieldAlert size={14} /> PROMOTION EXAM MODE · TIER GATE
           </div>
           <h1 className="text-xl font-bold mt-1 text-[#F5EFE6]">
-            Exam for Tier {user.levelIndex + 1}: {user.level}
+            Exam for Tier {(user?.levelIndex ?? 0) + 1}: {user?.level ?? ''}
           </h1>
         </div>
 
@@ -173,7 +173,7 @@ export function PromotionExamModal({ onClose }: PromotionExamModalProps) {
 
           <p className="text-xs text-[#AAA2B5] leading-6">
             {passed
-              ? `You passed the exam! Unlocked next level: Tier ${user.levelIndex + 1} (${LEVEL_TIERS[user.levelIndex]})`
+              ? `You passed the exam! Unlocked next level: Tier ${(user?.levelIndex ?? 0) + 1} (${LEVEL_TIERS[user?.levelIndex ?? 0]})`
               : 'You did not achieve the required threshold. Review your weak defect classes and try again.'}
           </p>
 

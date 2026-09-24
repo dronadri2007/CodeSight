@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Lock, Mail, User, ArrowRight, Sparkles } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Lock, Mail, User, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -8,18 +8,35 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ onClose }: AuthModalProps) {
-  const { login } = useAuth();
+  const { login, signup, loginWithProvider, error, pending, clearError } = useAuth();
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Clear any stale context error when this modal unmounts.
+  useEffect(() => () => clearError(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const displayName = name.trim() || email.split('@')[0] || 'Alex Morgan';
-    login(displayName);
-    toast.success(`Welcome to CodeSight, ${displayName}!`);
-    onClose();
+    try {
+      if (isRegister) await signup(email, password, name);
+      else await login(email, password);
+      toast.success('Welcome to CodeSight!');
+      onClose();
+    } catch {
+      /* context `error` is shown inline */
+    }
+  };
+
+  const handleProvider = async (p: 'google' | 'github') => {
+    try {
+      await loginWithProvider(p);
+      toast.success('Welcome to CodeSight!');
+      onClose();
+    } catch {
+      /* context `error` is shown inline */
+    }
   };
 
   return (
@@ -46,6 +63,32 @@ export function AuthModal({ onClose }: AuthModalProps) {
           <p className="mt-1 text-xs text-[#AAA2B5]">
             {isRegister ? 'Start your debugging & AI engineering journey.' : 'Access your workspace, problems, and promotion exams.'}
           </p>
+        </div>
+
+        {/* Provider sign-in */}
+        <div className="space-y-2 mb-4">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => handleProvider('google')}
+            className="w-full rounded-lg border border-[#2E2238] bg-[#0B0A0F] py-2.5 px-3 text-xs font-bold text-[#F5EFE6] transition-colors hover:border-[#C96A32] disabled:opacity-60"
+          >
+            Continue with Google
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => handleProvider('github')}
+            className="w-full rounded-lg border border-[#2E2238] bg-[#0B0A0F] py-2.5 px-3 text-xs font-bold text-[#F5EFE6] transition-colors hover:border-[#C96A32] disabled:opacity-60"
+          >
+            Continue with GitHub
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 mb-4 text-[10px] font-mono uppercase text-[#AAA2B5]">
+          <span className="h-px flex-1 bg-[#2E2238]" />
+          or
+          <span className="h-px flex-1 bg-[#2E2238]" />
         </div>
 
         {/* Form */}
@@ -97,20 +140,25 @@ export function AuthModal({ onClose }: AuthModalProps) {
             </div>
           </div>
 
+          {error ? <p className="text-[#FCA5A5] text-xs">{error}</p> : null}
+
           <button
             type="submit"
-            className="btn-primary w-full py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 shadow-lg mt-2"
+            disabled={pending}
+            className="btn-primary w-full py-3 rounded-lg text-xs font-bold flex items-center justify-center gap-2 shadow-lg mt-2 disabled:opacity-60"
           >
-            {isRegister ? 'Register Account' : 'Sign In'} <ArrowRight size={14} />
+            {pending
+              ? (isRegister ? 'Creating account…' : 'Signing in…')
+              : (isRegister ? 'Register Account' : 'Sign In')} <ArrowRight size={14} />
           </button>
         </form>
 
         {/* Toggle Register / Login */}
         <div className="mt-6 border-t border-[#2E2238] pt-4 text-center text-xs text-[#AAA2B5]">
           {isRegister ? (
-            <span>Already have an account? <button onClick={() => setIsRegister(false)} className="text-[#C96A32] font-bold hover:underline">Sign In</button></span>
+            <span>Already have an account? <button onClick={() => { clearError(); setIsRegister(false); }} className="text-[#C96A32] font-bold hover:underline">Sign In</button></span>
           ) : (
-            <span>Don't have an account? <button onClick={() => setIsRegister(true)} className="text-[#C96A32] font-bold hover:underline">Register Now</button></span>
+            <span>Don't have an account? <button onClick={() => { clearError(); setIsRegister(true); }} className="text-[#C96A32] font-bold hover:underline">Register Now</button></span>
           )}
         </div>
       </div>
