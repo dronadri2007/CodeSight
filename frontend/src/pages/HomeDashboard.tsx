@@ -13,9 +13,21 @@ import {
   Trophy, 
   Award, 
   Zap, 
-  Bug 
+  Bug,
+  Network,
+  BarChart3,
+  Target
 } from 'lucide-react';
 import { phaseOneProblems, PhaseOneProblem } from '@/data/codesight';
+import {
+  ResponsiveContainer,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Tooltip
+} from 'recharts';
 
 interface HomeDashboardProps {
   onSelectProblem?: (problem: PhaseOneProblem, mode: 'student' | 'engineer') => void;
@@ -24,6 +36,8 @@ interface HomeDashboardProps {
 export default function HomeDashboard({ onSelectProblem }: HomeDashboardProps = {}) {
   const [, setLocation] = useLocation();
   const [showExam, setShowExam] = useState(false);
+  const [analysisTrack, setAnalysisTrack] = useState<'student' | 'engineer'>('student');
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph');
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -43,6 +57,26 @@ export default function HomeDashboard({ onSelectProblem }: HomeDashboardProps = 
     return () => window.removeEventListener('message', handleMessage);
   }, [setLocation]);
 
+  const studentSkillsData = [
+    { subject: 'Input Validation', score: 88, fullMark: 100, level: 'Proficient' },
+    { subject: 'Auth & Access', score: 92, fullMark: 100, level: 'Mastered' },
+    { subject: 'Error Handling', score: 45, fullMark: 100, level: 'Needs Practice' },
+    { subject: 'Concurrency', score: 78, fullMark: 100, level: 'Proficient' },
+    { subject: 'Logic & Boundary', score: 64, fullMark: 100, level: 'Developing' },
+    { subject: 'Resource & Perf', score: 82, fullMark: 100, level: 'Proficient' },
+  ];
+
+  const engineerSkillsData = [
+    { subject: 'Hallucination Spotting', score: 94, fullMark: 100, level: 'Mastered' },
+    { subject: 'Prompt Injection Def', score: 86, fullMark: 100, level: 'Proficient' },
+    { subject: 'Context Window Opt', score: 72, fullMark: 100, level: 'Developing' },
+    { subject: 'Guardrail Audit', score: 90, fullMark: 100, level: 'Mastered' },
+    { subject: 'Boundary Fix Eff', score: 58, fullMark: 100, level: 'Needs Practice' },
+    { subject: 'Benchmark Validation', score: 84, fullMark: 100, level: 'Proficient' },
+  ];
+
+  const activeSkillsData = analysisTrack === 'student' ? studentSkillsData : engineerSkillsData;
+
   const defectClasses = [
     {
       title: 'Logic & Boundary Conditions',
@@ -53,32 +87,32 @@ export default function HomeDashboard({ onSelectProblem }: HomeDashboardProps = 
     {
       title: 'Injection & Input Validation',
       detail: '(SQL injection, command injection, unescaped params)',
-      rate: '58%',
-      progress: 58,
+      rate: '88%',
+      progress: 88,
     },
     {
       title: 'Auth & Access Control',
       detail: '(Timing attacks, session hijacking, broken ACLs)',
-      rate: '50%',
-      progress: 50,
+      rate: '92%',
+      progress: 92,
     },
     {
       title: 'Concurrency & Race Conditions',
       detail: '(Deadlocks, non-deterministic lock ordering)',
-      rate: '50%',
-      progress: 50,
+      rate: '78%',
+      progress: 78,
     },
     {
       title: 'Error & Exception Handling',
       detail: '(NoneType subscript errors, swallowed exceptions)',
-      rate: '50%',
-      progress: 50,
+      rate: '45%',
+      progress: 45,
     },
     {
       title: 'Resource Leaks & Performance',
       detail: '(Unbounded memory loads, unclosed descriptors)',
-      rate: '50%',
-      progress: 50,
+      rate: '82%',
+      progress: 82,
     },
   ];
 
@@ -304,51 +338,179 @@ export default function HomeDashboard({ onSelectProblem }: HomeDashboardProps = 
             </div>
           </div>
 
-          {/* Right Column: Defect Class Catch Rates */}
+          {/* Right Column: Concept Mastery & Skill Graph Analysis */}
           <div className="rounded-2xl border border-[#D8D0C0] bg-[#ECE7DA] p-6 shadow-sm lg:col-span-7">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D8D0C0] pb-4">
+            {/* Header with Title and Control Options */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D8D0C0] pb-4">
               <div>
-                <h3 className="text-base font-bold text-[#17130F]">Concept Mastery & Weakness Profile</h3>
+                <h3 className="text-base font-bold text-[#17130F]">Concept Mastery & Skill Graph</h3>
                 <p className="mt-1 text-xs text-[#786F65]">
-                  Real-time catch rate tracking across the 6 defect classes based on test suite execution.
+                  Real-time skill analysis for {analysisTrack === 'student' ? 'Student Track' : 'AI Engineer Track'}.
                 </p>
               </div>
-              <span className="mono text-[11px] font-bold text-[#786F65]">6 Defect Classes</span>
+
+              {/* View Mode Switcher (Skill Graph vs List) */}
+              <div className="flex items-center gap-1 rounded-xl border border-[#D8D0C0] bg-[#E2DCCF] p-1">
+                <button
+                  onClick={() => setViewMode('graph')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold transition-all ${
+                    viewMode === 'graph'
+                      ? 'bg-[#17130F] text-[#FFF7ED] shadow-sm'
+                      : 'text-[#655D54] hover:text-[#17130F]'
+                  }`}
+                >
+                  <Network size={13} />
+                  <span>Skill Graph</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-[#17130F] text-[#FFF7ED] shadow-sm'
+                      : 'text-[#655D54] hover:text-[#17130F]'
+                  }`}
+                >
+                  <BarChart3 size={13} />
+                  <span>List View</span>
+                </button>
+              </div>
             </div>
 
-            <div className="mt-5 space-y-4">
-              {defectClasses.map((item) => (
-                <div key={item.title} className="rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ECE7DA] text-[#17130F]">
-                        <Bug size={13} />
-                      </span>
-                      <div>
-                        <span className="text-xs font-bold text-[#17130F]">{item.title}</span>
-                        <span className="ml-1 text-[11px] text-[#786F65]">{item.detail}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="mono text-xs font-bold text-[#17130F]">{item.rate}</span>
-                      <button
-                        onClick={() => setLocation('/learn')}
-                        className="text-xs font-semibold text-[#17130F] hover:underline"
-                      >
-                        Deep Dive →
-                      </button>
+            {/* Track Analysis Option Selector */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-3">
+              <span className="mono text-[11px] font-bold text-[#786F65] uppercase flex items-center gap-1.5">
+                <Target size={13} className="text-[#17130F]" />
+                Analysis Track Option:
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setAnalysisTrack('student')}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                    analysisTrack === 'student'
+                      ? 'border-[#17130F] bg-[#17130F] text-[#FFF7ED] shadow-sm'
+                      : 'border-[#D8D0C0] bg-[#ECE7DA] text-[#655D54] hover:bg-[#D8D0C0] hover:text-[#17130F]'
+                  }`}
+                >
+                  <GraduationCap size={13} />
+                  <span>Student Track</span>
+                </button>
+
+                <button
+                  onClick={() => setAnalysisTrack('engineer')}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                    analysisTrack === 'engineer'
+                      ? 'border-[#17130F] bg-[#17130F] text-[#FFF7ED] shadow-sm'
+                      : 'border-[#D8D0C0] bg-[#ECE7DA] text-[#655D54] hover:bg-[#D8D0C0] hover:text-[#17130F]'
+                  }`}
+                >
+                  <Bot size={13} />
+                  <span>AI Engineer Track</span>
+                </button>
+              </div>
+            </div>
+
+            {/* CONTENT DISPLAY: RADAR SKILL GRAPH VS LIST VIEW */}
+            {viewMode === 'graph' ? (
+              <div className="mt-5 space-y-4">
+                {/* Interactive Recharts Radar Chart */}
+                <div className="relative h-64 w-full rounded-2xl border border-[#D8D0C0] bg-[#F7F4EC] p-2 flex items-center justify-center">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={activeSkillsData}>
+                      <PolarGrid stroke="#D8D0C0" strokeDasharray="3 3" />
+                      <PolarAngleAxis 
+                        dataKey="subject" 
+                        tick={{ fill: '#17130F', fontSize: 11, fontWeight: 700 }}
+                      />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#A39B8E" fontSize={10} />
+                      <Radar
+                        name="Skill Mastery"
+                        dataKey="score"
+                        stroke="#17130F"
+                        strokeWidth={2}
+                        fill="#17130F"
+                        fillOpacity={0.25}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="rounded-xl border border-[#D8D0C0] bg-[#17130F] p-3 text-[#FFF7ED] shadow-lg">
+                                <div className="text-xs font-bold">{data.subject}</div>
+                                <div className="mt-1 flex items-center gap-2 text-xs">
+                                  <span className="mono text-[#D97706] font-bold">{data.score}%</span>
+                                  <span className="rounded bg-[#2C241D] px-1.5 py-0.5 text-[10px] text-[#E2DCCF]">
+                                    {data.level}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Summary Stat Footer Metrics */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-3 text-center">
+                    <div className="mono text-[10px] font-bold text-[#786F65] uppercase">Overall Mastery</div>
+                    <div className="mt-1 text-base font-extrabold text-[#17130F]">
+                      {analysisTrack === 'student' ? '74.8%' : '80.6%'}
                     </div>
                   </div>
-
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#E2DCCF]">
-                    <div
-                      style={{ width: `${item.progress}%` }}
-                      className="h-full rounded-full bg-[#17130F] transition-all duration-500"
-                    />
+                  <div className="rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-3 text-center">
+                    <div className="mono text-[10px] font-bold text-[#786F65] uppercase">Strongest Skill</div>
+                    <div className="mt-1 text-xs font-bold text-[#17130F] truncate">
+                      {analysisTrack === 'student' ? 'Auth & Access (92%)' : 'Hallucination Spotting (94%)'}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-3 text-center">
+                    <div className="mono text-[10px] font-bold text-[#D97706] uppercase">Focus Weakness</div>
+                    <div className="mt-1 text-xs font-bold text-[#17130F] truncate">
+                      {analysisTrack === 'student' ? 'Error Handling (45%)' : 'Boundary Fix Eff (58%)'}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              /* List View Progress Bars */
+              <div className="mt-5 space-y-3">
+                {defectClasses.map((item) => (
+                  <div key={item.title} className="rounded-xl border border-[#D8D0C0] bg-[#F7F4EC] p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="grid h-6 w-6 place-items-center rounded-full bg-[#ECE7DA] text-[#17130F]">
+                          <Bug size={13} />
+                        </span>
+                        <div>
+                          <span className="text-xs font-bold text-[#17130F]">{item.title}</span>
+                          <span className="ml-1 text-[11px] text-[#786F65]">{item.detail}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="mono text-xs font-bold text-[#17130F]">{item.rate}</span>
+                        <button
+                          onClick={() => setLocation('/learn')}
+                          className="text-xs font-semibold text-[#17130F] hover:underline"
+                        >
+                          Deep Dive →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#E2DCCF]">
+                      <div
+                        style={{ width: `${item.progress}%` }}
+                        className="h-full rounded-full bg-[#17130F] transition-all duration-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
