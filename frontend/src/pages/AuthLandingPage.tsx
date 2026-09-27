@@ -10,8 +10,16 @@ import { ArrowRight, Key } from 'lucide-react';
 
 export default function AuthLandingPage() {
   const [, setLocation] = useLocation();
-  const { login, signup, loginWithProvider, error, pending } = useAuth();
+  const { login, signup, loginWithProvider, error, pending, clearError } = useAuth();
   const [localError, setLocalError] = useState<string | null>(null);
+
+  // Clear any stale error (from a previous submit) whenever the person
+  // starts editing the form again or switches between login/signup, so an
+  // old failure doesn't stay pinned on screen through an unrelated attempt.
+  const clearAllErrors = () => {
+    setLocalError(null);
+    clearError();
+  };
 
   // Auth Mode State (login | signup)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>(() => {
@@ -106,7 +114,7 @@ export default function AuthLandingPage() {
 
           <div className="flex items-center gap-4 font-mono text-xs">
             <button
-              onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+              onClick={() => { clearAllErrors(); setAuthMode(authMode === 'login' ? 'signup' : 'login'); }}
               className="font-bold text-[#403A32] hover:text-[#17130F]"
             >
               {authMode === 'login' ? "DON'T HAVE AN ACCOUNT? CREATE AN ACCOUNT →" : 'ALREADY HAVE AN ACCOUNT? LOG IN →'}
@@ -175,7 +183,7 @@ export default function AuthLandingPage() {
                     <input
                       type="text"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => { setName(e.target.value); clearAllErrors(); }}
                       placeholder="Alex Morgan"
                       className="w-full rounded-lg border border-[#D8D0C0] bg-[#F8F5EC] p-3 text-[#17130F] outline-none focus:border-[#17130F]"
                       required
@@ -188,7 +196,7 @@ export default function AuthLandingPage() {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); clearAllErrors(); }}
                     placeholder="developer@codesight.dev"
                     className="w-full rounded-lg border border-[#D8D0C0] bg-[#F8F5EC] p-3 text-[#17130F] outline-none focus:border-[#17130F]"
                     required
@@ -200,7 +208,7 @@ export default function AuthLandingPage() {
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); clearAllErrors(); }}
                     placeholder="••••••••••••"
                     className="w-full rounded-lg border border-[#D8D0C0] bg-[#F8F5EC] p-3 text-[#17130F] outline-none focus:border-[#17130F]"
                     required
@@ -213,7 +221,7 @@ export default function AuthLandingPage() {
                     <input
                       type="password"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => { setConfirmPassword(e.target.value); clearAllErrors(); }}
                       placeholder="••••••••••••"
                       className="w-full rounded-lg border border-[#D8D0C0] bg-[#F8F5EC] p-3 text-[#17130F] outline-none focus:border-[#17130F]"
                       required
@@ -268,14 +276,14 @@ export default function AuthLandingPage() {
                 {authMode === 'login' ? (
                   <p>
                     Don't have an account?{' '}
-                    <button onClick={() => setAuthMode('signup')} className="font-bold text-[#17130F] underline">
+                    <button onClick={() => { clearAllErrors(); setAuthMode('signup'); }} className="font-bold text-[#17130F] underline">
                       CREATE AN ACCOUNT →
                     </button>
                   </p>
                 ) : (
                   <p>
                     Already have an account?{' '}
-                    <button onClick={() => setAuthMode('login')} className="font-bold text-[#17130F] underline">
+                    <button onClick={() => { clearAllErrors(); setAuthMode('login'); }} className="font-bold text-[#17130F] underline">
                       LOG IN →
                     </button>
                   </p>
